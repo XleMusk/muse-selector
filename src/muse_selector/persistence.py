@@ -100,6 +100,7 @@ class SelectorStore:
                 CREATE TABLE IF NOT EXISTS result_cards (
                     run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
                     listing_id TEXT NOT NULL,
+                    source_rank INTEGER NOT NULL DEFAULT 0,
                     card_json TEXT NOT NULL,
                     PRIMARY KEY (run_id, listing_id)
                 );
@@ -121,6 +122,9 @@ class SelectorStore:
             watch_columns = {row["name"] for row in conn.execute("PRAGMA table_info(watches)")}
             if "revision" not in watch_columns:
                 conn.execute("ALTER TABLE watches ADD COLUMN revision INTEGER NOT NULL DEFAULT 0")
+            card_columns = {row["name"] for row in conn.execute("PRAGMA table_info(result_cards)")}
+            if "source_rank" not in card_columns:
+                conn.execute("ALTER TABLE result_cards ADD COLUMN source_rank INTEGER NOT NULL DEFAULT 0")
 
     def save_run(self, payload: Mapping[str, Any], *, run_id: str | None = None) -> tuple[str, bool]:
         """Persist a result exactly once and return ``(run_id, inserted)``."""
@@ -157,9 +161,12 @@ class SelectorStore:
         inserted = cursor.rowcount == 1
         if inserted:
             for card in payload_dict.get("recommended", []) or []:
+                source_rank = card.get("source_rank", 0)
+                if isinstance(source_rank, bool) or not isinstance(source_rank, int) or source_rank < 0:
+                    source_rank = 0
                 conn.execute(
-                    "INSERT INTO result_cards(run_id, listing_id, card_json) VALUES (?, ?, ?)",
-                    (resolved_id, str(card["listing_id"]), _canonical(card)),
+                    "INSERT INTO result_cards(run_id, listing_id, source_rank, card_json) VALUES (?, ?, ?, ?)",
+                    (resolved_id, str(card["listing_id"]), source_rank, _canonical(card)),
                 )
         return resolved_id, inserted
 
@@ -173,7 +180,7 @@ class SelectorStore:
 
         with self._connection() as conn:
             rows = conn.execute(
-                "SELECT card_json FROM result_cards WHERE run_id = ? ORDER BY listing_id",
+                "SELECT card_json FROM result_cards WHERE run_id = ? ORDER BY source_rank, listing_id",
                 (run_id,),
             ).fetchall()
         return [json.loads(row["card_json"]) for row in rows]

@@ -13,6 +13,29 @@ FIXTURE = ROOT / "tests" / "fixtures" / "ebay_hk_sample.json"
 
 
 class PersistenceTests(unittest.TestCase):
+    def test_list_cards_preserves_source_rank_for_replay(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            payload = {
+                "ok": True,
+                "status": "complete",
+                "search_spec": {"query": "same"},
+                "recommended": [
+                    {"listing_id": "source-second", "source_rank": 2},
+                    {"listing_id": "source-first", "source_rank": 1},
+                ],
+                "rejected": [],
+                "dropped": [],
+                "source": "ebay.browse.hk.v1",
+                "read_only": True,
+            }
+            run_id, inserted = store.save_run(payload)
+            self.assertTrue(inserted)
+            self.assertEqual(
+                [card["listing_id"] for card in store.list_cards(run_id)],
+                ["source-first", "source-second"],
+            )
+
     def test_concurrent_same_run_is_idempotent(self):
         with tempfile.TemporaryDirectory() as directory:
             db_path = Path(directory) / "selector.sqlite3"
