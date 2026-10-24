@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from muse_selector.filtering import filter_listings
-from muse_selector.pipeline import _to_listing, run_search
+from muse_selector.pipeline import _extract_specs, _to_listing, run_search
 from muse_selector.query_parser import PolicyBlockedError, parse_query
 from muse_selector.result_card import render_markdown
 
@@ -127,6 +127,10 @@ class PipelineTests(unittest.TestCase):
         accepted, decisions = filter_listings(spec, [listing])
         self.assertEqual(accepted, [])
         self.assertIn("risk_flagged", decisions[0].reasons)
+
+    def test_title_ram_is_not_inferred_as_vram(self):
+        self.assertNotIn("vram_gb", _extract_specs("Gaming desktop RTX 4090 64GB RAM"))
+        self.assertEqual(_extract_specs("RTX 4070 12GB VRAM"), {"vram_gb": 12})
 
     def test_malformed_listing_required_fields_are_dropped_without_traceback(self):
         for field, reason in (("listing_id", "missing_listing_id"), ("title", "missing_title")):

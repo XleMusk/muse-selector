@@ -16,7 +16,9 @@ from .result_card import build_card
 
 _RAM_TITLE = re.compile(r"(\d+)\s*GB\s*(?:RAM|内存|(?=\s+\d+(?:GB|TB)\s*(?:NVMe|SSD)))", re.I)
 _STORAGE_TITLE = re.compile(r"(\d+(?:\.\d+)?)\s*(GB|TB)\s*(?:NVMe|SSD|存储)", re.I)
-_VRAM_TITLE = re.compile(r"RTX\s*\d+\D+(\d+)\s*GB", re.I)
+# Only infer VRAM when the title labels it explicitly.  A broad ``RTX ... GB``
+# pattern misread system RAM (for example ``RTX 4090 64GB RAM``) as VRAM.
+_VRAM_TITLE = re.compile(r"\b(?:RTX|GTX)\s*\d+\D+(\d+)\s*GB\s*(?:VRAM|显存)\b", re.I)
 _ALLOWED_SOURCE_HOSTS = {"ebay.com.hk", "www.ebay.com.hk", "ebay.com", "www.ebay.com"}
 
 
