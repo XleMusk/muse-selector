@@ -176,6 +176,15 @@ class EbayBrowseConnector:
             raise ConnectorUnavailable("eBay response itemSummaries must be a list")
         if any(not isinstance(item, dict) for item in items):
             raise ConnectorUnavailable("eBay response itemSummaries must contain only JSON objects")
+        listing_ids: list[str] = []
+        for item in items:
+            item_id = item.get("itemId")
+            if item_id is not None and not isinstance(item_id, str):
+                raise ConnectorUnavailable("eBay response itemSummaries itemId values must be strings")
+            if item_id:
+                listing_ids.append(item_id)
+        if len(listing_ids) != len(set(listing_ids)):
+            raise ConnectorUnavailable("eBay response itemSummaries contains duplicate itemId values")
         self._source_metadata = self._normalize_source_metadata(payload)
         listings = [
             self._normalize_item(
