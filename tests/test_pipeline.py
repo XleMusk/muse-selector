@@ -132,6 +132,29 @@ class PipelineTests(unittest.TestCase):
         self.assertNotIn("vram_gb", _extract_specs("Gaming desktop RTX 4090 64GB RAM"))
         self.assertEqual(_extract_specs("RTX 4070 12GB VRAM"), {"vram_gb": 12})
 
+    def test_unknown_or_ambiguous_shipping_is_not_recommended(self):
+        base = {
+            "listing_id": "shipping-1",
+            "source_id": "ebay.browse.hk.v1",
+            "title": "Mini PC 32GB 1TB NVMe",
+            "url": "https://www.ebay.com.hk/itm/shipping-1",
+            "price": {"value": 4999, "currency": "HKD"},
+            "availability": "IN_STOCK",
+            "condition": "New",
+        }
+        spec = parse_query("香港预算 HKD 7000 以内的迷你主机")
+        for shipping, flag in (
+            ([], "shipping_unknown"),
+            ([{"shippingCost": {"value": "0", "currency": "HKD"}}, {"shippingCost": {"value": "100", "currency": "HKD"}}], "shipping_ambiguous"),
+        ):
+            row = {**base, "shipping_options": shipping}
+            listing, evidence, reason = _to_listing(row)
+            self.assertIsNone(reason)
+            self.assertIn(flag, listing.risk_flags)
+            accepted, decisions = filter_listings(spec, [listing])
+            self.assertEqual(accepted, [])
+            self.assertIn("risk_flagged", decisions[0].reasons)
+
     def test_malformed_listing_required_fields_are_dropped_without_traceback(self):
         for field, reason in (("listing_id", "missing_listing_id"), ("title", "missing_title")):
             row = {

@@ -77,10 +77,20 @@ def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], st
     price = row.get("price") or {}
     if str(price.get("currency") or "HKD") != "HKD":
         return None, [], "currency_mismatch"
-    shipping = row.get("shipping_options") or []
-    shipping_value = None
-    if shipping and isinstance(shipping[0], dict):
-        shipping_value = (shipping[0].get("shippingCost") or {}).get("value")
+    shipping = row.get("shipping_options")
+    shipping_values: list[Any] = []
+    if isinstance(shipping, list):
+        for option in shipping:
+            if not isinstance(option, dict):
+                continue
+            cost = option.get("shippingCost")
+            if not isinstance(cost, dict) or cost.get("value") is None:
+                continue
+            if str(cost.get("currency") or "HKD") != "HKD":
+                continue
+            shipping_values.append(cost["value"])
+    unique_shipping_values = {str(value) for value in shipping_values}
+    shipping_value = shipping_values[0] if len(unique_shipping_values) == 1 else None
     feedback = (row.get("seller") or {}).get("feedback_percentage")
     flags: list[str] = []
     try:
@@ -92,6 +102,10 @@ def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], st
         flags.append("availability_unknown")
     if price.get("value") is None:
         flags.append("price_unknown")
+    if not shipping_values:
+        flags.append("shipping_unknown")
+    elif len(unique_shipping_values) > 1:
+        flags.append("shipping_ambiguous")
     evidence: list[Evidence] = []
     for index, item in enumerate(row.get("evidence") or []):
         if not item.get("source_url") or not _allowed_source_url(str(item["source_url"])):
