@@ -140,6 +140,14 @@ class EbayLiveAdapterTests(unittest.TestCase):
         with self.assertRaises(ConnectorUnavailable):
             connector.search({"query": "mini pc"})
 
+    def test_oauth_token_refreshes_after_expiry(self):
+        opener = _Opener()
+        connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=opener)
+        self.assertEqual(connector._application_token(), "test-token")
+        connector._token_expires_at = 0.0
+        self.assertEqual(connector._application_token(), "test-token")
+        self.assertEqual([method for method, _, _ in opener.requests], ["POST", "POST"])
+
     def test_browse_http_error_fails_closed(self):
         connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=_HttpErrorOpener(fail_on="GET"))
         with self.assertRaises(ConnectorUnavailable):

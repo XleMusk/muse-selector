@@ -15,6 +15,7 @@ import re
 import urllib.error
 import urllib.parse
 import urllib.request
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -83,6 +84,7 @@ class EbayBrowseConnector:
         self.client_secret = client_secret if client_secret is not None else os.getenv("EBAY_CLIENT_SECRET")
         self.opener = opener or urllib.request.build_opener()
         self._token: str | None = None
+        self._token_expires_at = 0.0
 
     @property
     def live_enabled(self) -> bool:
@@ -158,7 +160,7 @@ class EbayBrowseConnector:
         return payload
 
     def _application_token(self) -> str:
-        if self._token:
+        if self._token and time.monotonic() < self._token_expires_at:
             return self._token
         raw = f"{self.client_id}:{self.client_secret}".encode("utf-8")
         auth = base64.b64encode(raw).decode("ascii")
@@ -194,6 +196,13 @@ class EbayBrowseConnector:
         if not token:
             raise ConnectorUnavailable("eBay OAuth response did not contain access_token")
         self._token = str(token)
+        try:
+            expires_in = float(payload.get("expires_in", 3600))
+        except (TypeError, ValueError):
+            expires_in = 3600.0
+        if not math.isfinite(expires_in) or expires_in <= 0:
+            expires_in = 3600.0
+        self._token_expires_at = time.monotonic() + max(1.0, expires_in - 60.0)
         return self._token
 
     def _query_params(self, search_spec: Mapping[str, Any]) -> dict[str, str]:
