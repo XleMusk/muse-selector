@@ -21,6 +21,10 @@ class EbayBrowseConnectorTests(unittest.TestCase):
         self.assertIsNone(unknown["url"])
         self.assertEqual(unknown["availability"], "unknown")
 
+    def test_fixture_filters_budget_range_at_connector_boundary(self):
+        rows = EbayBrowseConnector(fixture_path=FIXTURE).search({"query": "mini pc", "budget_min": 5000, "budget_max": 7000})
+        self.assertEqual([row["listing_id"] for row in rows], ["v1|100000000001|0"])
+
     def test_budget_filter_keeps_unknown_price(self):
         data = {"itemSummaries": [{"itemId": "x", "title": "unknown price"}]}
         with tempfile.TemporaryDirectory() as d:

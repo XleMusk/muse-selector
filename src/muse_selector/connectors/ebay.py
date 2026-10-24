@@ -264,19 +264,29 @@ class EbayBrowseConnector:
     def _apply_local_constraints(
         listings: list[dict[str, Any]], search_spec: Mapping[str, Any]
     ) -> list[dict[str, Any]]:
-        budget = search_spec.get("budget_max")
-        if budget is None and isinstance(search_spec.get("budget"), dict):
-            budget = search_spec["budget"].get("max")
-        if budget is None:
+        budget_min = search_spec.get("budget_min")
+        budget_max = search_spec.get("budget_max")
+        if isinstance(search_spec.get("budget"), dict):
+            budget_min = budget_min if budget_min is not None else search_spec["budget"].get("min")
+            budget_max = budget_max if budget_max is not None else search_spec["budget"].get("max")
+        if budget_min is None and budget_max is None:
             return listings
         try:
-            max_price = float(budget)
+            min_price = float(budget_min) if budget_min is not None else None
+            max_price = float(budget_max) if budget_max is not None else None
         except (TypeError, ValueError):
             return listings
         filtered: list[dict[str, Any]] = []
         for listing in listings:
             value = listing.get("price", {}).get("value")
-            if value is None or float(value) <= max_price:
+            if value is None:
                 filtered.append(listing)
+                continue
+            numeric_value = float(value)
+            if min_price is not None and numeric_value < min_price:
+                continue
+            if max_price is not None and numeric_value > max_price:
+                continue
+            filtered.append(listing)
         return filtered
 
