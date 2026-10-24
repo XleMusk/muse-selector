@@ -366,6 +366,9 @@ class PipelineTests(unittest.TestCase):
         self.assertIsNone(reason)
         self.assertEqual(evidence, [])
         self.assertIn("evidence_source_mismatch", listing.risk_flags)
+        accepted, decisions = filter_listings(parse_query("香港预算 HKD 7000 以内的迷你主机"), [listing])
+        self.assertEqual(accepted, [])
+        self.assertIn("risk_flagged", decisions[0].reasons)
 
     def test_title_ram_is_not_inferred_as_vram(self):
         self.assertNotIn("vram_gb", _extract_specs("Gaming desktop RTX 4090 64GB RAM"))
