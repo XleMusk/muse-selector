@@ -10,7 +10,7 @@ from typing import Any, Mapping
 from urllib.parse import urlparse
 
 from .connectors.ebay import ConnectorUnavailable, EbayBrowseConnector
-from .contracts import ALLOWED_STATUSES, KEY_EVIDENCE_FIELDS, Evidence, Listing
+from .contracts import ALLOWED_SOURCE_IDS, ALLOWED_STATUSES, KEY_EVIDENCE_FIELDS, Evidence, Listing
 from .filtering import filter_listings
 from .query_parser import PolicyBlockedError, has_explicit_unbounded_budget, parse_query
 from .result_card import build_card
@@ -132,6 +132,8 @@ def _fit_explanation(spec: Any, listing: Listing) -> tuple[float, dict[str, Any]
 def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], str | None]:
     if not row.get("listing_id"):
         return None, [], "missing_listing_id"
+    if row.get("source_id") not in ALLOWED_SOURCE_IDS:
+        return None, [], "untrusted_source_id"
     if not row.get("title"):
         return None, [], "missing_title"
     url = row.get("url")

@@ -370,6 +370,20 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(accepted, [])
         self.assertIn("risk_flagged", decisions[0].reasons)
 
+    def test_unregistered_listing_source_is_dropped(self):
+        listing, evidence, reason = _to_listing({
+            "listing_id": "unregistered-source-1",
+            "source_id": "unregistered.source",
+            "title": "Mini PC",
+            "url": "https://www.ebay.com.hk/itm/unregistered-source-1",
+            "price": {"value": 4999, "currency": "HKD"},
+            "availability": "IN_STOCK",
+            "condition": "New",
+        })
+        self.assertIsNone(listing)
+        self.assertEqual(evidence, [])
+        self.assertEqual(reason, "untrusted_source_id")
+
     def test_title_ram_is_not_inferred_as_vram(self):
         self.assertNotIn("vram_gb", _extract_specs("Gaming desktop RTX 4090 64GB RAM"))
         self.assertEqual(_extract_specs("RTX 4070 12GB VRAM"), {"vram_gb": 12})
