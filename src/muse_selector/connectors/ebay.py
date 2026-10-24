@@ -101,9 +101,12 @@ class EbayBrowseConnector:
         if not self.fixture_path or not self.fixture_path.exists():
             raise ConnectorUnavailable(f"fixture not found: {self.fixture_path}")
         try:
-            return json.loads(self.fixture_path.read_text(encoding="utf-8"))
+            payload = json.loads(self.fixture_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             raise ConnectorUnavailable(f"invalid eBay fixture: {exc}") from exc
+        if not isinstance(payload, dict):
+            raise ConnectorUnavailable("invalid eBay fixture: expected a JSON object")
+        return payload
 
     def _live_search(self, search_spec: Mapping[str, Any]) -> dict[str, Any]:
         if not self.live_enabled:
@@ -139,9 +142,12 @@ class EbayBrowseConnector:
         if status >= 400:
             raise ConnectorUnavailable(f"eBay Browse API HTTP {status}")
         try:
-            return json.loads(body.decode("utf-8"))
+            payload = json.loads(body.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise ConnectorUnavailable("eBay Browse API returned invalid JSON") from exc
+        if not isinstance(payload, dict):
+            raise ConnectorUnavailable("eBay Browse API returned a non-object JSON payload")
+        return payload
 
     def _application_token(self) -> str:
         if self._token:
@@ -167,6 +173,8 @@ class EbayBrowseConnector:
                 payload = json.loads(response.read().decode("utf-8"))
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as exc:
             raise ConnectorUnavailable(f"eBay OAuth token request failed: {exc}") from exc
+        if not isinstance(payload, dict):
+            raise ConnectorUnavailable("eBay OAuth response was not a JSON object")
         token = payload.get("access_token")
         if not token:
             raise ConnectorUnavailable("eBay OAuth response did not contain access_token")

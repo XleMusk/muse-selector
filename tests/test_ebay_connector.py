@@ -30,6 +30,13 @@ class EbayBrowseConnectorTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertIsNone(rows[0]["price"]["value"])
 
+    def test_non_object_fixture_fails_closed(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "fixture.json"
+            p.write_text(json.dumps([{"itemId": "x"}]), encoding="utf-8")
+            with self.assertRaises(ConnectorUnavailable):
+                EbayBrowseConnector(fixture_path=p).search({"query": "mini pc"})
+
     def test_live_mode_is_closed_without_credentials(self):
         connector = EbayBrowseConnector(config=EbayConnectorConfig())
         with self.assertRaises(ConnectorUnavailable):

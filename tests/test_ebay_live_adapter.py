@@ -2,7 +2,7 @@ import json
 import unittest
 from pathlib import Path
 
-from muse_selector.connectors.ebay import EbayBrowseConnector
+from muse_selector.connectors.ebay import ConnectorUnavailable, EbayBrowseConnector
 
 
 class _Response:
@@ -42,6 +42,14 @@ class _Opener:
         })
 
 
+class _NonObjectOpener(_Opener):
+    def open(self, request, timeout=None):
+        self.requests.append((request.get_method(), request.full_url, dict(request.headers)))
+        if request.full_url.endswith("/identity/v1/oauth2/token"):
+            return _Response({"access_token": "test-token"})
+        return _Response(["unexpected", "array"])
+
+
 class EbayLiveAdapterTests(unittest.TestCase):
     def test_oauth_and_browse_are_read_only_and_normalized(self):
         opener = _Opener()
@@ -59,6 +67,11 @@ class EbayLiveAdapterTests(unittest.TestCase):
             "contextualLocation=country%3DHK",
         )
         self.assertIn("deliveryCountry%3AHK", opener.requests[1][1])
+
+    def test_non_object_browse_response_fails_closed(self):
+        connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=_NonObjectOpener())
+        with self.assertRaises(ConnectorUnavailable):
+            connector.search({"query": "mini pc"})
 
 
 if __name__ == "__main__":
