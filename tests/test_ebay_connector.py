@@ -42,6 +42,21 @@ class EbayBrowseConnectorTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertIsNone(rows[0]["price"]["value"])
 
+    def test_fixture_creation_date_is_not_reported_as_observation_time(self):
+        data = {
+            "itemSummaries": [{
+                "itemId": "fixture-clock",
+                "title": "Mini PC",
+                "itemCreationDate": "2026-10-20T00:00:00.000Z",
+            }]
+        }
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "fixture.json"
+            p.write_text(json.dumps(data), encoding="utf-8")
+            rows = EbayBrowseConnector(fixture_path=p).search({"query": "mini pc"})
+        self.assertEqual(rows[0]["source_observed_at"], "unknown")
+        self.assertEqual(rows[0]["evidence"][0]["observed_at"], "unknown")
+
     def test_response_metadata_preserves_page_links_and_counters(self):
         data = {
             "href": "https://api.ebay.com/buy/browse/v1/item_summary/search?q=mini%20pc&limit=1&offset=1",
