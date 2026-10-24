@@ -30,6 +30,7 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(payload["dropped"])
         self.assertTrue(payload["recommended"][0]["url"].startswith("https://www.ebay.com.hk/"))
         self.assertTrue(payload["recommended"][0]["evidence"])
+        self.assertEqual(payload["recommended"][0]["evidence_coverage"], 1.0)
         self.assertEqual(payload["recommended"][0]["source_observed_at"], "unknown")
         self.assertEqual(payload["recommended"][0]["specs"], {"ram_gb": 32, "storage_gb": 1024})
         self.assertTrue(payload["read_only"])
@@ -65,6 +66,7 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("结果卡", report)
         self.assertIn("打开原平台", report)
         self.assertIn("来源观测时间", report)
+        self.assertIn("关键字段证据覆盖率：100.0%", report)
 
     def test_markdown_reports_blocked_and_unavailable_states(self):
         blocked = render_markdown(run_search("帮我买一个游戏账号并完成转移"))
@@ -125,6 +127,33 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("evidence_conflict_or_stale", listing.risk_flags)
         spec = parse_query("香港预算 HKD 7000 以内的迷你主机")
         accepted, decisions = filter_listings(spec, [listing])
+        self.assertEqual(accepted, [])
+        self.assertIn("risk_flagged", decisions[0].reasons)
+
+    def test_low_evidence_coverage_is_flagged_and_rejected(self):
+        row = {
+            "listing_id": "coverage-1",
+            "source_id": "ebay.browse.hk.v1",
+            "title": "Mini PC",
+            "url": "https://www.ebay.com.hk/itm/coverage-1",
+            "price": {"value": 4999, "currency": "HKD"},
+            "availability": "IN_STOCK",
+            "condition": "New",
+            "shipping_options": [{"shippingCost": {"value": "0", "currency": "HKD"}}],
+            "evidence": [{
+                "source_id": "ebay.browse.hk.v1",
+                "source_url": "https://www.ebay.com.hk/itm/coverage-1",
+                "field": "title",
+                "value": "Mini PC",
+                "observed_at": "2026-10-24T00:00:00Z",
+                "status": "confirmed",
+            }],
+        }
+        listing, _, reason = _to_listing(row)
+        self.assertIsNone(reason)
+        self.assertAlmostEqual(listing.evidence_coverage, 1 / 6, places=4)
+        self.assertIn("evidence_coverage_low", listing.risk_flags)
+        accepted, decisions = filter_listings(parse_query("香港预算 HKD 7000 以内的迷你主机"), [listing])
         self.assertEqual(accepted, [])
         self.assertIn("risk_flagged", decisions[0].reasons)
 

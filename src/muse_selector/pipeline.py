@@ -8,7 +8,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from .connectors.ebay import ConnectorUnavailable, EbayBrowseConnector
-from .contracts import Evidence, Listing
+from .contracts import KEY_EVIDENCE_FIELDS, Evidence, Listing
 from .filtering import filter_listings
 from .query_parser import PolicyBlockedError, has_explicit_unbounded_budget, parse_query
 from .result_card import build_card
@@ -20,6 +20,7 @@ _STORAGE_TITLE = re.compile(r"(\d+(?:\.\d+)?)\s*(GB|TB)\s*(?:NVMe|SSD|存储)", 
 # pattern misread system RAM (for example ``RTX 4090 64GB RAM``) as VRAM.
 _VRAM_TITLE = re.compile(r"\b(?:RTX|GTX)\s*\d+\D+(\d+)\s*GB\s*(?:VRAM|显存)\b", re.I)
 _ALLOWED_SOURCE_HOSTS = {"ebay.com.hk", "www.ebay.com.hk", "ebay.com", "www.ebay.com"}
+_MIN_EVIDENCE_COVERAGE = 0.95
 
 
 def _allowed_source_url(value: str) -> bool:
@@ -122,6 +123,10 @@ def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], st
         ))
     if any(item.status in {"stale", "conflict"} for item in evidence):
         flags.append("evidence_conflict_or_stale")
+    confirmed_fields = {item.field for item in evidence if item.status == "confirmed" and item.field in KEY_EVIDENCE_FIELDS}
+    evidence_coverage = round(len(confirmed_fields) / len(KEY_EVIDENCE_FIELDS), 4)
+    if evidence_coverage < _MIN_EVIDENCE_COVERAGE:
+        flags.append("evidence_coverage_low")
     listing = Listing(
         listing_id=str(row["listing_id"]),
         source_id=str(row["source_id"]),
@@ -137,6 +142,7 @@ def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], st
         evidence_ids=tuple(item.evidence_id for item in evidence),
         source_observed_at=str(row.get("source_observed_at") or "unknown"),
         risk_flags=tuple(flags),
+        evidence_coverage=evidence_coverage,
     )
     return listing, evidence, None
 
@@ -212,6 +218,7 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
                 evidence_ids=listing.evidence_ids,
                 source_observed_at=listing.source_observed_at,
                 risk_flags=tuple((*listing.risk_flags, "query_mismatch")),
+                evidence_coverage=listing.evidence_coverage,
             )
         listings.append(listing)
         evidence_by_id[listing.listing_id] = evidence

@@ -30,6 +30,7 @@ class ResultCard:
     tax: str | None = None
     cost_status: str = "unknown"
     cost_basis: str = "unknown"
+    evidence_coverage: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
@@ -62,6 +63,7 @@ def build_card(listing: Listing, evidence: Iterable[Evidence], *, status: str = 
         tax=_money(listing.tax),
         cost_status=listing.cost_status,
         cost_basis=listing.cost_basis,
+        evidence_coverage=listing.evidence_coverage,
     )
 
 
@@ -99,6 +101,7 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
             f"### {index}. {card['title']}",
             f"- {cost_label}：{card['landed_cost'] or 'unknown'} {card['currency']}（{card.get('cost_basis') or 'unknown'}）",
             f"- 运费/税费：{card.get('shipping_cost') or 'unknown'} / {card.get('tax') or 'unknown'} {card['currency']}",
+            f"- 关键字段证据覆盖率：{float(card.get('evidence_coverage', 0.0)):.1%}",
             f"- 来源观测时间：{card.get('source_observed_at') or 'unknown'}",
             f"- 状态：{card['stock_status']}；成色：{card['condition']}",
             f"- 规格：{card['specs'] or 'unknown'}",

@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
+import math
 from typing import Any, Mapping
 from urllib.parse import urlparse
 
@@ -17,6 +18,7 @@ SCHEMA_VERSION = "1.0"
 ALLOWED_STATUSES = {"confirmed", "unknown", "conflict", "stale"}
 ALLOWED_STOCK = {"in_stock", "out_of_stock", "preorder", "unknown"}
 ALLOWED_CONDITION = {"new", "used", "refurbished", "unknown"}
+KEY_EVIDENCE_FIELDS = ("title", "url", "price", "condition", "seller", "shippingOptions")
 
 
 def _now_iso() -> str:
@@ -181,6 +183,7 @@ class Listing:
     evidence_ids: tuple[str, ...] = ()
     source_observed_at: str = field(default_factory=_now_iso)
     risk_flags: tuple[str, ...] = ()
+    evidence_coverage: float = 0.0
     schema_version: str = SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -200,6 +203,10 @@ class Listing:
         object.__setattr__(self, "specs", _copy_map(self.specs))
         object.__setattr__(self, "evidence_ids", tuple(self.evidence_ids or ()))
         object.__setattr__(self, "risk_flags", tuple(self.risk_flags or ()))
+        coverage = float(self.evidence_coverage)
+        if not math.isfinite(coverage) or not 0 <= coverage <= 1:
+            raise ValueError("evidence_coverage must be a finite value between 0 and 1")
+        object.__setattr__(self, "evidence_coverage", round(coverage, 4))
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "Listing":
@@ -237,9 +244,16 @@ class Listing:
         if any(str(v).lower() in {"stale", "conflict"} for v in field_status.values()):
             flags.append("evidence_conflict_or_stale")
         evidence_ids = []
-        for index, ev in enumerate(raw.get("evidence", ()) or ()):
+        raw_evidence = raw.get("evidence", ()) or ()
+        confirmed_fields = set()
+        for index, ev in enumerate(raw_evidence):
             if isinstance(ev, Mapping):
                 evidence_ids.append(str(ev.get("evidence_id", f"{raw.get('listing_id', 'listing')}:ev:{index}")))
+                if ev.get("field") in KEY_EVIDENCE_FIELDS and ev.get("status") == "confirmed":
+                    confirmed_fields.add(ev.get("field"))
+        coverage = raw.get("evidence_coverage")
+        if coverage is None:
+            coverage = len(confirmed_fields) / len(KEY_EVIDENCE_FIELDS)
         return cls(
             listing_id=str(raw.get("listing_id", "")),
             source_id=str(source_id),
@@ -257,6 +271,7 @@ class Listing:
             evidence_ids=tuple(evidence_ids or raw.get("evidence_ids", ())),
             source_observed_at=str(observed),
             risk_flags=tuple(dict.fromkeys(flags)),
+            evidence_coverage=coverage,
         )
 
     @property
@@ -292,6 +307,7 @@ class Listing:
         result["landed_cost"] = str(self.landed_cost) if self.landed_cost is not None else None
         result["cost_status"] = self.cost_status
         result["cost_basis"] = self.cost_basis
+        result["evidence_coverage"] = self.evidence_coverage
         result["evidence_ids"] = list(result["evidence_ids"])
         result["risk_flags"] = list(result["risk_flags"])
         return result
