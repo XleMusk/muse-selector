@@ -16,6 +16,8 @@
 - 运费/税费：0.00 / unknown HKD
 - 关键字段证据覆盖率：100.0%
 - 来源观测时间：unknown
+- 最长预计配送：unknown 天
+- 保修：unknown
 - 状态：in\_stock；成色：new
 - 规格：\{'ram\_gb': 32, 'storage\_gb': 1024\}
 - 来源：[打开原平台](https://www.ebay.com.hk/itm/100000000001)
