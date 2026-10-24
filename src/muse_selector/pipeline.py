@@ -278,7 +278,12 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
         }
     try:
         connector = EbayBrowseConnector(fixture_path=fixture_path)
-        rows = connector.search(spec.to_dict())
+        connector_spec = spec.to_dict()
+        # Keep the source request bounded by the caller's result limit.  The
+        # pipeline still preserves source order and applies the final limit
+        # after hard filtering, but never fetches an unbounded default page.
+        connector_spec["limit"] = limit
+        rows = connector.search(connector_spec)
     except (ConnectorUnavailable, ValueError) as exc:
         source_metadata = connector.source_metadata if "connector" in locals() else None
         return {

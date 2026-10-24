@@ -183,6 +183,7 @@ class EbayLiveAdapterTests(unittest.TestCase):
         self.assertEqual(card["specs"]["ram_gb"], 32)
         self.assertEqual(card["status"], "recommended")
         self.assertEqual([method for method, _, _ in opener.requests], ["POST", "GET"])
+        self.assertIn("limit=10", opener.requests[1][1])
 
     def test_explicit_localized_aspect_aliases_map_without_fuzzy_matching(self):
         self.assertEqual(
