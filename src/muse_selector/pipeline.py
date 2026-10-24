@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import math
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import urlparse
@@ -54,6 +56,36 @@ def _extract_specs(title: str) -> dict[str, Any]:
     if re.search(r"USB\s*4", title, re.I):
         specs["usb4"] = True
     return specs
+
+
+def _extract_delivery_max_days(shipping: Any, observed_at: str | None) -> int | None:
+    """Derive a conservative delivery bound from eBay's dated options."""
+
+    if not isinstance(shipping, list) or not observed_at or observed_at == "unknown":
+        return None
+    try:
+        observed = datetime.fromisoformat(str(observed_at).replace("Z", "+00:00"))
+        if observed.tzinfo is None:
+            observed = observed.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return None
+    candidates: list[int] = []
+    for option in shipping:
+        if not isinstance(option, Mapping):
+            continue
+        raw_date = option.get("maxEstimatedDeliveryDate") or option.get("max_estimated_delivery_date")
+        if not isinstance(raw_date, str) or not raw_date:
+            continue
+        try:
+            delivery = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
+            if delivery.tzinfo is None:
+                delivery = delivery.replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+        delta_days = math.ceil((delivery - observed).total_seconds() / 86400)
+        if delta_days >= 0:
+            candidates.append(delta_days)
+    return min(candidates) if candidates else None
 
 
 def _query_matches_title(query: str, title: str) -> bool:
@@ -159,6 +191,8 @@ def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], st
         ))
     if any(item.status in {"stale", "conflict"} for item in evidence):
         flags.append("evidence_conflict_or_stale")
+    observed_at = str(row.get("source_observed_at") or "unknown")
+    delivery_max_days = _extract_delivery_max_days(shipping, observed_at)
     confirmed_fields = {item.field for item in evidence if item.status == "confirmed" and item.field in KEY_EVIDENCE_FIELDS}
     evidence_coverage = round(len(confirmed_fields) / len(KEY_EVIDENCE_FIELDS), 4)
     if evidence_coverage < _MIN_EVIDENCE_COVERAGE:
@@ -177,9 +211,10 @@ def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], st
         specs={
             **_extract_specs(str(row.get("title") or "")),
             **(dict(row.get("specs")) if isinstance(row.get("specs"), Mapping) else {}),
+            **({"delivery_max_days": delivery_max_days} if delivery_max_days is not None else {}),
         },
         evidence_ids=tuple(item.evidence_id for item in evidence),
-        source_observed_at=str(row.get("source_observed_at") or "unknown"),
+        source_observed_at=observed_at,
         risk_flags=tuple(flags),
         evidence_coverage=evidence_coverage,
     )

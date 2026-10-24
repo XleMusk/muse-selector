@@ -49,6 +49,16 @@ def filter_listings(spec: SearchSpec, listings: Iterable[Listing]) -> tuple[list
             reasons.append("currency_mismatch")
         if spec.condition != "unknown" and listing.condition not in {spec.condition, "unknown"}:
             reasons.append("condition_mismatch")
+        if spec.max_delivery_days is not None:
+            delivery_days = listing.specs.get("delivery_max_days")
+            if delivery_days is None:
+                reasons.append("delivery_unknown")
+            else:
+                try:
+                    if Decimal(str(delivery_days)) > Decimal(str(spec.max_delivery_days)):
+                        reasons.append("delivery_too_slow")
+                except Exception:
+                    reasons.append("delivery_unknown")
         for key, required in spec.required_specs.items():
             if key not in listing.specs or not _matches(required, listing.specs.get(key)):
                 reasons.append(f"required_spec:{key}")

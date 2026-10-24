@@ -362,6 +362,48 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(accepted, [])
             self.assertIn("risk_flagged", decisions[0].reasons)
 
+    def test_delivery_deadline_uses_source_date_and_fails_closed_when_unknown(self):
+        row = {
+            "listing_id": "delivery-1",
+            "source_id": "ebay.browse.hk.v1",
+            "title": "Mini PC 32GB 1TB NVMe",
+            "url": "https://www.ebay.com.hk/itm/delivery-1",
+            "price": {"value": 4999, "currency": "HKD"},
+            "availability": "IN_STOCK",
+            "condition": "New",
+            "shipping_options": [{
+                "shippingCost": {"value": "0", "currency": "HKD"},
+                "maxEstimatedDeliveryDate": "2026-10-27T00:00:00Z",
+            }],
+            "source_observed_at": "2026-10-24T00:00:00Z",
+            "evidence": [{
+                "source_id": "ebay.browse.hk.v1",
+                "source_url": "https://www.ebay.com.hk/itm/delivery-1",
+                "field": field,
+                "value": field,
+                "observed_at": "2026-10-24T00:00:00Z",
+                "status": "confirmed",
+            } for field in ("title", "url", "price", "condition", "seller", "shippingOptions")],
+        }
+        listing, _, reason = _to_listing(row)
+        self.assertIsNone(reason)
+        self.assertEqual(listing.specs["delivery_max_days"], 3)
+        spec = parse_query("香港预算 HKD 7000 以内的迷你主机，3天内送达")
+        accepted, decisions = filter_listings(spec, [listing])
+        self.assertEqual([item.listing_id for item in accepted], ["delivery-1"])
+        too_fast = parse_query("香港预算 HKD 7000 以内的迷你主机，2天内送达")
+        accepted, decisions = filter_listings(too_fast, [listing])
+        self.assertEqual(accepted, [])
+        self.assertIn("delivery_too_slow", decisions[0].reasons)
+        payload = run_search("香港预算 HKD 7000 以内的迷你主机", FIXTURE)
+        self.assertIsNone(payload["recommended"][0]["delivery_max_days"])
+        unknown = dict(row, listing_id="delivery-unknown", shipping_options=[{"shippingCost": {"value": "0", "currency": "HKD"}}])
+        unknown_listing, _, reason = _to_listing(unknown)
+        self.assertIsNone(reason)
+        accepted, decisions = filter_listings(spec, [unknown_listing])
+        self.assertEqual(accepted, [])
+        self.assertIn("delivery_unknown", decisions[0].reasons)
+
     def test_malformed_listing_required_fields_are_dropped_without_traceback(self):
         for field, reason in (("listing_id", "missing_listing_id"), ("title", "missing_title")):
             row = {

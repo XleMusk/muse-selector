@@ -31,6 +31,11 @@ _MONEY_RANGE_RE = re.compile(
 _MONEY_RE = re.compile(rf"(?:HKD|HK\$|港币|港元|预算)\s*[:：]?\s*(?:不超过|以内|上限|最多)?\s*({_MONEY_NUMBER})\s*(万)?", re.I)
 _MONEY_SUFFIX_RE = re.compile(rf"(?P<amount>{_MONEY_NUMBER})\s*(?:HKD|港币|港元)\b", re.I)
 _GB_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(GB|TB)\s*(?:内存|RAM|显存|VRAM|SSD|存储|硬盘)?", re.I)
+_DELIVERY_DAYS_RE = re.compile(
+    r"(?:配送|送达|到货|delivery)\s*(?:在|于|within)?\s*(?P<days>\d+)\s*(?:天|日|days?)\s*(?:内|以内)?|"
+    r"(?P<days_prefix>\d+)\s*(?:天|日)\s*(?:内|以内)\s*(?:送达|到货|配送)",
+    re.I,
+)
 _UNBOUNDED_BUDGET_TOKENS = ("价格不限", "预算不限", "不限预算", "不设预算", "不限制预算", "no budget limit", "unlimited budget")
 _ACCOUNT_POLICY_TOKENS = (
     "游戏账号",
@@ -94,6 +99,9 @@ def parse_query(text: str) -> SearchSpec:
     if pd:
         required["pd_watt"] = int(Decimal(pd.group(1)))
 
+    delivery = _DELIVERY_DAYS_RE.search(text)
+    max_delivery_days = int(delivery.group("days") or delivery.group("days_prefix")) if delivery else None
+
     budget_min: Decimal | None = None
     budget_max: Decimal | None = None
     money_range = _MONEY_RANGE_RE.search(text)
@@ -123,6 +131,7 @@ def parse_query(text: str) -> SearchSpec:
         budget_max=budget_max,
         required_specs=required,
         condition="unknown" if any(token in lowered for token in ("二手", "不限成色")) else "new",
+        max_delivery_days=max_delivery_days,
         sources=("ebay.browse.hk.v1",),
     )
 

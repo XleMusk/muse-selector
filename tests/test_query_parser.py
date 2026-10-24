@@ -15,6 +15,10 @@ class QueryParserBudgetRangeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "不在第一版范围内"):
                 parse_query(query)
 
+    def test_extracts_explicit_delivery_deadline(self):
+        self.assertEqual(parse_query("香港预算 HKD 7000 以内的迷你主机，3天内送达").max_delivery_days, 3)
+        self.assertEqual(parse_query("香港预算 HKD 7000 以内的迷你主机，delivery within 5 days").max_delivery_days, 5)
+
     def test_hkd_hyphen_range(self):
         spec = parse_query("香港轻薄本，HKD 5000-7000")
         self.assertEqual(spec.budget_min, Decimal("5000.00"))
