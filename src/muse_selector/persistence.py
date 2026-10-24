@@ -32,6 +32,25 @@ def run_id_for_payload(payload: Mapping[str, Any]) -> str:
     return f"run_{digest}"
 
 
+def _watch_stable_value(value: Any, key: str | None = None) -> Any:
+    """Normalize volatile observation clocks before comparing watch results."""
+
+    if key in {"observed_at", "source_observed_at", "created_at", "last_refreshed_at"}:
+        return "__volatile_timestamp__"
+    if isinstance(value, Mapping):
+        return {str(k): _watch_stable_value(v, str(k)) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_watch_stable_value(item) for item in value]
+    return value
+
+
+def watch_content_fingerprint(payload: Mapping[str, Any]) -> str:
+    """Hash result content while ignoring observation-clock fields."""
+
+    stable = _watch_stable_value(dict(payload))
+    return hashlib.sha256(_canonical(stable).encode("utf-8")).hexdigest()
+
+
 class SelectorStore:
     """Small SQLite store for runs, result cards and read-only watch specs."""
 
@@ -154,6 +173,16 @@ class SelectorStore:
         if not row["enabled"]:
             raise ValueError(f"watch is disabled: {watch_id}")
         payload = run_search(row["query"], row["fixture_path"])
+        previous_run_id = row["last_run_id"]
+        if previous_run_id:
+            previous_payload = self.get_run(previous_run_id)
+            if previous_payload and watch_content_fingerprint(previous_payload) == watch_content_fingerprint(payload):
+                with self._connect() as conn:
+                    conn.execute(
+                        "UPDATE watches SET last_refreshed_at = ? WHERE watch_id = ?",
+                        (_now(), watch_id),
+                    )
+                return {"watch_id": watch_id, "run_id": previous_run_id, "changed": False, "payload": payload}
         run_id, inserted = self.save_run(payload)
         with self._connect() as conn:
             conn.execute(

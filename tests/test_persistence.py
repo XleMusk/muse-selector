@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from muse_selector.persistence import SelectorStore
+from muse_selector.persistence import SelectorStore, watch_content_fingerprint
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -10,6 +10,32 @@ FIXTURE = ROOT / "tests" / "fixtures" / "ebay_hk_sample.json"
 
 
 class PersistenceTests(unittest.TestCase):
+    def test_watch_fingerprint_ignores_observation_clocks(self):
+        base = {
+            "status": "complete",
+            "read_only": True,
+            "source": "ebay.browse.hk.v1",
+            "recommended": [{
+                "listing_id": "x",
+                "source_observed_at": "2026-10-24T00:00:00Z",
+                "evidence": [{"observed_at": "2026-10-24T00:00:00Z", "value": "same"}],
+            }],
+        }
+        later = {
+            **base,
+            "recommended": [{
+                **base["recommended"][0],
+                "source_observed_at": "2026-10-24T00:05:00Z",
+                "evidence": [{"observed_at": "2026-10-24T00:05:00Z", "value": "same"}],
+            }],
+        }
+        changed = {
+            **later,
+            "recommended": [{**later["recommended"][0], "evidence": [{"observed_at": "2026-10-24T00:05:00Z", "value": "changed"}]}],
+        }
+        self.assertEqual(watch_content_fingerprint(base), watch_content_fingerprint(later))
+        self.assertNotEqual(watch_content_fingerprint(base), watch_content_fingerprint(changed))
+
     def test_run_is_idempotent_and_cards_are_queryable(self):
         with tempfile.TemporaryDirectory() as directory:
             store = SelectorStore(Path(directory) / "selector.sqlite3")
