@@ -7,6 +7,15 @@
 
 在 PowerShell 中从 `D:\muse` 执行：
 
+如果要安装命令入口，可先执行一次：
+
+```powershell
+python -m pip install --no-deps -e D:\muse
+muse-selector --help
+```
+
+也可以不安装，使用下面的 `PYTHONPATH` 方式直接运行源码。
+
 ```powershell
 $env:PYTHONPATH = "D:\muse\src;D:\muse\tests"
 $env:PYTHONIOENCODING = "utf-8"
