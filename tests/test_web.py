@@ -45,6 +45,7 @@ class WebTests(unittest.TestCase):
                 "url": "https://www.ebay.com.hk/itm/live-1",
                 "evidence": [{
                     "field": "price",
+                    "value": "4999.00",
                     "status": "confirmed",
                     "observed_at": "2026-10-24T04:00:00Z",
                     "source_url": "https://www.ebay.com.hk/itm/live-1",
@@ -62,6 +63,7 @@ class WebTests(unittest.TestCase):
         self.assertIn("运费/税费：0.00 / unknown HKD", page)
         self.assertIn("关键字段证据覆盖率：100.0%", page)
         self.assertIn("观测时间：2026-10-24T04:00:00Z", page)
+        self.assertIn("证据：4999.00", page)
 
     def test_render_replaces_untrusted_href(self):
         payload = {

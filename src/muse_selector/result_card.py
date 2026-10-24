@@ -56,6 +56,17 @@ def _markdown_untrusted(value: Any) -> str:
     return re.sub(r"([\\`*_\[\]{}()<>])", r"\\\1", text)
 
 
+def _evidence_excerpt(item: Mapping[str, Any]) -> str:
+    """Render a bounded evidence value without trusting listing text."""
+
+    value = item.get("quote") if item.get("quote") not in (None, "") else item.get("value")
+    text = str(value if value not in (None, "") else "unknown")
+    text = text.replace("\r", " ").replace("\n", " ")
+    if len(text) > 240:
+        text = text[:237] + "..."
+    return _markdown_untrusted(text)
+
+
 def build_card(
     listing: Listing,
     evidence: Iterable[Evidence],
@@ -141,6 +152,10 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
             f"- 来源：[打开原平台]({_markdown_untrusted(card['url'])})",
             f"- 风险：{_markdown_untrusted(', '.join(card['risk_flags']) if card['risk_flags'] else '未标记')}",
             f"- 证据字段：{_markdown_untrusted(', '.join(item['field'] for item in card['evidence']) or 'unknown')}",
+            *[
+                f"- 证据片段（{_markdown_untrusted(item.get('field') or 'unknown')}）：{_evidence_excerpt(item)}"
+                for item in card.get('evidence', [])
+            ],
             "",
         ])
     if payload.get("rejected"):

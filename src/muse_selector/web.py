@@ -17,6 +17,16 @@ def _text(value: Any) -> str:
     return html.escape(str(value), quote=True)
 
 
+def _evidence_excerpt(item: dict[str, Any]) -> str:
+    """Return a bounded, escaped evidence value for the local result page."""
+
+    value = item.get("quote") if item.get("quote") not in (None, "") else item.get("value")
+    text = str(value if value not in (None, "") else "unknown").replace("\r", " ").replace("\n", " ")
+    if len(text) > 240:
+        text = text[:237] + "..."
+    return _text(text)
+
+
 def _safe_href(value: Any) -> str:
     candidate = str(value or "")
     return candidate if _allowed_source_url(candidate) else "#"
@@ -41,7 +51,7 @@ def render_html(payload: dict[str, Any], query: str) -> str:
             evidence = "".join(
                 f"<li><code>{_text(item.get('field'))}</code> · {_text(item.get('status'))} · "
                 f"观测时间：{_text(item.get('observed_at') or 'unknown')} · "
-                f"{_text(item.get('source_url'))}</li>"
+                f"证据：{_evidence_excerpt(item)} · {_text(item.get('source_url'))}</li>"
                 for item in card.get("evidence", [])
             ) or "<li>unknown</li>"
             risk = ", ".join(card.get("risk_flags") or []) or "未标记"

@@ -125,6 +125,7 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("来源观测时间", report)
         self.assertIn("保修：unknown", report)
         self.assertIn("关键字段证据覆盖率：100.0%", report)
+        self.assertIn("证据片段（title）：Mini PC Ryzen 7", report)
 
     def test_markdown_escapes_error_and_url_text(self):
         report = render_markdown({
