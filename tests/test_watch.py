@@ -57,6 +57,38 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(updated["watch"]["interval_seconds"], 60)
             self.assertIsNone(updated["watch"]["last_run_id"])
 
+    def test_cli_update_can_switch_existing_fixture_watch_to_live(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / "watch.sqlite3"
+
+            def invoke(*args):
+                output = io.StringIO()
+                with patch.object(sys, "argv", ["muse-watch", *args]), contextlib.redirect_stdout(output):
+                    code = main()
+                return code, json.loads(output.getvalue())
+
+            code, created = invoke(
+                "--db", str(db), "--action", "refresh", "--watch-id", "watch_live_switch",
+                "--query", "香港预算 HKD 7000 以内的迷你主机", "--fixture", str(FIXTURE), "--once",
+            )
+            self.assertEqual(code, 0)
+            self.assertEqual(created["payload"]["status"], "complete")
+
+            code, updated = invoke(
+                "--db", str(db), "--action", "update", "--watch-id", "watch_live_switch", "--live",
+            )
+            self.assertEqual(code, 0)
+            self.assertIsNone(updated["watch"]["fixture_path"])
+            self.assertIsNone(updated["watch"]["last_run_id"])
+
+    def test_cli_live_switch_is_rejected_for_non_update_actions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / "watch.sqlite3"
+            with patch.object(sys, "argv", ["muse-watch", "--db", str(db), "--action", "refresh", "--live"]):
+                with self.assertRaises(SystemExit) as raised:
+                    main()
+            self.assertEqual(raised.exception.code, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

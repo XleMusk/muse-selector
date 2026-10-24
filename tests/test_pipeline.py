@@ -15,6 +15,31 @@ FIXTURE = ROOT / "tests" / "fixtures" / "ebay_hk_sample.json"
 
 
 class PipelineTests(unittest.TestCase):
+    def test_malformed_source_record_is_dropped_without_crashing_search(self):
+        data = {
+            "itemSummaries": [{
+                "itemId": "malformed-price",
+                "title": "Mini PC 32GB",
+                "itemWebUrl": "https://www.ebay.com.hk/itm/malformed-price",
+                "price": {"value": "NaN", "currency": "HKD"},
+                "condition": "New",
+                "estimatedAvailabilityStatus": "IN_STOCK",
+                "seller": {"username": "seller", "feedbackPercentage": "99.9"},
+                "shippingOptions": [{"shippingCost": {"value": "0", "currency": "HKD"}}],
+            }]
+        }
+        with self.subTest("malformed source row"):
+            import tempfile
+
+            with tempfile.TemporaryDirectory() as directory:
+                fixture = Path(directory) / "malformed.json"
+                fixture.write_text(json.dumps(data), encoding="utf-8")
+                payload = run_search("香港预算 HKD 7000 以内的迷你主机", fixture)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["recommended"], [])
+        self.assertEqual(payload["dropped"], [{"listing_id": "malformed-price", "reason": "malformed_source_record"}])
+        self.assertTrue(payload["read_only"])
+
     def test_source_url_rejects_userinfo_ports_and_control_chars(self):
         base = {
             "listing_id": "unsafe",

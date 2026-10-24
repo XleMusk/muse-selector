@@ -322,7 +322,15 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
     source_rank_by_id: dict[str, int] = {}
     dropped: list[dict[str, str]] = []
     for source_rank, row in enumerate(rows, 1):
-        listing, evidence, reason = _to_listing(row)
+        try:
+            listing, evidence, reason = _to_listing(row)
+        except (TypeError, ValueError, OverflowError):
+            # A live source can return a syntactically valid JSON object with
+            # a value that violates our strict Listing contract (for example
+            # NaN/Infinity prices or malformed monetary fields).  Isolate the
+            # bad record so one source row cannot crash the whole read-only
+            # search or bypass hard-constraint filtering.
+            listing, evidence, reason = None, [], "malformed_source_record"
         if reason or listing is None:
             dropped.append({"listing_id": str(row.get("listing_id", "unknown")), "reason": reason or "invalid_source_record"})
             continue

@@ -185,6 +185,36 @@ class EbayLiveAdapterTests(unittest.TestCase):
         self.assertEqual([method for method, _, _ in opener.requests], ["POST", "GET"])
         self.assertIn("limit=20", opener.requests[1][1])
 
+    def test_expired_live_listing_is_evidence_backed_and_hard_filtered(self):
+        connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=_Opener())
+        row = connector._normalize_item(
+            {
+                "itemId": "expired|1|0",
+                "title": "Mini PC 32GB 1TB NVMe",
+                "itemWebUrl": "https://www.ebay.com.hk/itm/expired-1",
+                "price": {"value": "4999.00", "currency": "HKD"},
+                "condition": "New",
+                "estimatedAvailabilityStatus": "IN_STOCK",
+                "seller": {"username": "hardware-hk", "feedbackPercentage": "99.9"},
+                "shippingOptions": [{"shippingCost": {"value": "0.00", "currency": "HKD"}}],
+                "itemEndDate": "2026-10-24T23:59:00Z",
+            },
+            fetched_at="2026-10-25T00:00:00Z",
+        )
+        self.assertTrue(row["specs"]["listing_ended"])
+        self.assertTrue(any(item["field"] == "itemEndDate" for item in row["evidence"]))
+
+        with patch("muse_selector.pipeline.EbayBrowseConnector") as connector_type:
+            connector_type.return_value.search.return_value = [row]
+            connector_type.return_value.source_metadata = {
+                "href": None, "next": None, "prev": None,
+                "total": 1, "limit": 20, "offset": 0,
+            }
+            payload = run_search("香港预算 HKD 7000 以内的迷你主机")
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["recommended"], [])
+        self.assertEqual(payload["rejected"][0]["reasons"], ["listing_ended"])
+
     def test_explicit_localized_aspect_aliases_map_without_fuzzy_matching(self):
         self.assertEqual(
             EbayBrowseConnector._normalize_aspects([

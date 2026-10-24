@@ -23,13 +23,21 @@ def main() -> int:
     parser.add_argument("--db", default="data/selector.sqlite3")
     parser.add_argument("--action", choices=("refresh", "pause", "resume", "update", "replay"), default="refresh")
     parser.add_argument("--query", default=None)
-    parser.add_argument("--fixture", default=None, help="offline fixture; omit for live read-only API")
+    fixture_group = parser.add_mutually_exclusive_group()
+    fixture_group.add_argument("--fixture", default=None, help="offline fixture; omit for live read-only API")
+    fixture_group.add_argument(
+        "--live",
+        action="store_true",
+        help="for --action update, clear a stored fixture and use the live read-only API",
+    )
     parser.add_argument("--watch-id", default=None)
     parser.add_argument("--interval-seconds", type=int, default=None)
     parser.add_argument("--once", action="store_true", help="refresh once and exit")
     args = parser.parse_args()
     if args.interval_seconds is not None and args.interval_seconds <= 0:
         parser.error("--interval-seconds must be positive")
+    if args.live and args.action != "update":
+        parser.error("--live is only valid with --action update")
 
     store = SelectorStore(Path(args.db))
     if args.action != "refresh":
@@ -46,13 +54,15 @@ def main() -> int:
         elif args.action == "replay":
             result = {"action": "replay", "watch_id": args.watch_id, "payload": store.replay_watch(args.watch_id)}
         else:
-            if args.query is None and args.fixture is None and args.interval_seconds is None:
+            if args.query is None and args.fixture is None and not args.live and args.interval_seconds is None:
                 parser.error("--action update requires --query, --fixture or --interval-seconds")
             kwargs = {}
             if args.query is not None:
                 kwargs["query"] = args.query
             if args.fixture is not None:
                 kwargs["fixture_path"] = Path(args.fixture)
+            elif args.live:
+                kwargs["fixture_path"] = None
             if args.interval_seconds is not None:
                 kwargs["interval_seconds"] = args.interval_seconds
             result = {"action": "update", "watch": store.update_watch(args.watch_id, **kwargs)}

@@ -43,6 +43,8 @@ def filter_listings(spec: SearchSpec, listings: Iterable[Listing]) -> tuple[list
             reasons.append("above_budget_max")
         if spec.stock_required and listing.stock_status not in {"in_stock", "preorder"}:
             reasons.append("not_in_stock")
+        if listing.specs.get("listing_ended") is True:
+            reasons.append("listing_ended")
         if listing.region != spec.region:
             reasons.append("region_mismatch")
         if listing.currency != spec.currency:

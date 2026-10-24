@@ -114,10 +114,11 @@ muse-watch --db "D:\muse\data\selector.sqlite3" --action pause --watch-id "mini_
 muse-watch --db "D:\muse\data\selector.sqlite3" --action resume --watch-id "mini_pc_hk"
 muse-watch --db "D:\muse\data\selector.sqlite3" --action update --watch-id "mini_pc_hk" `
   --query "香港 RTX 4070 显卡，预算 HKD 9000" --interval-seconds 600
+muse-watch --db "D:\muse\data\selector.sqlite3" --action update --watch-id "mini_pc_hk" --live
 muse-watch --db "D:\muse\data\selector.sqlite3" --action replay --watch-id "mini_pc_hk"
 ```
 
-这些 action 只读写本地 SQLite 状态；`replay` 不会调用连接器，`update` 会保留旧 run 供重放。
+这些 action 只读写本地 SQLite 状态；`replay` 不会调用连接器，`update` 会保留旧 run 供重放。已有 fixture 观察任务可用 `--action update --live` 清除 fixture，原地切换到实时只读 API。
 
 回归集覆盖预算、地区、必选规格、陈旧/冲突证据、缺失 URL、账号策略阻断、提示注入、SSRF 和重放稳定性。fixture 中的价格和库存是测试数据，不能当作当前市场报价。
 回归产物 `examples/regression_result.json` 同时记录 `hard_constraint_violation_rate`；当前验收值必须为 `0.0`。
@@ -126,6 +127,7 @@ muse-watch --db "D:\muse\data\selector.sqlite3" --action replay --watch-id "mini
 查询未提供预算上限时，系统返回 `needs_clarification` 并要求补充地区与 `max_total_hkd`；只有明确写出“价格不限”等表达才会在无预算上限下继续筛选。
 结果卡会同时输出 `cost_status` 和 `cost_basis`：税费或运费未知时显示“已知费用小计”，不会把未知税费伪装成完整到手价。
 查询中明确写出“X 天内送达”或 “delivery within X days”时，系统只使用 eBay `shippingOptions.maxEstimatedDeliveryDate` 相对来源观测时间计算配送上限；缺少预计日期的记录显示 `delivery_unknown` 并排除，不会猜测送达时间。结果卡会显示 `delivery_max_days`。
+实时 eBay 响应中的 `itemEndDate` 会与本次抓取时间比较；已结束 listing 会保留 `itemEndDate` 证据并以 `listing_ended` 硬过滤。fixture 没有真实观测时钟，因此不会用本机当前时间改变离线回归结果。
 结果卡也会显示来源明确提供的保修信息；没有保修字段时显示 `unknown`，不会根据标题或常识补写。
 eBay Browse API 的官方要求不允许合作方在客户端重新排序搜索结果，因此系统保留 eBay 返回的最佳匹配顺序，并在每张结果卡中显示 `source_rank`、`fit_score` 和拆解字段；预算、地区、库存、成色、必选规格和风险仍先经过硬约束过滤。
 

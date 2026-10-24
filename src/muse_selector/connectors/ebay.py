@@ -162,6 +162,28 @@ class EbayBrowseConnector:
         return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
     @staticmethod
+    def _listing_ended(item_end_date: Any, observed_at: str | None) -> bool:
+        """Return true only when a valid end date precedes live observation.
+
+        Fixture rows intentionally have an unknown observation clock, so their
+        dates are retained as evidence but never compared with the local clock.
+        This keeps offline regression results deterministic.
+        """
+
+        if not isinstance(item_end_date, str) or not item_end_date or not observed_at or observed_at == "unknown":
+            return False
+        try:
+            end = datetime.fromisoformat(item_end_date.replace("Z", "+00:00"))
+            observed = datetime.fromisoformat(str(observed_at).replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return False
+        if end.tzinfo is None:
+            end = end.replace(tzinfo=timezone.utc)
+        if observed.tzinfo is None:
+            observed = observed.replace(tzinfo=timezone.utc)
+        return end <= observed
+
+    @staticmethod
     def _response_status(response: Any, context: str) -> int:
         status = getattr(response, "status", 200)
         if isinstance(status, bool) or not isinstance(status, int) or not 100 <= status <= 599:
@@ -354,6 +376,9 @@ class EbayBrowseConnector:
         # offline fixture has no observation clock and must remain unknown.
         observed_at = fetched_at or "unknown"
         specs = self._normalize_aspects(item.get("localizedAspects"))
+        item_end_date = item.get("itemEndDate")
+        if self._listing_ended(item_end_date, observed_at):
+            specs["listing_ended"] = True
         evidence_fields = {
             "title": item.get("title"),
             "url": item.get("itemWebUrl"),
@@ -363,6 +388,8 @@ class EbayBrowseConnector:
             "shippingOptions": shipping,
             "specs": specs,
         }
+        if isinstance(item_end_date, str) and item_end_date:
+            evidence_fields["itemEndDate"] = item_end_date
         evidence = [
             {
                 "field": field,
