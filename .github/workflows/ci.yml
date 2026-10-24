@@ -27,7 +27,7 @@ jobs:
           smoke_status=$?
           set -e
           test "$smoke_status" -eq 2
-          python -c "import json; p=json.load(open('live_smoke.json', encoding='utf-8')); assert p['status'] == 'source_unavailable'; assert p['read_only'] is True"
+          python -c "import json; p=json.load(open('live_smoke.json', encoding='utf-8')); assert p['status'] == 'source_unavailable'; assert p['read_only'] is True; assert p['credential_state'] == 'missing'"
       - name: Run unit and regression tests
         shell: bash
         env:

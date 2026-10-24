@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from typing import Any, Mapping
 
 from .pipeline import run_search
@@ -21,6 +22,8 @@ def summarize(payload: Mapping[str, Any]) -> dict[str, Any]:
         "rejected_count": len(payload.get("rejected") or []),
         "dropped_count": len(payload.get("dropped") or []),
     }
+    credential_count = sum(bool(os.getenv(name)) for name in ("EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET"))
+    summary["credential_state"] = {0: "missing", 1: "partial", 2: "present"}[credential_count]
     if payload.get("ok"):
         observed = {
             str(item.get("observed_at"))

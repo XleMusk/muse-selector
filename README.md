@@ -101,7 +101,7 @@ $env:PYTHONPATH = "D:\muse\src"
 python -m muse_selector --query "香港 RTX 4070 显卡，预算 HKD 9000" --format json
 ```
 
-拿到官方凭据后可用一次性 smoke 命令验证实时只读链路。它只输出状态、数量和证据时间摘要，不输出凭据或 token；没有凭据时返回 `source_unavailable` 并退出码 `2`：
+拿到官方凭据后可用一次性 smoke 命令验证实时只读链路。它只输出凭据状态、结果数量和证据时间摘要，不输出凭据或 token；没有凭据时返回 `source_unavailable` 并退出码 `2`：
 
 ```powershell
 muse-live-smoke --query "香港 RTX 4070 显卡，预算 HKD 9000"

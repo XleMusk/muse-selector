@@ -21,6 +21,7 @@ class SmokeTests(unittest.TestCase):
             "dropped": [],
         })
         self.assertEqual(summary["observed_at_samples"], ["2026-10-24T04:00:00Z"])
+        self.assertIn(summary["credential_state"], {"missing", "partial", "present"})
         self.assertNotIn("client_secret", json.dumps(summary))
 
     def test_no_credentials_is_source_unavailable(self):
@@ -33,6 +34,7 @@ class SmokeTests(unittest.TestCase):
         payload = json.loads(output.getvalue())
         self.assertEqual(payload["status"], "source_unavailable")
         self.assertTrue(payload["read_only"])
+        self.assertEqual(payload["credential_state"], "missing")
         self.assertNotIn("test-secret-value", output.getvalue())
         self.assertNotIn("test-token-value", output.getvalue())
 
