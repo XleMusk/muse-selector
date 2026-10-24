@@ -145,6 +145,13 @@ class EbayBrowseConnector:
     def _fetch_timestamp() -> str:
         return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
+    @staticmethod
+    def _response_status(response: Any, context: str) -> int:
+        status = getattr(response, "status", 200)
+        if isinstance(status, bool) or not isinstance(status, int) or not 100 <= status <= 599:
+            raise ConnectorUnavailable(f"eBay {context} returned an invalid HTTP status")
+        return status
+
     def _redact_error(self, message: Any, *extra_values: Any) -> str:
         """Keep connector diagnostics useful without echoing credentials/tokens."""
 
@@ -215,7 +222,7 @@ class EbayBrowseConnector:
         )
         try:
             with self.opener.open(request, timeout=self.config.timeout_seconds) as response:
-                status = getattr(response, "status", 200)
+                status = self._response_status(response, "Browse API")
                 body = response.read()
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")[:500]
@@ -253,7 +260,7 @@ class EbayBrowseConnector:
         )
         try:
             with self.opener.open(request, timeout=self.config.timeout_seconds) as response:
-                status = getattr(response, "status", 200)
+                status = self._response_status(response, "OAuth")
                 body = response.read()
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as exc:
             raise ConnectorUnavailable(self._redact_error(f"eBay OAuth token request failed: {exc}")) from exc
