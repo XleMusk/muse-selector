@@ -3,11 +3,19 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import time
 from pathlib import Path
 
 from .persistence import SelectorStore
+
+
+def default_watch_id(query: str, fixture: str | Path | None = None) -> str:
+    """Return a stable id for an implicit watch invocation."""
+
+    identity = f"{query.strip()}\x00{fixture or ''}".encode("utf-8")
+    return f"watch_{hashlib.sha256(identity).hexdigest()[:16]}"
 
 
 def main() -> int:
@@ -23,7 +31,10 @@ def main() -> int:
         parser.error("--interval-seconds must be positive")
 
     store = SelectorStore(Path(args.db))
-    watch_id = args.watch_id or f"watch_{int(time.time())}"
+    # Keep the implicit watch stable across process restarts so rerunning the
+    # same command does not create duplicate persistent watch rows. Callers
+    # that need parallel watches can still provide an explicit --watch-id.
+    watch_id = args.watch_id or default_watch_id(args.query, args.fixture)
     existing = {item["watch_id"] for item in store.list_watches()}
     if watch_id not in existing:
         store.add_watch(
