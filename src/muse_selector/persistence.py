@@ -93,12 +93,18 @@ class SelectorStore:
                     fixture_path TEXT,
                     interval_seconds INTEGER NOT NULL CHECK (interval_seconds > 0),
                     enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+                    revision INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
                     last_run_id TEXT,
                     last_refreshed_at TEXT
                 );
                 """
             )
+            # Migrate databases created before optimistic refresh validation
+            # was introduced.  SQLite has no ADD COLUMN IF NOT EXISTS.
+            watch_columns = {row["name"] for row in conn.execute("PRAGMA table_info(watches)")}
+            if "revision" not in watch_columns:
+                conn.execute("ALTER TABLE watches ADD COLUMN revision INTEGER NOT NULL DEFAULT 0")
 
     def save_run(self, payload: Mapping[str, Any], *, run_id: str | None = None) -> tuple[str, bool]:
         """Persist a result exactly once and return ``(run_id, inserted)``."""
@@ -164,7 +170,7 @@ class SelectorStore:
         resolved_id = watch_id or f"watch_{uuid.uuid4().hex[:16]}"
         with self._connect() as conn:
             conn.execute(
-                "INSERT INTO watches(watch_id, query, fixture_path, interval_seconds, enabled, created_at) VALUES (?, ?, ?, ?, 1, ?)",
+                "INSERT INTO watches(watch_id, query, fixture_path, interval_seconds, enabled, revision, created_at) VALUES (?, ?, ?, ?, 1, 0, ?)",
                 (resolved_id, query.strip(), str(fixture_path) if fixture_path is not None else None, int(interval_seconds), _now()),
             )
         return resolved_id
@@ -187,7 +193,7 @@ class SelectorStore:
 
     def disable_watch(self, watch_id: str) -> None:
         with self._connect() as conn:
-            cursor = conn.execute("UPDATE watches SET enabled = 0 WHERE watch_id = ?", (watch_id,))
+            cursor = conn.execute("UPDATE watches SET enabled = 0, revision = revision + 1 WHERE watch_id = ?", (watch_id,))
         if cursor.rowcount == 0:
             raise KeyError(f"unknown watch_id: {watch_id}")
 
@@ -200,7 +206,7 @@ class SelectorStore:
         """Resume a paused watch without creating a run until refresh."""
 
         with self._connect() as conn:
-            cursor = conn.execute("UPDATE watches SET enabled = 1 WHERE watch_id = ?", (watch_id,))
+            cursor = conn.execute("UPDATE watches SET enabled = 1, revision = revision + 1 WHERE watch_id = ?", (watch_id,))
         if cursor.rowcount == 0:
             raise KeyError(f"unknown watch_id: {watch_id}")
 
@@ -244,6 +250,7 @@ class SelectorStore:
         if input_changed:
             updates.extend(["last_run_id = NULL", "last_refreshed_at = NULL"])
         if updates:
+            updates.append("revision = revision + 1")
             values.append(watch_id)
             with self._connect() as conn:
                 conn.execute(f"UPDATE watches SET {', '.join(updates)} WHERE watch_id = ?", values)
@@ -277,6 +284,7 @@ class SelectorStore:
             raise KeyError(f"unknown watch_id: {watch_id}")
         if not row["enabled"]:
             raise ValueError(f"watch is disabled: {watch_id}")
+        initial_revision = int(row["revision"])
         payload = run_search(row["query"], row["fixture_path"])
         payload_dict = dict(payload)
         run_id = run_id_for_payload(payload_dict)
@@ -288,11 +296,17 @@ class SelectorStore:
         # otherwise a later restart sees an orphan run that was never the
         # watch's committed observation.
         with self._connect() as conn:
+            # Serialize the final validation and checkpoint write with any
+            # concurrent watch mutation.  An update that committed while the
+            # search was running is rejected and the transaction rolls back.
+            conn.execute("BEGIN IMMEDIATE")
             current = conn.execute("SELECT * FROM watches WHERE watch_id = ?", (watch_id,)).fetchone()
             if current is None:
                 raise KeyError(f"unknown watch_id: {watch_id}")
             if not current["enabled"]:
                 raise ValueError(f"watch is disabled: {watch_id}")
+            if int(current["revision"]) != initial_revision:
+                raise ValueError(f"watch changed during refresh: {watch_id}")
 
             previous_run_id = current["last_run_id"]
             if previous_run_id:

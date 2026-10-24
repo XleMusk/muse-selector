@@ -53,6 +53,59 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(len(results), 2)
             self.assertEqual({item["run_id"] for item in results}, {results[0]["run_id"]})
 
+    def test_refresh_rejects_watch_update_during_search(self):
+        """A result for an old query cannot become the new query's checkpoint."""
+
+        with tempfile.TemporaryDirectory() as directory:
+            db_path = Path(directory) / "selector.sqlite3"
+            store = SelectorStore(db_path)
+            watch_id = store.add_watch(
+                "香港预算 HKD 7000 以内的迷你主机",
+                FIXTURE,
+                watch_id="watch_update_race",
+            )
+            started = threading.Event()
+            release = threading.Event()
+            errors = []
+            payload = {
+                "ok": True,
+                "status": "complete",
+                "search_spec": {"query": "old"},
+                "recommended": [],
+                "rejected": [],
+                "dropped": [],
+                "source": "ebay.browse.hk.v1",
+                "read_only": True,
+            }
+
+            def fake_search(*_args):
+                started.set()
+                release.wait(timeout=2)
+                return payload
+
+            def refresh():
+                try:
+                    store.refresh_watch(watch_id)
+                except Exception as exc:  # pragma: no cover - assertion reports the unexpected error
+                    errors.append(str(exc))
+
+            with patch("muse_selector.persistence.run_search", side_effect=fake_search):
+                thread = threading.Thread(target=refresh)
+                thread.start()
+                self.assertTrue(started.wait(timeout=2))
+                store.update_watch(watch_id, query="香港 RTX 4070 显卡，预算 HKD 9000")
+                release.set()
+                thread.join(timeout=3)
+
+            self.assertFalse(thread.is_alive())
+            self.assertEqual(errors, [f"watch changed during refresh: {watch_id}"])
+            self.assertIsNone(store.get_watch(watch_id)["last_run_id"])
+            conn = store._connect()
+            try:
+                self.assertEqual(conn.execute("SELECT COUNT(*) FROM runs").fetchone()[0], 0)
+            finally:
+                conn.close()
+
     def test_watch_fingerprint_ignores_observation_clocks(self):
         base = {
             "status": "complete",
