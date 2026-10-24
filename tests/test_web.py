@@ -20,6 +20,33 @@ class WebTests(unittest.TestCase):
         self.assertIn("只读结果页", page)
         self.assertNotIn("<script>alert(1)</script>", page)
 
+    def test_render_shows_evidence_observed_at(self):
+        payload = {
+            "ok": True,
+            "search_spec": {"region": "HK", "currency": "HKD", "budget_max": "7000"},
+            "recommended": [{
+                "title": "Mini PC",
+                "landed_cost": "4999.00",
+                "currency": "HKD",
+                "source_observed_at": "2026-10-24T04:00:00Z",
+                "stock_status": "in_stock",
+                "condition": "new",
+                "specs": {},
+                "risk_flags": [],
+                "url": "https://www.ebay.com.hk/itm/live-1",
+                "evidence": [{
+                    "field": "price",
+                    "status": "confirmed",
+                    "observed_at": "2026-10-24T04:00:00Z",
+                    "source_url": "https://www.ebay.com.hk/itm/live-1",
+                }],
+            }],
+            "rejected": [],
+            "dropped": [],
+        }
+        page = render_html(payload, "mini pc")
+        self.assertIn("观测时间：2026-10-24T04:00:00Z", page)
+
     def test_local_server_health_and_result_page(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
         thread = threading.Thread(target=server.serve_forever, daemon=True)

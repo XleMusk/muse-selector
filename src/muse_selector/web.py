@@ -29,7 +29,9 @@ def render_html(payload: dict[str, Any], query: str) -> str:
         cards: list[str] = []
         for card in payload.get("recommended") or []:
             evidence = "".join(
-                f"<li><code>{_text(item.get('field'))}</code> · {_text(item.get('status'))} · {_text(item.get('source_url'))}</li>"
+                f"<li><code>{_text(item.get('field'))}</code> · {_text(item.get('status'))} · "
+                f"观测时间：{_text(item.get('observed_at') or 'unknown')} · "
+                f"{_text(item.get('source_url'))}</li>"
                 for item in card.get("evidence", [])
             ) or "<li>unknown</li>"
             risk = ", ".join(card.get("risk_flags") or []) or "未标记"
