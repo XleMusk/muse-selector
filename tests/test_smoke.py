@@ -38,6 +38,24 @@ class SmokeTests(unittest.TestCase):
         self.assertNotIn("test-secret-value", output.getvalue())
         self.assertNotIn("test-token-value", output.getvalue())
 
+    def test_partial_credentials_are_reported_without_values(self):
+        payload = {
+            "ok": False,
+            "status": "source_unavailable",
+            "source": "ebay.browse.hk.v1",
+            "read_only": True,
+            "recommended": [],
+            "rejected": [],
+            "dropped": [],
+            "message": "eBay live connector disabled: set credentials",
+        }
+        with patch.dict(os.environ, {"EBAY_CLIENT_ID": "client-id", "EBAY_CLIENT_SECRET": ""}, clear=False):
+            summary = summarize(payload)
+        serialized = json.dumps(summary, ensure_ascii=False)
+        self.assertEqual(summary["credential_state"], "partial")
+        self.assertNotIn("client-id", serialized)
+        self.assertNotIn("client-secret", serialized)
+
 
 if __name__ == "__main__":
     unittest.main()

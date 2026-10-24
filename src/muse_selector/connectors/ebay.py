@@ -12,10 +12,10 @@ import json
 import math
 import os
 import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
-import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
