@@ -1,5 +1,6 @@
 import unittest
 from decimal import Decimal
+from pathlib import Path
 
 from muse_selector.contracts import Evidence, Listing, PolicyRecord, SearchSpec
 from muse_selector.filtering import filter_listings
@@ -7,6 +8,14 @@ from muse_selector.result_card import build_card
 
 
 class ContractTests(unittest.TestCase):
+    def test_source_registry_keeps_ebay_adapter_read_only_and_aspect_allowed(self):
+        registry = Path(__file__).resolve().parents[1] / "data" / "source_registry.yaml"
+        text = registry.read_text(encoding="utf-8")
+        self.assertIn("source_id: ebay.browse.hk.v1", text)
+        self.assertIn("read_only: true", text)
+        self.assertIn("writes_enabled: false", text)
+        self.assertIn("localizedAspects", text)
+
     def test_search_spec_normalizes_money(self):
         spec = SearchSpec.from_dict({"query": "USB4 laptop", "budget_max": "12000", "required_specs": {"ram_gb": 32}})
         self.assertEqual(spec.budget_max, Decimal("12000.00"))

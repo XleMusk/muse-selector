@@ -11,7 +11,7 @@ sources:
     authentication: oauth2_client_credentials_application_token
     authorization_evidence_url: https://developer.ebay.com/api-docs/buy/api-browse.html
     terms_url: https://developer.ebay.com/devzone/license-agreement/api_license_agreement.pdf
-    allowed_fields: [title, url, price, condition, stock, shipping, seller]
+    allowed_fields: [title, url, price, condition, stock, shipping, seller, localizedAspects]
     write_actions: []
     credentials_from_environment:
       - EBAY_CLIENT_ID
