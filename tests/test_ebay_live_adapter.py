@@ -5,6 +5,8 @@ from pathlib import Path
 from urllib.error import HTTPError
 
 from muse_selector.connectors.ebay import ConnectorUnavailable, EbayBrowseConnector
+from muse_selector.pipeline import _to_listing
+from muse_selector.result_card import build_card
 
 
 class _Response:
@@ -38,6 +40,8 @@ class _Opener:
                 "price": {"value": "4999.00", "currency": "HKD"},
                 "condition": "New",
                 "estimatedAvailabilityStatus": "IN_STOCK",
+                "seller": {"username": "hardware-hk", "feedbackPercentage": "99.9"},
+                "shippingOptions": [{"shippingCost": {"value": "0.00", "currency": "HKD"}}],
                 "itemCreationDate": "2026-10-20T00:00:00.000Z",
                 "itemEndDate": "2099-01-01T00:00:00.000Z",
                 "localizedAspects": [
@@ -107,6 +111,19 @@ class EbayLiveAdapterTests(unittest.TestCase):
             "contextualLocation=country%3DHK",
         )
         self.assertIn("deliveryCountry%3AHK", opener.requests[1][1])
+
+    def test_live_row_flows_through_listing_and_result_card_contract(self):
+        connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=_Opener())
+        row = connector.search({"query": "mini pc", "limit": 1})[0]
+        listing, evidence, reason = _to_listing(row)
+        self.assertIsNone(reason)
+        self.assertIsNotNone(listing)
+        card = build_card(listing, evidence).to_dict()
+        self.assertEqual(card["source_id"], "ebay.browse.hk.v1")
+        self.assertEqual(card["source_observed_at"], "2026-10-20T00:00:00.000Z")
+        self.assertEqual(card["specs"]["display_4k_count"], 2)
+        self.assertEqual(card["evidence_coverage"], 1.0)
+        self.assertTrue(card["evidence"])
 
     def test_non_object_browse_response_fails_closed(self):
         connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=_NonObjectOpener())
