@@ -344,6 +344,29 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(listing.evidence_coverage, 0.0)
         self.assertIn("evidence_coverage_low", listing.risk_flags)
 
+    def test_evidence_cannot_repoint_to_another_source_or_listing(self):
+        row = {
+            "listing_id": "mismatched-evidence-1",
+            "source_id": "ebay.browse.hk.v1",
+            "title": "Mini PC",
+            "url": "https://www.ebay.com.hk/itm/mismatched-evidence-1",
+            "price": {"value": 4999, "currency": "HKD"},
+            "availability": "IN_STOCK",
+            "condition": "New",
+            "evidence": [{
+                "source_id": "unregistered.source",
+                "source_url": "https://www.ebay.com.hk/itm/other-listing",
+                "field": "title",
+                "value": "Mini PC",
+                "observed_at": "2026-10-24T00:00:00Z",
+                "status": "confirmed",
+            }],
+        }
+        listing, evidence, reason = _to_listing(row)
+        self.assertIsNone(reason)
+        self.assertEqual(evidence, [])
+        self.assertIn("evidence_source_mismatch", listing.risk_flags)
+
     def test_title_ram_is_not_inferred_as_vram(self):
         self.assertNotIn("vram_gb", _extract_specs("Gaming desktop RTX 4090 64GB RAM"))
         self.assertEqual(_extract_specs("RTX 4070 12GB VRAM"), {"vram_gb": 12})

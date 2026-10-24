@@ -172,8 +172,13 @@ def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], st
     elif len(unique_shipping_values) > 1:
         flags.append("shipping_ambiguous")
     evidence: list[Evidence] = []
+    evidence_attribution_issue = False
     for index, item in enumerate(row.get("evidence") or []):
         if not item.get("source_url") or not _allowed_source_url(str(item["source_url"])):
+            continue
+        evidence_source_id = str(item.get("source_id") or row.get("source_id") or "")
+        if evidence_source_id != str(row.get("source_id") or "") or str(item["source_url"]) != str(url):
+            evidence_attribution_issue = True
             continue
         value = item.get("value")
         status = str(item.get("status") or "unknown")
@@ -191,6 +196,8 @@ def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], st
         ))
     if any(item.status in {"stale", "conflict"} for item in evidence):
         flags.append("evidence_conflict_or_stale")
+    if evidence_attribution_issue:
+        flags.append("evidence_source_mismatch")
     observed_at = str(row.get("source_observed_at") or "unknown")
     delivery_max_days = _extract_delivery_max_days(shipping, observed_at)
     confirmed_fields = {item.field for item in evidence if item.status == "confirmed" and item.field in KEY_EVIDENCE_FIELDS}
@@ -279,10 +286,19 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
     try:
         connector = EbayBrowseConnector(fixture_path=fixture_path)
         connector_spec = spec.to_dict()
-        # Keep the source request bounded by the caller's result limit.  The
-        # pipeline still preserves source order and applies the final limit
-        # after hard filtering, but never fetches an unbounded default page.
-        connector_spec["limit"] = limit
+        # Keep the source request bounded while preserving recall after hard
+        # filtering.  A small output limit must not shrink the single source
+        # page below the connector's normal page size, otherwise early
+        # rejected listings can hide later matches.  We still never follow
+        # ``next`` or fetch more than one bounded page.
+        default_source_limit = getattr(getattr(connector, "config", None), "default_limit", 20)
+        if (
+            isinstance(default_source_limit, bool)
+            or not isinstance(default_source_limit, int)
+            or default_source_limit < 1
+        ):
+            default_source_limit = 20
+        connector_spec["limit"] = min(200, max(limit, default_source_limit))
         rows = connector.search(connector_spec)
     except (ConnectorUnavailable, ValueError) as exc:
         source_metadata = connector.source_metadata if "connector" in locals() else None
