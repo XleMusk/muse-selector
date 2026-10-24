@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import json
+import math
 import os
 import urllib.error
 import urllib.parse
@@ -40,6 +41,10 @@ class EbayConnectorConfig:
             raise ValueError("MVP connector is locked to delivery country HK")
         if self.default_buying_option != "FIXED_PRICE":
             raise ValueError("MVP connector is read-only fixed-price search")
+        if not isinstance(self.timeout_seconds, (int, float)) or not math.isfinite(float(self.timeout_seconds)) or self.timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be a finite positive number")
+        if not isinstance(self.default_limit, int) or isinstance(self.default_limit, bool) or not 1 <= self.default_limit <= 200:
+            raise ValueError("default_limit must be an integer between 1 and 200")
         for name, value in (("api_base", self.api_base), ("token_url", self.token_url)):
             parsed = urllib.parse.urlparse(value)
             if parsed.scheme != "https" or parsed.hostname != "api.ebay.com":
@@ -93,7 +98,7 @@ class EbayBrowseConnector:
         fetched_at = self._fetch_timestamp() if live else None
         items = payload.get("itemSummaries", [])
         if not isinstance(items, list):
-            raise ValueError("eBay response itemSummaries must be a list")
+            raise ConnectorUnavailable("eBay response itemSummaries must be a list")
         if any(not isinstance(item, dict) for item in items):
             raise ConnectorUnavailable("eBay response itemSummaries must contain only JSON objects")
         listings = [self._normalize_item(item, fetched_at=fetched_at) for item in items]

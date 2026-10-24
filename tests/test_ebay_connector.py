@@ -45,6 +45,22 @@ class EbayBrowseConnectorTests(unittest.TestCase):
             with self.assertRaises(ConnectorUnavailable):
                 EbayBrowseConnector(fixture_path=p).search({"query": "mini pc"})
 
+    def test_malformed_item_summaries_shape_fails_closed(self):
+        data = {"itemSummaries": {"unexpected": True}}
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "fixture.json"
+            p.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaises(ConnectorUnavailable):
+                EbayBrowseConnector(fixture_path=p).search({"query": "mini pc"})
+
+    def test_connector_config_rejects_invalid_timeout_and_limit(self):
+        with self.assertRaises(ValueError):
+            EbayConnectorConfig(timeout_seconds=0)
+        with self.assertRaises(ValueError):
+            EbayConnectorConfig(timeout_seconds=float("nan"))
+        with self.assertRaises(ValueError):
+            EbayConnectorConfig(default_limit=201)
+
     def test_live_mode_is_closed_without_credentials(self):
         connector = EbayBrowseConnector(config=EbayConnectorConfig())
         with self.assertRaises(ConnectorUnavailable):
