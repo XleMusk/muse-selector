@@ -1,6 +1,8 @@
 import json
+import io
 import unittest
 from pathlib import Path
+from urllib.error import HTTPError
 
 from muse_selector.connectors.ebay import ConnectorUnavailable, EbayBrowseConnector
 
@@ -50,6 +52,26 @@ class _NonObjectOpener(_Opener):
         return _Response(["unexpected", "array"])
 
 
+class _HttpErrorOpener(_Opener):
+    def __init__(self, *, fail_on: str):
+        super().__init__()
+        self.fail_on = fail_on
+
+    def open(self, request, timeout=None):
+        self.requests.append((request.get_method(), request.full_url, dict(request.headers)))
+        if self.fail_on == request.get_method():
+            raise HTTPError(
+                request.full_url,
+                503,
+                "service unavailable",
+                hdrs=None,
+                fp=io.BytesIO(b'{"error":"temporary"}'),
+            )
+        if request.full_url.endswith("/identity/v1/oauth2/token"):
+            return _Response({"access_token": "test-token"})
+        return _Response({"itemSummaries": []})
+
+
 class EbayLiveAdapterTests(unittest.TestCase):
     def test_oauth_and_browse_are_read_only_and_normalized(self):
         opener = _Opener()
@@ -70,6 +92,16 @@ class EbayLiveAdapterTests(unittest.TestCase):
 
     def test_non_object_browse_response_fails_closed(self):
         connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=_NonObjectOpener())
+        with self.assertRaises(ConnectorUnavailable):
+            connector.search({"query": "mini pc"})
+
+    def test_oauth_http_error_fails_closed(self):
+        connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=_HttpErrorOpener(fail_on="POST"))
+        with self.assertRaises(ConnectorUnavailable):
+            connector.search({"query": "mini pc"})
+
+    def test_browse_http_error_fails_closed(self):
+        connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=_HttpErrorOpener(fail_on="GET"))
         with self.assertRaises(ConnectorUnavailable):
             connector.search({"query": "mini pc"})
 
