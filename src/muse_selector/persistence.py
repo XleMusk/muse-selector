@@ -83,7 +83,7 @@ class SelectorStore:
 
         if payload.get("read_only") is not True:
             raise ValueError("only read-only payloads can be persisted")
-        if payload.get("status") not in {"complete", "policy_blocked", "source_unavailable"}:
+        if payload.get("status") not in {"complete", "policy_blocked", "needs_clarification", "source_unavailable"}:
             raise ValueError("unsupported run status")
         payload_dict = dict(payload)
         resolved_id = run_id or run_id_for_payload(payload_dict)

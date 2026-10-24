@@ -19,6 +19,7 @@ class PolicyBlockedError(ValueError):
 
 _MONEY_RE = re.compile(r"(?:HKD|港币|港元|预算)\s*[:：]?\s*(?:不超过|以内|上限|最多)?\s*(\d+(?:\.\d+)?)\s*(万)?", re.I)
 _GB_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(GB|TB)\s*(?:内存|RAM|显存|VRAM|SSD|存储|硬盘)?", re.I)
+_UNBOUNDED_BUDGET_TOKENS = ("价格不限", "预算不限", "不限预算", "不设预算", "不限制预算", "no budget limit", "unlimited budget")
 
 
 def _size_gb(value: str, unit: str) -> int:
@@ -85,4 +86,11 @@ def missing_fields(spec: SearchSpec) -> list[str]:
     if not spec.required_specs:
         missing.append("required_specs")
     return missing
+
+
+def has_explicit_unbounded_budget(text: str) -> bool:
+    """Return true only when the user explicitly waives a budget cap."""
+
+    lowered = text.lower()
+    return any(token in lowered for token in _UNBOUNDED_BUDGET_TOKENS)
 

@@ -56,7 +56,7 @@ class WebTests(unittest.TestCase):
             with urlopen(base + "/healthz", timeout=2) as response:
                 health = json.loads(response.read().decode("utf-8"))
             self.assertEqual(health, {"ok": True, "read_only": True})
-            with urlopen(base + "/?q=mini%20pc", timeout=2) as response:
+            with urlopen(base + "/?q=%E9%A6%99%E6%B8%AF%E9%A2%84%E7%AE%97%20HKD%207000%20%E4%BB%A5%E5%86%85%E7%9A%84%E8%BF%B7%E4%BD%A0%E4%B8%BB%E6%9C%BA", timeout=2) as response:
                 page = response.read().decode("utf-8")
             self.assertIn("Mini PC Ryzen 7", page)
             self.assertIn("证据", page)
@@ -71,7 +71,7 @@ class WebTests(unittest.TestCase):
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
-            with urlopen(f"http://127.0.0.1:{server.server_port}/?q=mini%20pc", timeout=2) as response:
+            with urlopen(f"http://127.0.0.1:{server.server_port}/?q=%E9%A6%99%E6%B8%AF%E9%A2%84%E7%AE%97%20HKD%207000%20%E4%BB%A5%E5%86%85%E7%9A%84%E8%BF%B7%E4%BD%A0%E4%B8%BB%E6%9C%BA", timeout=2) as response:
                 page = response.read().decode("utf-8")
             self.assertIn("source_unavailable", page)
             self.assertIn("只读结果页", page)

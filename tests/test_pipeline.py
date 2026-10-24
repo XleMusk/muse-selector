@@ -43,6 +43,19 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(payload["read_only"])
         self.assertEqual(payload["source"], "policy.guard")
 
+    def test_missing_budget_returns_clarification_without_source_call(self):
+        payload = run_search("找一台适合本地视觉模型的电脑", FIXTURE)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["status"], "needs_clarification")
+        self.assertEqual(payload["ask"], ["location", "max_total_hkd"])
+        self.assertTrue(payload["read_only"])
+
+    def test_explicit_unbounded_budget_can_search_fixture(self):
+        payload = run_search("香港 USB4 扩展坞，双 4K、100W PD，价格不限", FIXTURE)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["status"], "complete")
+        self.assertNotIn("ask", payload)
+
     def test_markdown_card_is_human_readable(self):
         payload = run_search("香港预算 HKD 7000 以内的迷你主机", FIXTURE)
         report = render_markdown(payload)

@@ -42,6 +42,16 @@ class PersistenceTests(unittest.TestCase):
             self.assertTrue(result["payload"]["read_only"])
             self.assertIsNotNone(store.get_run(result["run_id"]))
 
+    def test_clarification_watch_is_saved_as_read_only_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            watch_id = store.add_watch("找一台适合本地视觉模型的电脑", watch_id="watch_clarify")
+            result = store.refresh_watch(watch_id)
+            self.assertFalse(result["payload"]["ok"])
+            self.assertEqual(result["payload"]["status"], "needs_clarification")
+            self.assertTrue(result["payload"]["read_only"])
+            self.assertIsNotNone(store.get_run(result["run_id"]))
+
     def test_disabled_watch_does_not_refresh(self):
         with tempfile.TemporaryDirectory() as directory:
             store = SelectorStore(Path(directory) / "selector.sqlite3")

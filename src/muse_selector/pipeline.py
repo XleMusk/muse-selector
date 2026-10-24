@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 from .connectors.ebay import ConnectorUnavailable, EbayBrowseConnector
 from .contracts import Evidence, Listing
 from .filtering import filter_listings
-from .query_parser import PolicyBlockedError, parse_query
+from .query_parser import PolicyBlockedError, has_explicit_unbounded_budget, parse_query
 from .result_card import build_card
 
 
@@ -130,6 +130,19 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
             "status": "policy_blocked",
             "message": str(exc),
             "search_spec": None,
+            "recommended": [],
+            "rejected": [],
+            "dropped": [],
+            "source": "policy.guard",
+            "read_only": True,
+        }
+    if spec.budget_max is None and not has_explicit_unbounded_budget(query):
+        return {
+            "ok": False,
+            "status": "needs_clarification",
+            "message": "请补充配送地区和 HKD 预算上限；如无预算限制，请明确写“价格不限”。",
+            "ask": ["location", "max_total_hkd"],
+            "search_spec": spec.to_dict(),
             "recommended": [],
             "rejected": [],
             "dropped": [],
