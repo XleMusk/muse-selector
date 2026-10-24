@@ -60,6 +60,17 @@ def build_card(listing: Listing, evidence: Iterable[Evidence], *, status: str = 
 def render_markdown(payload: Mapping[str, Any]) -> str:
     """Render a compact, inspectable result card report."""
 
+    if not payload.get("ok"):
+        lines = [
+            "# Muse Selector 结果卡",
+            "",
+            f"状态：{payload.get('status') or 'unknown'}",
+            f"说明：{payload.get('message') or '没有可展示的结果。'}",
+            "",
+            "只读状态：true",
+        ]
+        return "\n".join(lines) + "\n"
+
     spec = payload["search_spec"]
     lines = [
         "# Muse Selector 结果卡",

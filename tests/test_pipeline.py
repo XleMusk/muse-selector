@@ -50,6 +50,14 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("打开原平台", report)
         self.assertIn("来源观测时间", report)
 
+    def test_markdown_reports_blocked_and_unavailable_states(self):
+        blocked = render_markdown(run_search("帮我买一个游戏账号并完成转移"))
+        self.assertIn("policy_blocked", blocked)
+        self.assertIn("只读状态：true", blocked)
+        unavailable = render_markdown(run_search("香港 RTX 4070 显卡，预算 HKD 9000"))
+        self.assertIn("source_unavailable", unavailable)
+        self.assertIn("eBay live connector disabled", unavailable)
+
     def test_live_mode_without_credentials_fails_closed(self):
         payload = run_search("香港 RTX 4070 显卡，预算 HKD 9000")
         self.assertFalse(payload["ok"])
