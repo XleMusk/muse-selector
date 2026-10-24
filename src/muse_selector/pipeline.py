@@ -125,7 +125,17 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
     try:
         spec = parse_query(query)
     except PolicyBlockedError as exc:
-        return {"ok": False, "status": "policy_blocked", "message": str(exc), "search_spec": None, "recommended": []}
+        return {
+            "ok": False,
+            "status": "policy_blocked",
+            "message": str(exc),
+            "search_spec": None,
+            "recommended": [],
+            "rejected": [],
+            "dropped": [],
+            "source": "policy.guard",
+            "read_only": True,
+        }
     connector = EbayBrowseConnector(fixture_path=fixture_path)
     try:
         rows = connector.search(spec.to_dict())

@@ -36,6 +36,13 @@ class PipelineTests(unittest.TestCase):
         with self.assertRaises(PolicyBlockedError):
             parse_query("帮我买一个游戏账号并完成转移")
 
+    def test_policy_blocked_search_returns_read_only_state(self):
+        payload = run_search("帮我买一个游戏账号并完成转移")
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["status"], "policy_blocked")
+        self.assertTrue(payload["read_only"])
+        self.assertEqual(payload["source"], "policy.guard")
+
     def test_markdown_card_is_human_readable(self):
         payload = run_search("香港预算 HKD 7000 以内的迷你主机", FIXTURE)
         report = render_markdown(payload)

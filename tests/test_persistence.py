@@ -32,6 +32,16 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(result["payload"]["status"], "source_unavailable")
             self.assertIsNotNone(store.get_run(result["run_id"]))
 
+    def test_policy_blocked_watch_is_saved_as_read_only_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            watch_id = store.add_watch("帮我买一个游戏账号并完成转移", watch_id="watch_policy")
+            result = store.refresh_watch(watch_id)
+            self.assertFalse(result["payload"]["ok"])
+            self.assertEqual(result["payload"]["status"], "policy_blocked")
+            self.assertTrue(result["payload"]["read_only"])
+            self.assertIsNotNone(store.get_run(result["run_id"]))
+
     def test_disabled_watch_does_not_refresh(self):
         with tempfile.TemporaryDirectory() as directory:
             store = SelectorStore(Path(directory) / "selector.sqlite3")
