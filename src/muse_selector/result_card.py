@@ -27,6 +27,7 @@ class ResultCard:
     evidence: tuple[Mapping[str, Any], ...]
     risk_flags: tuple[str, ...]
     delivery_max_days: int | None = None
+    warranty: str | None = None
     status: str = "recommended"
     shipping_cost: str | None = None
     tax: str | None = None
@@ -77,6 +78,7 @@ def build_card(
         condition=listing.condition,
         specs=dict(listing.specs),
         delivery_max_days=listing.specs.get("delivery_max_days"),
+        warranty=listing.specs.get("warranty"),
         evidence=tuple(item.to_dict() for item in evidence),
         risk_flags=listing.risk_flags,
         status=status,
@@ -133,6 +135,7 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
             f"- 关键字段证据覆盖率：{float(card.get('evidence_coverage', 0.0)):.1%}",
             f"- 来源观测时间：{_markdown_untrusted(card.get('source_observed_at') or 'unknown')}",
             f"- 最长预计配送：{_markdown_untrusted(card.get('delivery_max_days') if card.get('delivery_max_days') is not None else 'unknown')} 天",
+            f"- 保修：{_markdown_untrusted(card.get('warranty') or 'unknown')}",
             f"- 状态：{_markdown_untrusted(card['stock_status'])}；成色：{_markdown_untrusted(card['condition'])}",
             f"- 规格：{_markdown_untrusted(card['specs'] or 'unknown')}",
             f"- 来源：[打开原平台]({_markdown_untrusted(card['url'])})",

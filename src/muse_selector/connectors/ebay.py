@@ -465,6 +465,9 @@ class EbayBrowseConnector:
                 "video outputs",
             } and re.search(r"(?:dual|2\s*[x×*]?)\s*4K", raw_value, re.I):
                 specs["display_4k_count"] = 2
+                continue
+            if name in {"warranty", "warranty duration", "manufacturer warranty", "seller warranty"}:
+                specs["warranty"] = raw_value
         return specs
 
     @staticmethod

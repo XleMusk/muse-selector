@@ -170,6 +170,7 @@ class EbayLiveAdapterTests(unittest.TestCase):
                 {"name": "Dedicated Video Memory", "value": "16 GB"},
                 {"name": "Power Delivery Wattage", "value": "140 W"},
                 {"name": "Maximum Supported Resolution", "value": "2 x 4K"},
+                {"name": "Manufacturer Warranty", "value": "12 months"},
             ]),
             {
                 "ram_gb": 64,
@@ -177,6 +178,7 @@ class EbayLiveAdapterTests(unittest.TestCase):
                 "vram_gb": 16,
                 "pd_watt": 140,
                 "display_4k_count": 2,
+                "warranty": "12 months",
             },
         )
 

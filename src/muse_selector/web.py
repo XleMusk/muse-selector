@@ -57,6 +57,7 @@ def render_html(payload: dict[str, Any], query: str) -> str:
                 f"<p>关键字段证据覆盖率：{_text(coverage_label)}</p>"
                 f"<p>来源观测时间：{_text(card.get('source_observed_at') or 'unknown')}</p>"
                 f"<p>最长预计配送：{_text(card.get('delivery_max_days') if card.get('delivery_max_days') is not None else 'unknown')} 天</p>"
+                f"<p>保修：{_text(card.get('warranty') or 'unknown')}</p>"
                 f"<p>库存：{_text(card.get('stock_status'))} · 成色：{_text(card.get('condition'))}</p>"
                 f"<p>规格：<code>{_text(json.dumps(card.get('specs') or {}, ensure_ascii=False, sort_keys=True))}</code></p>"
                 f"<p>风险：{_text(risk)}</p>"
