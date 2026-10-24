@@ -19,6 +19,7 @@ ALLOWED_STATUSES = {"confirmed", "unknown", "conflict", "stale"}
 ALLOWED_STOCK = {"in_stock", "out_of_stock", "preorder", "unknown"}
 ALLOWED_CONDITION = {"new", "used", "refurbished", "unknown"}
 KEY_EVIDENCE_FIELDS = ("title", "url", "price", "condition", "seller", "shippingOptions")
+ALLOWED_SOURCE_IDS = {"ebay.browse.hk.v1"}
 
 
 def _now_iso() -> str:
@@ -105,6 +106,9 @@ class SearchSpec:
         object.__setattr__(self, "required_specs", _copy_map(self.required_specs))
         object.__setattr__(self, "preferred_specs", _copy_map(self.preferred_specs))
         object.__setattr__(self, "sources", tuple(self.sources or ()))
+        unsupported_sources = sorted({str(source) for source in self.sources if not isinstance(source, str) or source not in ALLOWED_SOURCE_IDS})
+        if unsupported_sources:
+            raise ValueError(f"unsupported source(s): {unsupported_sources}")
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "SearchSpec":

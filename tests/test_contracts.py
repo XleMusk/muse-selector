@@ -21,6 +21,10 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(spec.budget_max, Decimal("12000.00"))
         self.assertEqual(spec.region, "HK")
 
+    def test_search_spec_rejects_unregistered_sources(self):
+        with self.assertRaisesRegex(ValueError, "unsupported source"):
+            SearchSpec.from_dict({"query": "laptop", "sources": ["untrusted.example.v1"]})
+
     def test_listing_landed_cost_and_filter(self):
         spec = SearchSpec(query="laptop", budget_max=12000, required_specs={"ram_gb": 32})
         listing = Listing(
