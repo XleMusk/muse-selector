@@ -11,6 +11,9 @@ class QueryParserBudgetRangeTests(unittest.TestCase):
             "游戏账户交易，预算 HKD 500",
             "account boosting service，预算 HKD 500",
             "出售账号，预算 HKD 500",
+            "出售遊戲帳號，預算 HKD 500",
+            "購買帳戶，預算 HKD 500",
+            "代練，預算 HKD 500",
         ):
             with self.assertRaisesRegex(ValueError, "不在第一版范围内"):
                 parse_query(query)
