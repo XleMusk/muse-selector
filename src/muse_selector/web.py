@@ -32,6 +32,14 @@ def _safe_href(value: Any) -> str:
     return candidate if _allowed_source_url(candidate) else "#"
 
 
+def _validate_bind_host(host: str) -> str:
+    """Keep the local result page on loopback to prevent cross-tenant reads."""
+
+    if host not in {"127.0.0.1", "::1"}:
+        raise ValueError("local result page host must be 127.0.0.1 or ::1")
+    return host
+
+
 def render_html(payload: dict[str, Any], query: str) -> str:
     """Render a safe, source-visible result page from a pipeline payload."""
     if not payload.get("ok"):
@@ -133,6 +141,7 @@ def make_handler(fixture_path: str | Path | None = None) -> type[BaseHTTPRequest
 
 
 def serve(fixture_path: str | Path | None = None, host: str = "127.0.0.1", port: int = 8765) -> None:
+    host = _validate_bind_host(host)
     server = ThreadingHTTPServer((host, port), make_handler(fixture_path))
     print(f"Muse Selector read-only web view: http://{host}:{server.server_port}/")
     try:

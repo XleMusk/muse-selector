@@ -23,6 +23,13 @@
 - 来源：[打开原平台](https://www.ebay.com.hk/itm/100000000001)
 - 风险：未标记
 - 证据字段：title, url, price, condition, seller, shippingOptions, specs
+- 证据片段（title）：Mini PC Ryzen 7 7840HS 32GB 1TB NVMe
+- 证据片段（url）：https://www.ebay.com.hk/itm/100000000001
+- 证据片段（price）：\{'value': '6999.00', 'currency': 'HKD'\}
+- 证据片段（condition）：New
+- 证据片段（seller）：\{'username': 'authorized-hardware-hk', 'feedbackPercentage': '99.8'\}
+- 证据片段（shippingOptions）：\[\{'shippingCost': \{'value': '0.00', 'currency': 'HKD'\}, 'shippingServiceCode': 'HK\_LOCAL'\}\]
+- 证据片段（specs）：\{\}
 
 ## 被硬约束过滤的结果
 

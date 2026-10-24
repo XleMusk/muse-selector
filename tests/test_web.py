@@ -5,7 +5,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.request import urlopen
 
-from muse_selector.web import make_handler, render_html
+from muse_selector.web import make_handler, render_html, serve
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -109,6 +109,10 @@ class WebTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join(timeout=2)
+
+    def test_local_server_rejects_non_loopback_bind_hosts(self):
+        with self.assertRaises(ValueError):
+            serve(FIXTURE, host="0.0.0.0", port=0)
 
 
 if __name__ == "__main__":

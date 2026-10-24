@@ -20,6 +20,8 @@ muse-selector --help
 $env:PYTHONPATH = "D:\muse\src;D:\muse\tests"
 $env:PYTHONIOENCODING = "utf-8"
 
+# 在 PowerShell 中把 JSON 重定向到文件时保留这个变量，确保中文结果按 UTF-8 写入。
+
 python -m muse_selector `
   --query "香港预算 HKD 7000 以内的迷你主机" `
   --fixture "D:\muse\tests\fixtures\ebay_hk_sample.json" `
@@ -44,6 +46,7 @@ python -m muse_selector.web `
 ```
 
 然后打开 `http://127.0.0.1:8765/`。省略 `--fixture` 会进入实时只读路径；没有 eBay 官方凭据时页面显示 `source_unavailable`，不会偷偷回退到 fixture。
+结果页只绑定 `127.0.0.1` 或 `::1`，不会监听局域网地址，避免其他租户读取本地结果。
 
 运行离线回归：
 
