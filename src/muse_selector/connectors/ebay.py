@@ -94,6 +94,19 @@ class EbayBrowseConnector:
     def _fetch_timestamp() -> str:
         return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
+    def _redact_error(self, message: Any, *extra_values: Any) -> str:
+        """Keep connector diagnostics useful without echoing credentials/tokens."""
+
+        text = str(message)
+        sensitive = (self.client_secret, self._token, *extra_values)
+        for value in sensitive:
+            if value is None:
+                continue
+            candidate = str(value)
+            if candidate:
+                text = text.replace(candidate, "[redacted]")
+        return text
+
     def search(self, search_spec: Mapping[str, Any]) -> list[dict[str, Any]]:
         """Search listings and return canonical-ish dictionaries."""
         live = self.fixture_path is None
@@ -146,9 +159,9 @@ class EbayBrowseConnector:
                 body = response.read()
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")[:500]
-            raise ConnectorUnavailable(f"eBay Browse API HTTP {exc.code}: {detail}") from exc
+            raise ConnectorUnavailable(self._redact_error(f"eBay Browse API HTTP {exc.code}: {detail}", token)) from exc
         except (urllib.error.URLError, TimeoutError) as exc:
-            raise ConnectorUnavailable(f"eBay Browse API unavailable: {exc}") from exc
+            raise ConnectorUnavailable(self._redact_error(f"eBay Browse API unavailable: {exc}", token)) from exc
         if status >= 400:
             raise ConnectorUnavailable(f"eBay Browse API HTTP {status}")
         try:
@@ -183,7 +196,7 @@ class EbayBrowseConnector:
                 status = getattr(response, "status", 200)
                 body = response.read()
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as exc:
-            raise ConnectorUnavailable(f"eBay OAuth token request failed: {exc}") from exc
+            raise ConnectorUnavailable(self._redact_error(f"eBay OAuth token request failed: {exc}")) from exc
         if status >= 400:
             raise ConnectorUnavailable(f"eBay OAuth token request failed: HTTP {status}")
         try:

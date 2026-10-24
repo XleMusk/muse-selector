@@ -92,6 +92,20 @@ class _OAuthStatusErrorOpener(_Opener):
         return _Response({"itemSummaries": []})
 
 
+class _SecretEchoHttpErrorOpener(_Opener):
+    def open(self, request, timeout=None):
+        self.requests.append((request.get_method(), request.full_url, dict(request.headers)))
+        if request.full_url.endswith("/identity/v1/oauth2/token"):
+            return _Response({"access_token": "test-token", "expires_in": 7200})
+        raise HTTPError(
+            request.full_url,
+            503,
+            "service unavailable",
+            hdrs=None,
+            fp=io.BytesIO(b'{"error":"secret-value","token":"test-token"}'),
+        )
+
+
 class EbayLiveAdapterTests(unittest.TestCase):
     def test_oauth_and_browse_are_read_only_and_normalized(self):
         opener = _Opener()
@@ -147,6 +161,19 @@ class EbayLiveAdapterTests(unittest.TestCase):
         connector._token_expires_at = 0.0
         self.assertEqual(connector._application_token(), "test-token")
         self.assertEqual([method for method, _, _ in opener.requests], ["POST", "POST"])
+
+    def test_browse_error_redacts_secret_and_token_echoes(self):
+        connector = EbayBrowseConnector(
+            client_id="client-id",
+            client_secret="secret-value",
+            opener=_SecretEchoHttpErrorOpener(),
+        )
+        with self.assertRaises(ConnectorUnavailable) as raised:
+            connector.search({"query": "mini pc"})
+        message = str(raised.exception)
+        self.assertNotIn("secret-value", message)
+        self.assertNotIn("test-token", message)
+        self.assertIn("[redacted]", message)
 
     def test_browse_http_error_fails_closed(self):
         connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=_HttpErrorOpener(fail_on="GET"))
