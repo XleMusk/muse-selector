@@ -36,6 +36,8 @@ class _Opener:
                 "price": {"value": "4999.00", "currency": "HKD"},
                 "condition": "New",
                 "estimatedAvailabilityStatus": "IN_STOCK",
+                "itemCreationDate": "2026-10-20T00:00:00.000Z",
+                "itemEndDate": "2099-01-01T00:00:00.000Z",
             }]
         })
 
@@ -48,8 +50,8 @@ class EbayLiveAdapterTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["price"]["currency"], "HKD")
         self.assertEqual(rows[0]["availability"], "IN_STOCK")
-        self.assertNotEqual(rows[0]["evidence"][0]["observed_at"], None)
-        self.assertNotEqual(rows[0]["source_observed_at"], None)
+        self.assertEqual(rows[0]["evidence"][0]["observed_at"], "2026-10-20T00:00:00.000Z")
+        self.assertEqual(rows[0]["source_observed_at"], "2026-10-20T00:00:00.000Z")
         self.assertEqual([method for method, _, _ in opener.requests], ["POST", "GET"])
         self.assertEqual(opener.requests[1][2].get("X-ebay-c-marketplace-id"), "EBAY_HK")
         self.assertEqual(

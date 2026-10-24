@@ -202,6 +202,7 @@ class EbayBrowseConnector:
         shipping = item.get("shippingOptions")
         if not isinstance(shipping, list):
             shipping = []
+        observed_at = item.get("itemCreationDate") or fetched_at
         evidence_fields = {
             "title": item.get("title"),
             "url": item.get("itemWebUrl"),
@@ -216,7 +217,7 @@ class EbayBrowseConnector:
                 "value": value,
                 "source_id": self.source_id,
                 "source_url": item.get("itemWebUrl"),
-                "observed_at": item.get("itemEndDate") or item.get("itemCreationDate") or fetched_at,
+                "observed_at": observed_at,
                 "status": "confirmed" if value not in (None, "", [], {}) else "unknown",
             }
             for field, value in evidence_fields.items()
@@ -239,7 +240,7 @@ class EbayBrowseConnector:
                 "feedback_percentage": seller.get("feedbackPercentage"),
             },
             "shipping_options": shipping,
-            "source_observed_at": item.get("itemEndDate") or item.get("itemCreationDate") or fetched_at,
+            "source_observed_at": observed_at,
             "evidence": evidence,
             "raw": dict(item),
         }
