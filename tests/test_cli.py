@@ -1,0 +1,48 @@
+import contextlib
+import io
+import os
+import sys
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+from muse_selector.cli import main
+
+
+ROOT = Path(__file__).resolve().parents[1]
+FIXTURE = ROOT / "tests" / "fixtures" / "ebay_hk_sample.json"
+
+
+class CliTests(unittest.TestCase):
+    def _run(self, *args: str) -> tuple[int, str]:
+        output = io.StringIO()
+        with patch.object(sys, "argv", ["muse-selector", *args]), contextlib.redirect_stdout(output):
+            code = main()
+        return code, output.getvalue()
+
+    def test_fixture_markdown_command_succeeds(self):
+        code, output = self._run(
+            "--query", "香港预算 HKD 7000 以内的迷你主机",
+            "--fixture", str(FIXTURE),
+            "--format", "markdown",
+        )
+        self.assertEqual(code, 0)
+        self.assertIn("Mini PC Ryzen 7", output)
+        self.assertIn("来源观测时间", output)
+
+    def test_policy_blocked_command_is_read_only_error(self):
+        code, output = self._run("--query", "帮我买一个游戏账号并完成转移", "--format", "markdown")
+        self.assertEqual(code, 2)
+        self.assertIn("policy_blocked", output)
+        self.assertIn("只读状态：true", output)
+
+    def test_live_command_without_credentials_is_fail_closed(self):
+        with patch.dict(os.environ, {"EBAY_CLIENT_ID": "", "EBAY_CLIENT_SECRET": ""}, clear=False):
+            code, output = self._run("--query", "香港 RTX 4070 显卡，预算 HKD 9000", "--format", "json")
+        self.assertEqual(code, 2)
+        self.assertIn('"status": "source_unavailable"', output)
+        self.assertIn('"read_only": true', output)
+
+
+if __name__ == "__main__":
+    unittest.main()
