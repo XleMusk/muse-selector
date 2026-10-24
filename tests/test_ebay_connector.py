@@ -149,6 +149,12 @@ class EbayBrowseConnectorTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             EbayConnectorConfig(token_url="https://api.ebay.com:8443/identity/v1/oauth2/token")
 
+    def test_connector_rejects_unregistered_endpoint_paths(self):
+        with self.assertRaises(ValueError):
+            EbayConnectorConfig(api_base="https://api.ebay.com/proxy")
+        with self.assertRaises(ValueError):
+            EbayConnectorConfig(token_url="https://api.ebay.com/other-token")
+
 
 if __name__ == "__main__":
     unittest.main()

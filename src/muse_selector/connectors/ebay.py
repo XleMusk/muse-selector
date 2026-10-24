@@ -66,8 +66,13 @@ class EbayConnectorConfig:
                 or parsed.username is not None
                 or parsed.password is not None
                 or port not in (None, 443)
+                or parsed.query
+                or parsed.fragment
             ):
                 raise ValueError(f"{name} must use the official https://api.ebay.com host")
+            expected_path = "" if name == "api_base" else "/identity/v1/oauth2/token"
+            if parsed.path.rstrip("/") != expected_path.rstrip("/"):
+                raise ValueError(f"{name} must use the registered eBay endpoint path")
 
     @classmethod
     def from_env(cls) -> "EbayConnectorConfig":
