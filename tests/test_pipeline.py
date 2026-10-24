@@ -89,6 +89,33 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(payload["status"], "source_unavailable")
         self.assertTrue(payload["read_only"])
 
+    def test_live_connector_output_flows_into_evidence_card(self):
+        live_row = {
+            "listing_id": "live|mini|1",
+            "source_id": "ebay.browse.hk.v1",
+            "title": "Mini PC 32GB 1TB NVMe",
+            "url": "https://www.ebay.com.hk/itm/live-mini-1",
+            "price": {"value": "4999.00", "currency": "HKD"},
+            "availability": "IN_STOCK",
+            "condition": "New",
+            "shipping_options": [{"shippingCost": {"value": "0.00", "currency": "HKD"}}],
+            "seller": {"feedback_percentage": "99.9"},
+            "source_observed_at": "2026-10-24T00:00:00Z",
+            "evidence": [
+                {"field": field, "source_id": "ebay.browse.hk.v1", "source_url": "https://www.ebay.com.hk/itm/live-mini-1", "observed_at": "2026-10-24T00:00:00Z", "status": "confirmed", "value": field}
+                for field in ("title", "url", "price", "condition", "seller", "shippingOptions")
+            ],
+        }
+        with patch("muse_selector.pipeline.EbayBrowseConnector") as connector_type:
+            connector_type.return_value.search.return_value = [live_row]
+            payload = run_search("香港预算 HKD 7000 以内的迷你主机")
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["read_only"])
+        self.assertEqual(payload["source"], "ebay.browse.hk.v1")
+        self.assertEqual(payload["recommended"][0]["source_observed_at"], "2026-10-24T00:00:00Z")
+        self.assertEqual(payload["recommended"][0]["evidence_coverage"], 1.0)
+        self.assertEqual(payload["recommended"][0]["status"], "recommended")
+
     def test_untrusted_listing_url_is_dropped_before_result_card(self):
         listing, evidence, reason = _to_listing({
             "listing_id": "evil-1",
