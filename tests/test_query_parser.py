@@ -25,3 +25,13 @@ class QueryParserBudgetRangeTests(unittest.TestCase):
         self.assertIsNone(spec.budget_min)
         self.assertIsNone(spec.budget_max)
         self.assertTrue(has_explicit_unbounded_budget("价格不限"))
+
+    def test_single_value_with_suffix_currency(self):
+        spec = parse_query("香港轻薄本，7000 港币")
+        self.assertIsNone(spec.budget_min)
+        self.assertEqual(spec.budget_max, Decimal("7000.00"))
+
+    def test_single_value_with_hk_dollar_prefix(self):
+        spec = parse_query("香港轻薄本，HK$7000")
+        self.assertIsNone(spec.budget_min)
+        self.assertEqual(spec.budget_max, Decimal("7000.00"))

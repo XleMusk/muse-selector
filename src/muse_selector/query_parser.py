@@ -23,12 +23,13 @@ _MONEY_NUMBER = r"[\d,]+(?:\.\d+)?"
 # use 至/到 rather than a hyphen.
 _MONEY_RANGE_RE = re.compile(
     rf"(?:"
-    rf"(?:HKD|港币|港元)\s*[:：]?\s*(?P<low1>{_MONEY_NUMBER})\s*(?:-|–|—|~|～|至|到)\s*(?P<high1>{_MONEY_NUMBER})"
-    rf"|(?P<low2>{_MONEY_NUMBER})\s*(?:-|–|—|~|～|至|到)\s*(?P<high2>{_MONEY_NUMBER})\s*(?:HKD|港币|港元)"
+    rf"(?:HKD|HK\$|港币|港元)\s*[:：]?\s*(?P<low1>{_MONEY_NUMBER})\s*(?:-|–|—|~|～|至|到)\s*(?P<high1>{_MONEY_NUMBER})"
+    rf"|(?P<low2>{_MONEY_NUMBER})\s*(?:-|–|—|~|～|至|到)\s*(?P<high2>{_MONEY_NUMBER})\s*(?:HKD|HK\$|港币|港元)"
     rf")",
     re.I,
 )
-_MONEY_RE = re.compile(rf"(?:HKD|港币|港元|预算)\s*[:：]?\s*(?:不超过|以内|上限|最多)?\s*({_MONEY_NUMBER})\s*(万)?", re.I)
+_MONEY_RE = re.compile(rf"(?:HKD|HK\$|港币|港元|预算)\s*[:：]?\s*(?:不超过|以内|上限|最多)?\s*({_MONEY_NUMBER})\s*(万)?", re.I)
+_MONEY_SUFFIX_RE = re.compile(rf"(?P<amount>{_MONEY_NUMBER})\s*(?:HKD|港币|港元)\b", re.I)
 _GB_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(GB|TB)\s*(?:内存|RAM|显存|VRAM|SSD|存储|硬盘)?", re.I)
 _UNBOUNDED_BUDGET_TOKENS = ("价格不限", "预算不限", "不限预算", "不设预算", "不限制预算", "no budget limit", "unlimited budget")
 
@@ -85,6 +86,10 @@ def parse_query(text: str) -> SearchSpec:
         money = _MONEY_RE.search(text)
         if money:
             budget_max = _money_amount(money.group(1), money.group(2))
+        else:
+            money_suffix = _MONEY_SUFFIX_RE.search(text)
+            if money_suffix:
+                budget_max = _money_amount(money_suffix.group("amount"))
 
     category = "computers_hardware"
     if any(token in lowered for token in ("显卡", "gpu", "显存")):
