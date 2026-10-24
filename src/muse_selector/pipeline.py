@@ -8,7 +8,7 @@ from typing import Any, Mapping
 from urllib.parse import urlparse
 
 from .connectors.ebay import ConnectorUnavailable, EbayBrowseConnector
-from .contracts import KEY_EVIDENCE_FIELDS, Evidence, Listing
+from .contracts import ALLOWED_STATUSES, KEY_EVIDENCE_FIELDS, Evidence, Listing
 from .filtering import filter_listings
 from .query_parser import PolicyBlockedError, has_explicit_unbounded_budget, parse_query
 from .result_card import build_card
@@ -111,15 +111,19 @@ def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], st
     for index, item in enumerate(row.get("evidence") or []):
         if not item.get("source_url") or not _allowed_source_url(str(item["source_url"])):
             continue
+        value = item.get("value")
+        status = str(item.get("status") or "unknown")
+        if status not in ALLOWED_STATUSES or (status == "confirmed" and value in (None, "", [], {})):
+            status = "unknown"
         evidence.append(Evidence(
             evidence_id=f"{row['listing_id']}:ev:{index}",
             source_id=str(item.get("source_id") or row.get("source_id")),
             source_url=str(item["source_url"]),
             field=str(item.get("field") or "unknown"),
-            value=item.get("value"),
+            value=value,
             observed_at=str(item.get("observed_at") or "unknown"),
-            status=str(item.get("status") or "unknown"),
-            confidence=1.0 if item.get("status") == "confirmed" else 0.5,
+            status=status,
+            confidence=1.0 if status == "confirmed" else 0.5,
         ))
     if any(item.status in {"stale", "conflict"} for item in evidence):
         flags.append("evidence_conflict_or_stale")

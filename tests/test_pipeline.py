@@ -189,6 +189,39 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(accepted, [])
         self.assertIn("risk_flagged", decisions[0].reasons)
 
+    def test_malformed_evidence_status_and_empty_confirmed_value_fail_closed(self):
+        row = {
+            "listing_id": "bad-evidence-1",
+            "source_id": "ebay.browse.hk.v1",
+            "title": "Mini PC",
+            "url": "https://www.ebay.com.hk/itm/bad-evidence-1",
+            "price": {"value": 4999, "currency": "HKD"},
+            "availability": "IN_STOCK",
+            "condition": "New",
+            "shipping_options": [{"shippingCost": {"value": "0", "currency": "HKD"}}],
+            "evidence": [
+                {
+                    "source_url": "https://www.ebay.com.hk/itm/bad-evidence-1",
+                    "field": "title",
+                    "value": None,
+                    "observed_at": "2026-10-24T00:00:00Z",
+                    "status": "confirmed",
+                },
+                {
+                    "source_url": "https://www.ebay.com.hk/itm/bad-evidence-1",
+                    "field": "price",
+                    "value": 4999,
+                    "observed_at": "2026-10-24T00:00:00Z",
+                    "status": "not-a-status",
+                },
+            ],
+        }
+        listing, evidence, reason = _to_listing(row)
+        self.assertIsNone(reason)
+        self.assertEqual([item.status for item in evidence], ["unknown", "unknown"])
+        self.assertEqual(listing.evidence_coverage, 0.0)
+        self.assertIn("evidence_coverage_low", listing.risk_flags)
+
     def test_title_ram_is_not_inferred_as_vram(self):
         self.assertNotIn("vram_gb", _extract_specs("Gaming desktop RTX 4090 64GB RAM"))
         self.assertEqual(_extract_specs("RTX 4070 12GB VRAM"), {"vram_gb": 12})
