@@ -7,7 +7,7 @@
 ## 推荐结果
 
 ### 1. Mini PC Ryzen 7 7840HS 32GB 1TB NVMe
-- 到手价：6999.00 HKD
+- 已知费用小计：6999.00 HKD（item_price_plus_shipping；税费 unknown）
 - 来源观测时间：unknown（fixture 测试数据）
 - 状态：in_stock；成色：new
 - 规格：{'ram_gb': 32, 'storage_gb': 1024}

@@ -26,6 +26,10 @@ class ResultCard:
     evidence: tuple[Mapping[str, Any], ...]
     risk_flags: tuple[str, ...]
     status: str = "recommended"
+    shipping_cost: str | None = None
+    tax: str | None = None
+    cost_status: str = "unknown"
+    cost_basis: str = "unknown"
 
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
@@ -54,6 +58,10 @@ def build_card(listing: Listing, evidence: Iterable[Evidence], *, status: str = 
         evidence=tuple(item.to_dict() for item in evidence),
         risk_flags=listing.risk_flags,
         status=status,
+        shipping_cost=_money(listing.shipping_cost),
+        tax=_money(listing.tax),
+        cost_status=listing.cost_status,
+        cost_basis=listing.cost_basis,
     )
 
 
@@ -86,9 +94,11 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
     if not cards:
         lines.append("没有满足全部硬约束的结果。")
     for index, card in enumerate(cards, 1):
+        cost_label = "到手价" if card.get("cost_status") == "complete" else "已知费用小计"
         lines.extend([
             f"### {index}. {card['title']}",
-            f"- 到手价：{card['landed_cost'] or 'unknown'} {card['currency']}",
+            f"- {cost_label}：{card['landed_cost'] or 'unknown'} {card['currency']}（{card.get('cost_basis') or 'unknown'}）",
+            f"- 运费/税费：{card.get('shipping_cost') or 'unknown'} / {card.get('tax') or 'unknown'} {card['currency']}",
             f"- 来源观测时间：{card.get('source_observed_at') or 'unknown'}",
             f"- 状态：{card['stock_status']}；成色：{card['condition']}",
             f"- 规格：{card['specs'] or 'unknown'}",

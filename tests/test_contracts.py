@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from muse_selector.contracts import Evidence, Listing, PolicyRecord, SearchSpec
 from muse_selector.filtering import filter_listings
+from muse_selector.result_card import build_card
 
 
 class ContractTests(unittest.TestCase):
@@ -44,6 +45,25 @@ class ContractTests(unittest.TestCase):
         accepted, decisions = filter_listings(spec, [listing])
         self.assertFalse(accepted)
         self.assertIn("required_spec:usb4", decisions[0].reasons)
+
+    def test_partial_cost_is_not_labeled_complete_landed_cost(self):
+        listing = Listing(
+            listing_id="ebay:partial-cost",
+            source_id="ebay_browse",
+            title="Partial cost",
+            url="https://www.ebay.com.hk/itm/partial-cost",
+            price=100,
+            shipping_cost=20,
+            tax=None,
+            stock_status="in_stock",
+            condition="new",
+        )
+        self.assertEqual(listing.landed_cost, Decimal("120.00"))
+        self.assertEqual(listing.cost_status, "partial")
+        self.assertEqual(listing.cost_basis, "item_price_plus_shipping")
+        card = build_card(listing, [])
+        self.assertEqual(card.cost_status, "partial")
+        self.assertIsNone(card.tax)
 
     def test_evidence_and_policy_require_http_source(self):
         evidence = Evidence("ev1", "ebay_browse", "https://www.ebay.com.hk/itm/1", "price", "10")

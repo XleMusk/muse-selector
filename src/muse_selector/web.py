@@ -28,6 +28,7 @@ def render_html(payload: dict[str, Any], query: str) -> str:
         spec = payload.get("search_spec") or {}
         cards: list[str] = []
         for card in payload.get("recommended") or []:
+            cost_label = "到手价" if card.get("cost_status") == "complete" else "已知费用小计"
             evidence = "".join(
                 f"<li><code>{_text(item.get('field'))}</code> · {_text(item.get('status'))} · "
                 f"观测时间：{_text(item.get('observed_at') or 'unknown')} · "
@@ -38,7 +39,8 @@ def render_html(payload: dict[str, Any], query: str) -> str:
             cards.append(
                 "<article class='card'>"
                 f"<h2>{_text(card.get('title'))}</h2>"
-                f"<p class='price'>{_text(card.get('landed_cost') or 'unknown')} {_text(card.get('currency'))}</p>"
+                f"<p class='price'>{_text(cost_label)}：{_text(card.get('landed_cost') or 'unknown')} {_text(card.get('currency'))}</p>"
+                f"<p>运费/税费：{_text(card.get('shipping_cost') or 'unknown')} / {_text(card.get('tax') or 'unknown')} {_text(card.get('currency'))} · 基准：{_text(card.get('cost_basis') or 'unknown')}</p>"
                 f"<p>来源观测时间：{_text(card.get('source_observed_at') or 'unknown')}</p>"
                 f"<p>库存：{_text(card.get('stock_status'))} · 成色：{_text(card.get('condition'))}</p>"
                 f"<p>规格：<code>{_text(json.dumps(card.get('specs') or {}, ensure_ascii=False, sort_keys=True))}</code></p>"

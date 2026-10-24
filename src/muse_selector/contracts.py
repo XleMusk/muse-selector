@@ -261,15 +261,37 @@ class Listing:
 
     @property
     def landed_cost(self) -> Decimal | None:
+        """Return the computable subtotal; inspect ``cost_status`` before labeling it landed."""
         if self.price is None:
             return None
         return (self.price + (self.shipping_cost or Decimal("0")) + (self.tax or Decimal("0"))).quantize(Decimal("0.01"))
+
+    @property
+    def cost_status(self) -> str:
+        """Describe whether the displayed subtotal includes all cost components."""
+        if self.price is None:
+            return "unknown"
+        return "complete" if self.shipping_cost is not None and self.tax is not None else "partial"
+
+    @property
+    def cost_basis(self) -> str:
+        """Identify which explicit components contribute to ``landed_cost``."""
+        if self.price is None:
+            return "unknown"
+        components = ["item_price"]
+        if self.shipping_cost is not None:
+            components.append("shipping")
+        if self.tax is not None:
+            components.append("tax")
+        return "_plus_".join(components)
 
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
         for key in ("price", "shipping_cost", "tax"):
             result[key] = str(result[key]) if result[key] is not None else None
         result["landed_cost"] = str(self.landed_cost) if self.landed_cost is not None else None
+        result["cost_status"] = self.cost_status
+        result["cost_basis"] = self.cost_basis
         result["evidence_ids"] = list(result["evidence_ids"])
         result["risk_flags"] = list(result["risk_flags"])
         return result
