@@ -17,7 +17,18 @@ class PolicyBlockedError(ValueError):
     """Raised when a query requests a first-version blocked action/category."""
 
 
-_MONEY_RE = re.compile(r"(?:HKD|港币|港元|预算)\s*[:：]?\s*(?:不超过|以内|上限|最多)?\s*(\d+(?:\.\d+)?)\s*(万)?", re.I)
+_MONEY_NUMBER = r"[\d,]+(?:\.\d+)?"
+# Range forms must be checked before the existing upper-bound form.  The
+# currency marker may occur before or after the range, and Chinese users often
+# use 至/到 rather than a hyphen.
+_MONEY_RANGE_RE = re.compile(
+    rf"(?:"
+    rf"(?:HKD|港币|港元)\s*[:：]?\s*(?P<low1>{_MONEY_NUMBER})\s*(?:-|–|—|~|～|至|到)\s*(?P<high1>{_MONEY_NUMBER})"
+    rf"|(?P<low2>{_MONEY_NUMBER})\s*(?:-|–|—|~|～|至|到)\s*(?P<high2>{_MONEY_NUMBER})\s*(?:HKD|港币|港元)"
+    rf")",
+    re.I,
+)
+_MONEY_RE = re.compile(rf"(?:HKD|港币|港元|预算)\s*[:：]?\s*(?:不超过|以内|上限|最多)?\s*({_MONEY_NUMBER})\s*(万)?", re.I)
 _GB_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(GB|TB)\s*(?:内存|RAM|显存|VRAM|SSD|存储|硬盘)?", re.I)
 _UNBOUNDED_BUDGET_TOKENS = ("价格不限", "预算不限", "不限预算", "不设预算", "不限制预算", "no budget limit", "unlimited budget")
 
@@ -25,6 +36,11 @@ _UNBOUNDED_BUDGET_TOKENS = ("价格不限", "预算不限", "不限预算", "不
 def _size_gb(value: str, unit: str) -> int:
     number = Decimal(value)
     return int(number * (1024 if unit.upper() == "TB" else 1))
+
+
+def _money_amount(value: str, wan: str | None = None) -> Decimal:
+    amount = Decimal(value.replace(",", ""))
+    return amount * (Decimal("10000") if wan else Decimal("1"))
 
 
 def parse_query(text: str) -> SearchSpec:
@@ -57,10 +73,18 @@ def parse_query(text: str) -> SearchSpec:
     if pd:
         required["pd_watt"] = int(Decimal(pd.group(1)))
 
+    budget_min: Decimal | None = None
     budget_max: Decimal | None = None
-    money = _MONEY_RE.search(text)
-    if money:
-        budget_max = Decimal(money.group(1)) * (Decimal("10000") if money.group(2) else Decimal("1"))
+    money_range = _MONEY_RANGE_RE.search(text)
+    if money_range:
+        low = money_range.group("low1") or money_range.group("low2")
+        high = money_range.group("high1") or money_range.group("high2")
+        budget_min = _money_amount(low)
+        budget_max = _money_amount(high)
+    else:
+        money = _MONEY_RE.search(text)
+        if money:
+            budget_max = _money_amount(money.group(1), money.group(2))
 
     category = "computers_hardware"
     if any(token in lowered for token in ("显卡", "gpu", "显存")):
@@ -70,6 +94,7 @@ def parse_query(text: str) -> SearchSpec:
         category=category,
         region="HK",
         currency="HKD",
+        budget_min=budget_min,
         budget_max=budget_max,
         required_specs=required,
         condition="unknown" if any(token in lowered for token in ("二手", "不限成色")) else "new",
