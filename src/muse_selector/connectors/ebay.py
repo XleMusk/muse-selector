@@ -11,6 +11,7 @@ import base64
 import json
 import math
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -218,6 +219,7 @@ class EbayBrowseConnector:
         if not isinstance(shipping, list):
             shipping = []
         observed_at = item.get("itemCreationDate") or fetched_at
+        specs = self._normalize_aspects(item.get("localizedAspects"))
         evidence_fields = {
             "title": item.get("title"),
             "url": item.get("itemWebUrl"),
@@ -225,6 +227,7 @@ class EbayBrowseConnector:
             "condition": item.get("condition"),
             "seller": seller,
             "shippingOptions": shipping,
+            "specs": specs,
         }
         evidence = [
             {
@@ -255,10 +258,50 @@ class EbayBrowseConnector:
                 "feedback_percentage": seller.get("feedbackPercentage"),
             },
             "shipping_options": shipping,
+            "specs": specs,
             "source_observed_at": observed_at,
             "evidence": evidence,
             "raw": dict(item),
         }
+
+    @staticmethod
+    def _normalize_aspects(value: Any) -> dict[str, Any]:
+        """Map explicit Browse localizedAspects into safe canonical specs."""
+
+        if not isinstance(value, list):
+            return {}
+        specs: dict[str, Any] = {}
+        for aspect in value:
+            if not isinstance(aspect, Mapping):
+                continue
+            name = str(aspect.get("name") or "").strip().lower()
+            raw_value = str(aspect.get("value") or "").strip()
+            if not name or not raw_value:
+                continue
+            size_key = None
+            if name in {"ram", "ram size", "memory", "memory size", "system memory"}:
+                size_key = "ram_gb"
+            elif name in {"ssd capacity", "storage capacity", "hard drive capacity", "drive capacity"}:
+                size_key = "storage_gb"
+            elif name in {"video memory", "vram", "graphics memory", "dedicated graphics memory"}:
+                size_key = "vram_gb"
+            if size_key:
+                match = re.search(r"(\d+(?:\.\d+)?)\s*(GB|TB)\b", raw_value, re.I)
+                if match:
+                    number = float(match.group(1))
+                    specs[size_key] = int(number * (1024 if match.group(2).upper() == "TB" else 1))
+                continue
+            if name in {"usb", "usb version", "usb type", "usb ports"} and re.search(r"\bUSB\s*4\b", raw_value, re.I):
+                specs["usb4"] = True
+                continue
+            if name in {"power delivery", "usb power delivery", "pd"}:
+                match = re.search(r"(\d+(?:\.\d+)?)\s*W\b", raw_value, re.I)
+                if match:
+                    specs["pd_watt"] = int(float(match.group(1)))
+                continue
+            if name in {"maximum resolution", "display resolution", "video output"} and re.search(r"(?:dual|2\s*[x×*]?)\s*4K", raw_value, re.I):
+                specs["display_4k_count"] = 2
+        return specs
 
     @staticmethod
     def _apply_local_constraints(

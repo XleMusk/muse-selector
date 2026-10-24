@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 from urllib.parse import urlparse
 
 from .connectors.ebay import ConnectorUnavailable, EbayBrowseConnector
@@ -138,7 +138,10 @@ def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], st
         shipping_cost=shipping_value,
         stock_status={"IN_STOCK": "in_stock", "OUT_OF_STOCK": "out_of_stock"}.get(str(row.get("availability")), "unknown"),
         condition={"New": "new", "Used": "used", "Refurbished": "refurbished"}.get(str(row.get("condition")), "unknown"),
-        specs=_extract_specs(str(row.get("title") or "")),
+        specs={
+            **_extract_specs(str(row.get("title") or "")),
+            **(dict(row.get("specs")) if isinstance(row.get("specs"), Mapping) else {}),
+        },
         evidence_ids=tuple(item.evidence_id for item in evidence),
         source_observed_at=str(row.get("source_observed_at") or "unknown"),
         risk_flags=tuple(flags),
