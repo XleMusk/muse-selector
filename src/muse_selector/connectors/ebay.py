@@ -182,8 +182,9 @@ class EbayBrowseConnector:
                 item,
                 fetched_at=fetched_at,
                 source_metadata=self._source_metadata,
+                source_rank=index,
             )
-            for item in items
+            for index, item in enumerate(items, 1)
         ]
         return self._apply_local_constraints(listings, search_spec)
 
@@ -314,6 +315,7 @@ class EbayBrowseConnector:
         *,
         fetched_at: str | None = None,
         source_metadata: Mapping[str, Any] | None = None,
+        source_rank: int | None = None,
     ) -> dict[str, Any]:
         price = item.get("price") if isinstance(item.get("price"), dict) else {}
         seller = item.get("seller") if isinstance(item.get("seller"), dict) else {}
@@ -351,7 +353,7 @@ class EbayBrowseConnector:
             numeric_price = float(value) if value is not None else None
         except (TypeError, ValueError):
             numeric_price = None
-        return {
+        normalized = {
             "source_id": self.source_id,
             "listing_id": item.get("itemId"),
             "title": item.get("title"),
@@ -370,6 +372,9 @@ class EbayBrowseConnector:
             "evidence": evidence,
             "raw": dict(item),
         }
+        if source_rank is not None:
+            normalized["source_rank"] = source_rank
+        return normalized
 
     @staticmethod
     def _normalize_aspects(value: Any) -> dict[str, Any]:

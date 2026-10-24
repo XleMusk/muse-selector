@@ -15,6 +15,7 @@ class EbayBrowseConnectorTests(unittest.TestCase):
         rows = EbayBrowseConnector(fixture_path=FIXTURE).search({"query": "mini pc", "budget_max": 7000})
         self.assertEqual(len(rows), 4)
         self.assertEqual(rows[0]["source_id"], "ebay.browse.hk.v1")
+        self.assertEqual(rows[0]["source_rank"], 1)
         self.assertEqual(rows[0]["source_metadata"]["href"], "https://api.ebay.com/buy/browse/v1/item_summary/search?q=mini%20pc")
         self.assertEqual(rows[0]["source_metadata"]["total"], 5)
         self.assertIsNone(rows[0]["source_metadata"]["next"])

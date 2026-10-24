@@ -59,6 +59,12 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(payload["read_only"])
         self.assertTrue(all("USB4 NVMe enclosure" not in card["title"] for card in payload["recommended"]))
 
+    def test_source_rank_keeps_original_source_position_after_filtering(self):
+        payload = run_search("香港预算 HKD 5000 以内的电脑", FIXTURE)
+        self.assertTrue(payload["ok"])
+        self.assertEqual([card["listing_id"] for card in payload["recommended"]], ["v1|100000000002|0"])
+        self.assertEqual([card["source_rank"] for card in payload["recommended"]], [2])
+
     def test_pipeline_preserves_source_order_and_explains_fit(self):
         payload = run_search("香港预算 HKD 30000 以内的电脑", FIXTURE)
         self.assertTrue(payload["ok"])

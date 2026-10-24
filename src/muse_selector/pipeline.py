@@ -248,8 +248,9 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
     source_metadata = connector.source_metadata
     listings: list[Listing] = []
     evidence_by_id: dict[str, list[Evidence]] = {}
+    source_rank_by_id: dict[str, int] = {}
     dropped: list[dict[str, str]] = []
-    for row in rows:
+    for source_rank, row in enumerate(rows, 1):
         listing, evidence, reason = _to_listing(row)
         if reason or listing is None:
             dropped.append({"listing_id": str(row.get("listing_id", "unknown")), "reason": reason or "invalid_source_record"})
@@ -276,6 +277,12 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
             )
         listings.append(listing)
         evidence_by_id[listing.listing_id] = evidence
+        item_rank = row.get("source_rank")
+        source_rank_by_id[listing.listing_id] = (
+            item_rank
+            if isinstance(item_rank, int) and not isinstance(item_rank, bool) and item_rank > 0
+            else source_rank
+        )
     accepted, decisions = filter_listings(spec, listings)
     # eBay's Buy API requirements prohibit partner-side re-sorting. Preserve
     # the source's best-match order and expose an explainable fit score instead.
@@ -289,7 +296,7 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
             build_card(
                 item,
                 evidence_by_id[item.listing_id],
-                source_rank=index,
+                source_rank=source_rank_by_id[item.listing_id],
                 fit_score=fit_score,
                 fit_breakdown=fit_breakdown,
             ).to_dict()

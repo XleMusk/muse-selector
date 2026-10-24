@@ -32,6 +32,26 @@ _MONEY_RE = re.compile(rf"(?:HKD|HK\$|港币|港元|预算)\s*[:：]?\s*(?:不�
 _MONEY_SUFFIX_RE = re.compile(rf"(?P<amount>{_MONEY_NUMBER})\s*(?:HKD|港币|港元)\b", re.I)
 _GB_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(GB|TB)\s*(?:内存|RAM|显存|VRAM|SSD|存储|硬盘)?", re.I)
 _UNBOUNDED_BUDGET_TOKENS = ("价格不限", "预算不限", "不限预算", "不设预算", "不限制预算", "no budget limit", "unlimited budget")
+_ACCOUNT_POLICY_TOKENS = (
+    "游戏账号",
+    "游戏账户",
+    "账号转移",
+    "账号转让",
+    "账号交易",
+    "账号购买",
+    "账号出售",
+    "出售账号",
+    "购买账号",
+    "代打",
+    "代练",
+    "game account",
+    "account transfer",
+    "account sale",
+    "account purchase",
+    "account trading",
+    "account boosting",
+    "boosting service",
+)
 
 
 def _size_gb(value: str, unit: str) -> int:
@@ -50,7 +70,7 @@ def parse_query(text: str) -> SearchSpec:
     if not isinstance(text, str) or not text.strip():
         raise ValueError("query must be non-empty")
     lowered = text.lower()
-    if any(token in lowered for token in ("游戏账号", "账号转移", "账号购买", "代打")):
+    if any(token in lowered for token in _ACCOUNT_POLICY_TOKENS):
         raise PolicyBlockedError("游戏账号登录、购买、转移和代打不在第一版范围内")
     if any(token in lowered for token in ("169.254.169.254", "127.0.0.1", "localhost", "metadata/latest")):
         raise PolicyBlockedError("blocked network target in query")

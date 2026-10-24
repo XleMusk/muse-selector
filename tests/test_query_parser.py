@@ -5,6 +5,16 @@ from muse_selector.query_parser import has_explicit_unbounded_budget, parse_quer
 
 
 class QueryParserBudgetRangeTests(unittest.TestCase):
+    def test_account_policy_blocks_common_english_and_chinese_variants(self):
+        for query in (
+            "find a game account under HKD 500",
+            "游戏账户交易，预算 HKD 500",
+            "account boosting service，预算 HKD 500",
+            "出售账号，预算 HKD 500",
+        ):
+            with self.assertRaisesRegex(ValueError, "不在第一版范围内"):
+                parse_query(query)
+
     def test_hkd_hyphen_range(self):
         spec = parse_query("香港轻薄本，HKD 5000-7000")
         self.assertEqual(spec.budget_min, Decimal("5000.00"))
