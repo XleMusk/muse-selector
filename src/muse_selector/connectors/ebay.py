@@ -266,7 +266,11 @@ class EbayBrowseConnector:
         shipping = item.get("shippingOptions")
         if not isinstance(shipping, list):
             shipping = []
-        observed_at = item.get("itemCreationDate") or fetched_at
+        # ``itemCreationDate`` describes the listing, while ``fetched_at`` is
+        # the time this connector observed the source. Result cards must use
+        # the latter for live evidence freshness.
+        item_created_at = item.get("itemCreationDate")
+        observed_at = fetched_at or item_created_at
         specs = self._normalize_aspects(item.get("localizedAspects"))
         evidence_fields = {
             "title": item.get("title"),

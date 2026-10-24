@@ -63,6 +63,18 @@ class WebTests(unittest.TestCase):
         self.assertIn("关键字段证据覆盖率：100.0%", page)
         self.assertIn("观测时间：2026-10-24T04:00:00Z", page)
 
+    def test_render_replaces_untrusted_href(self):
+        payload = {
+            "ok": True,
+            "search_spec": {"region": "HK", "currency": "HKD", "budget_max": "7000", "query": "mini pc"},
+            "recommended": [{"title": "unsafe", "url": "javascript:alert(1)", "source_id": "x", "currency": "HKD", "landed_cost": "1", "evidence": [], "risk_flags": []}],
+            "rejected": [],
+            "dropped": [],
+        }
+        page = render_html(payload, "mini pc")
+        self.assertNotIn("javascript:alert(1)", page)
+        self.assertIn("href=' #'".replace(" ", ""), page)
+
     def test_local_server_health_and_result_page(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
         thread = threading.Thread(target=server.serve_forever, daemon=True)
