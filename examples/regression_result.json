@@ -1,5 +1,7 @@
 {
   "errors": [],
+  "hard_constraint_checked_count": 10,
+  "hard_constraint_violation_rate": 0.0,
   "listing_count": 6,
   "ok": true,
   "queries": {

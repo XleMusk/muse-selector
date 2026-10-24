@@ -7,6 +7,8 @@ class RegressionTests(unittest.TestCase):
     def test_fixture_regression(self):
         result = run_regression()
         self.assertTrue(result["ok"], "\\n".join(result["errors"]))
+        self.assertEqual(result["hard_constraint_violation_rate"], 0.0)
+        self.assertGreater(result["hard_constraint_checked_count"], 0)
 
     def test_hard_constraint_cases_have_candidates(self):
         result = run_regression()

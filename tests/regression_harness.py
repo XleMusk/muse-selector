@@ -146,6 +146,8 @@ def run_regression() -> dict[str, Any]:
     raw = load_raw_listings()
     listings = [build_listing(item) for item in raw if item.get("category") != "game_account"]
     query_results: dict[str, Any] = {}
+    accepted_total = 0
+    accepted_violations = 0
 
     for case in load_queries():
         case_id = case["case_id"]
@@ -177,6 +179,11 @@ def run_regression() -> dict[str, Any]:
             if ids != canonical_ids(accepted_again):
                 errors.append(f"{case_id}: replay ordering changed")
         for item in accepted:
+            accepted_total += 1
+            decision = next(item_decision for item_decision in decisions if item_decision.listing_id == item.listing_id)
+            if decision.reasons:
+                accepted_violations += 1
+                errors.append(f"{case_id}: accepted listing violated hard constraints: {item.listing_id}")
             if "stale" in item.risk_flags or "conflict" in item.risk_flags:
                 errors.append(f"{case_id}: stale/conflict listing was recommended: {item.listing_id}")
             if item.landed_cost is None and spec.budget_max is not None:
@@ -195,7 +202,15 @@ def run_regression() -> dict[str, Any]:
         errors.append("conflict fixture: total must remain unknown")
     if conflict["evidence"][0]["status"] != "conflict":
         errors.append("conflict fixture: conflict status was lost")
-    return {"ok": not errors, "errors": errors, "queries": query_results, "listing_count": len(listings)}
+    violation_rate = accepted_violations / accepted_total if accepted_total else 0.0
+    return {
+        "ok": not errors and violation_rate == 0.0,
+        "errors": errors,
+        "queries": query_results,
+        "listing_count": len(listings),
+        "hard_constraint_violation_rate": violation_rate,
+        "hard_constraint_checked_count": accepted_total,
+    }
 
 
 if __name__ == "__main__":
