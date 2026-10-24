@@ -54,6 +54,13 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(payload["ask"], ["location", "max_total_hkd"])
         self.assertTrue(payload["read_only"])
 
+    def test_blank_query_returns_read_only_invalid_query_state(self):
+        payload = run_search("   ")
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["status"], "invalid_query")
+        self.assertTrue(payload["read_only"])
+        self.assertEqual(payload["recommended"], [])
+
     def test_explicit_unbounded_budget_can_search_fixture(self):
         payload = run_search("香港 USB4 扩展坞，双 4K、100W PD，价格不限", FIXTURE)
         self.assertTrue(payload["ok"])

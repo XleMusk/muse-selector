@@ -171,6 +171,18 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
             "source": "policy.guard",
             "read_only": True,
         }
+    except ValueError as exc:
+        return {
+            "ok": False,
+            "status": "invalid_query",
+            "message": str(exc),
+            "search_spec": None,
+            "recommended": [],
+            "rejected": [],
+            "dropped": [],
+            "source": "policy.guard",
+            "read_only": True,
+        }
     if spec.budget_max is None and not has_explicit_unbounded_budget(query):
         return {
             "ok": False,
