@@ -88,6 +88,8 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
         f"查询：{spec['query']}",
         f"地区/币种：{spec['region']} / {spec['currency']}",
         f"预算上限：{spec.get('budget_max') or '未指定'}",
+        f"来源：{payload.get('source') or 'unknown'}",
+        "只读状态：true",
         "",
         "## 推荐结果",
         "",
