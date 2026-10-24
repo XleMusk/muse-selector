@@ -1,6 +1,8 @@
 import json
+import os
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from muse_selector.pipeline import _to_listing, run_search
 from muse_selector.query_parser import PolicyBlockedError, parse_query
@@ -77,6 +79,13 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(payload["status"], "source_unavailable")
         self.assertTrue(payload["read_only"])
 
+    def test_invalid_connector_environment_fails_closed(self):
+        with patch.dict(os.environ, {"EBAY_TIMEOUT_SECONDS": "invalid"}, clear=False):
+            payload = run_search("香港 RTX 4070 显卡，预算 HKD 9000")
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["status"], "source_unavailable")
+        self.assertTrue(payload["read_only"])
+
     def test_untrusted_listing_url_is_dropped_before_result_card(self):
         listing, evidence, reason = _to_listing({
             "listing_id": "evil-1",
@@ -90,6 +99,23 @@ class PipelineTests(unittest.TestCase):
         self.assertIsNone(listing)
         self.assertEqual(evidence, [])
         self.assertEqual(reason, "untrusted_source_url")
+
+    def test_malformed_listing_required_fields_are_dropped_without_traceback(self):
+        for field, reason in (("listing_id", "missing_listing_id"), ("title", "missing_title")):
+            row = {
+                "listing_id": "bad-1",
+                "source_id": "ebay.browse.hk.v1",
+                "title": "Mini PC",
+                "url": "https://www.ebay.com.hk/itm/bad-1",
+                "price": {"value": 1, "currency": "HKD"},
+                "availability": "IN_STOCK",
+                "condition": "New",
+            }
+            row[field] = None
+            listing, evidence, actual = _to_listing(row)
+            self.assertIsNone(listing)
+            self.assertEqual(evidence, [])
+            self.assertEqual(actual, reason)
 
 
 if __name__ == "__main__":

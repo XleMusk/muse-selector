@@ -63,6 +63,10 @@ def _query_matches_title(query: str, title: str) -> bool:
 
 
 def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], str | None]:
+    if not row.get("listing_id"):
+        return None, [], "missing_listing_id"
+    if not row.get("title"):
+        return None, [], "missing_title"
     url = row.get("url")
     if not url:
         return None, [], "missing_source_url"
@@ -149,10 +153,10 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
             "source": "policy.guard",
             "read_only": True,
         }
-    connector = EbayBrowseConnector(fixture_path=fixture_path)
     try:
+        connector = EbayBrowseConnector(fixture_path=fixture_path)
         rows = connector.search(spec.to_dict())
-    except ConnectorUnavailable as exc:
+    except (ConnectorUnavailable, ValueError) as exc:
         return {
             "ok": False,
             "status": "source_unavailable",

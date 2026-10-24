@@ -94,7 +94,9 @@ class EbayBrowseConnector:
         items = payload.get("itemSummaries", [])
         if not isinstance(items, list):
             raise ValueError("eBay response itemSummaries must be a list")
-        listings = [self._normalize_item(item, fetched_at=fetched_at) for item in items if isinstance(item, dict)]
+        if any(not isinstance(item, dict) for item in items):
+            raise ConnectorUnavailable("eBay response itemSummaries must contain only JSON objects")
+        listings = [self._normalize_item(item, fetched_at=fetched_at) for item in items]
         return self._apply_local_constraints(listings, search_spec)
 
     def _load_fixture(self) -> dict[str, Any]:
