@@ -386,11 +386,35 @@ class EbayBrowseConnector:
             if not name or not raw_value:
                 continue
             size_key = None
-            if name in {"ram", "ram size", "memory", "memory size", "system memory"}:
+            if name in {
+                "ram",
+                "ram size",
+                "memory",
+                "memory (ram)",
+                "memory size",
+                "system memory",
+                "installed memory",
+            }:
                 size_key = "ram_gb"
-            elif name in {"ssd capacity", "storage capacity", "hard drive capacity", "drive capacity"}:
+            elif name in {
+                "ssd",
+                "ssd capacity",
+                "storage",
+                "storage capacity",
+                "total storage",
+                "hard drive",
+                "hard drive capacity",
+                "drive capacity",
+            }:
                 size_key = "storage_gb"
-            elif name in {"video memory", "vram", "graphics memory", "dedicated graphics memory"}:
+            elif name in {
+                "video memory",
+                "vram",
+                "graphics memory",
+                "graphics memory size",
+                "dedicated graphics memory",
+                "dedicated video memory",
+            }:
                 size_key = "vram_gb"
             if size_key:
                 match = re.search(r"(\d+(?:\.\d+)?)\s*(GB|TB)\b", raw_value, re.I)
@@ -401,12 +425,18 @@ class EbayBrowseConnector:
             if name in {"usb", "usb version", "usb type", "usb ports"} and re.search(r"\bUSB\s*4\b", raw_value, re.I):
                 specs["usb4"] = True
                 continue
-            if name in {"power delivery", "usb power delivery", "pd"}:
+            if name in {"power delivery", "power delivery wattage", "usb power delivery", "pd"}:
                 match = re.search(r"(\d+(?:\.\d+)?)\s*W\b", raw_value, re.I)
                 if match:
                     specs["pd_watt"] = int(float(match.group(1)))
                 continue
-            if name in {"maximum resolution", "display resolution", "video output"} and re.search(r"(?:dual|2\s*[x×*]?)\s*4K", raw_value, re.I):
+            if name in {
+                "maximum resolution",
+                "maximum supported resolution",
+                "display resolution",
+                "video output",
+                "video outputs",
+            } and re.search(r"(?:dual|2\s*[x×*]?)\s*4K", raw_value, re.I):
                 specs["display_4k_count"] = 2
         return specs
 

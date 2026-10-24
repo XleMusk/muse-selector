@@ -162,6 +162,24 @@ class EbayLiveAdapterTests(unittest.TestCase):
         self.assertEqual(card["evidence_coverage"], 1.0)
         self.assertTrue(card["evidence"])
 
+    def test_explicit_localized_aspect_aliases_map_without_fuzzy_matching(self):
+        self.assertEqual(
+            EbayBrowseConnector._normalize_aspects([
+                {"name": "Memory (RAM)", "value": "64 GB"},
+                {"name": "SSD", "value": "2 TB"},
+                {"name": "Dedicated Video Memory", "value": "16 GB"},
+                {"name": "Power Delivery Wattage", "value": "140 W"},
+                {"name": "Maximum Supported Resolution", "value": "2 x 4K"},
+            ]),
+            {
+                "ram_gb": 64,
+                "storage_gb": 2048,
+                "vram_gb": 16,
+                "pd_watt": 140,
+                "display_4k_count": 2,
+            },
+        )
+
     def test_non_object_browse_response_fails_closed(self):
         connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=_NonObjectOpener())
         with self.assertRaises(ConnectorUnavailable):
