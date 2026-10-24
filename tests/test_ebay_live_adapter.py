@@ -33,6 +33,12 @@ class _Opener:
         if request.full_url.endswith("/identity/v1/oauth2/token"):
             return _Response({"access_token": "test-token", "expires_in": 7200})
         return _Response({
+            "href": "https://api.ebay.com/buy/browse/v1/item_summary/search?q=mini%20pc&limit=1&offset=0",
+            "next": "https://api.ebay.com/buy/browse/v1/item_summary/search?q=mini%20pc&limit=1&offset=1",
+            "prev": None,
+            "total": 3,
+            "limit": 1,
+            "offset": 0,
             "itemSummaries": [{
                 "itemId": "live|1|0",
                 "title": "Mini PC 32GB 1TB NVMe",
@@ -116,6 +122,11 @@ class EbayLiveAdapterTests(unittest.TestCase):
         rows = connector.search({"query": "mini pc", "limit": 1})
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["price"]["currency"], "HKD")
+        self.assertEqual(rows[0]["source_metadata"]["total"], 3)
+        self.assertEqual(rows[0]["source_metadata"]["limit"], 1)
+        self.assertEqual(rows[0]["source_metadata"]["offset"], 0)
+        self.assertTrue(rows[0]["source_metadata"]["next"].endswith("offset=1"))
+        self.assertIsNone(rows[0]["source_metadata"]["prev"])
         self.assertEqual(rows[0]["availability"], "IN_STOCK")
         self.assertEqual(rows[0]["evidence"][0]["observed_at"], rows[0]["source_observed_at"])
         self.assertTrue(rows[0]["source_observed_at"].endswith("Z"))

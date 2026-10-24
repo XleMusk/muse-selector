@@ -85,6 +85,7 @@ class EbayBrowseConnector:
     """A read-only implementation of eBay ``item_summary/search``."""
 
     source_id = "ebay.browse.hk.v1"
+    _RESPONSE_METADATA_FIELDS = ("href", "next", "prev", "total", "limit", "offset")
 
     def __init__(
         self,
@@ -104,10 +105,41 @@ class EbayBrowseConnector:
         self.opener = opener or urllib.request.build_opener(_NoRedirectHandler())
         self._token: str | None = None
         self._token_expires_at = 0.0
+        self._source_metadata = self._empty_source_metadata()
 
     @property
     def live_enabled(self) -> bool:
         return bool(self.client_id and self.client_secret)
+
+    @classmethod
+    def _empty_source_metadata(cls) -> dict[str, Any]:
+        """Return the stable response metadata shape for unavailable fields."""
+
+        return {field: None for field in cls._RESPONSE_METADATA_FIELDS}
+
+    @property
+    def source_metadata(self) -> dict[str, Any]:
+        """Expose the last response's pagination metadata without issuing a call."""
+
+        return dict(self._source_metadata)
+
+    @classmethod
+    def _normalize_source_metadata(cls, payload: Mapping[str, Any]) -> dict[str, Any]:
+        """Keep Browse response pagination links and counters traceable.
+
+        These values describe the response page that was already fetched. They
+        are returned for observability only; the connector never follows the
+        links or performs automatic pagination.
+        """
+
+        metadata = cls._empty_source_metadata()
+        for field in ("href", "next", "prev"):
+            value = payload.get(field)
+            metadata[field] = value if isinstance(value, str) and value else None
+        for field in ("total", "limit", "offset"):
+            value = payload.get(field)
+            metadata[field] = value if isinstance(value, int) and not isinstance(value, bool) else None
+        return metadata
 
     @staticmethod
     def _fetch_timestamp() -> str:
@@ -128,6 +160,7 @@ class EbayBrowseConnector:
 
     def search(self, search_spec: Mapping[str, Any]) -> list[dict[str, Any]]:
         """Search listings and return canonical-ish dictionaries."""
+        self._source_metadata = self._empty_source_metadata()
         live = self.fixture_path is None
         payload = self._load_fixture() if not live else self._live_search(search_spec)
         fetched_at = self._fetch_timestamp() if live else None
@@ -136,7 +169,15 @@ class EbayBrowseConnector:
             raise ConnectorUnavailable("eBay response itemSummaries must be a list")
         if any(not isinstance(item, dict) for item in items):
             raise ConnectorUnavailable("eBay response itemSummaries must contain only JSON objects")
-        listings = [self._normalize_item(item, fetched_at=fetched_at) for item in items]
+        self._source_metadata = self._normalize_source_metadata(payload)
+        listings = [
+            self._normalize_item(
+                item,
+                fetched_at=fetched_at,
+                source_metadata=self._source_metadata,
+            )
+            for item in items
+        ]
         return self._apply_local_constraints(listings, search_spec)
 
     def _load_fixture(self) -> dict[str, Any]:
@@ -260,7 +301,13 @@ class EbayBrowseConnector:
         ])
         return params
 
-    def _normalize_item(self, item: Mapping[str, Any], *, fetched_at: str | None = None) -> dict[str, Any]:
+    def _normalize_item(
+        self,
+        item: Mapping[str, Any],
+        *,
+        fetched_at: str | None = None,
+        source_metadata: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
         price = item.get("price") if isinstance(item.get("price"), dict) else {}
         seller = item.get("seller") if isinstance(item.get("seller"), dict) else {}
         shipping = item.get("shippingOptions")
@@ -312,6 +359,7 @@ class EbayBrowseConnector:
             "shipping_options": shipping,
             "specs": specs,
             "source_observed_at": observed_at,
+            "source_metadata": dict(source_metadata or self._empty_source_metadata()),
             "evidence": evidence,
             "raw": dict(item),
         }

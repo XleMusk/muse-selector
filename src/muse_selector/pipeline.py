@@ -232,6 +232,7 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
         connector = EbayBrowseConnector(fixture_path=fixture_path)
         rows = connector.search(spec.to_dict())
     except (ConnectorUnavailable, ValueError) as exc:
+        source_metadata = connector.source_metadata if "connector" in locals() else None
         return {
             "ok": False,
             "status": "source_unavailable",
@@ -241,8 +242,10 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
             "rejected": [],
             "dropped": [],
             "source": "ebay.browse.hk.v1",
+            "source_metadata": source_metadata,
             "read_only": True,
         }
+    source_metadata = connector.source_metadata
     listings: list[Listing] = []
     evidence_by_id: dict[str, list[Evidence]] = {}
     dropped: list[dict[str, str]] = []
@@ -305,6 +308,7 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
         "rejected": rejected,
         "dropped": dropped,
         "source": "ebay.browse.hk.v1",
+        "source_metadata": source_metadata,
         "read_only": True,
     }
 

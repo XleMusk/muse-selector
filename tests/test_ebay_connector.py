@@ -15,6 +15,11 @@ class EbayBrowseConnectorTests(unittest.TestCase):
         rows = EbayBrowseConnector(fixture_path=FIXTURE).search({"query": "mini pc", "budget_max": 7000})
         self.assertEqual(len(rows), 4)
         self.assertEqual(rows[0]["source_id"], "ebay.browse.hk.v1")
+        self.assertEqual(rows[0]["source_metadata"]["href"], "https://api.ebay.com/buy/browse/v1/item_summary/search?q=mini%20pc")
+        self.assertEqual(rows[0]["source_metadata"]["total"], 5)
+        self.assertIsNone(rows[0]["source_metadata"]["next"])
+        self.assertIsNone(rows[0]["source_metadata"]["limit"])
+        self.assertIsNone(rows[0]["source_metadata"]["offset"])
         self.assertEqual(rows[0]["price"]["currency"], "HKD")
         self.assertEqual(rows[0]["availability"], "IN_STOCK")
         unknown = next(row for row in rows if row["listing_id"].endswith("004|0"))
@@ -33,6 +38,25 @@ class EbayBrowseConnectorTests(unittest.TestCase):
             rows = EbayBrowseConnector(fixture_path=p).search({"budget_max": 100})
         self.assertEqual(len(rows), 1)
         self.assertIsNone(rows[0]["price"]["value"])
+
+    def test_response_metadata_preserves_page_links_and_counters(self):
+        data = {
+            "href": "https://api.ebay.com/buy/browse/v1/item_summary/search?q=mini%20pc&limit=1&offset=1",
+            "next": "https://api.ebay.com/buy/browse/v1/item_summary/search?q=mini%20pc&limit=1&offset=2",
+            "prev": "https://api.ebay.com/buy/browse/v1/item_summary/search?q=mini%20pc&limit=1&offset=0",
+            "total": 9,
+            "limit": 1,
+            "offset": 1,
+            "itemSummaries": [{"itemId": "x", "title": "Mini PC"}],
+        }
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "fixture.json"
+            p.write_text(json.dumps(data), encoding="utf-8")
+            connector = EbayBrowseConnector(fixture_path=p)
+            rows = connector.search({"query": "mini pc"})
+        expected = {key: data[key] for key in ("href", "next", "prev", "total", "limit", "offset")}
+        self.assertEqual(rows[0]["source_metadata"], expected)
+        self.assertEqual(connector.source_metadata, expected)
 
     def test_non_object_fixture_fails_closed(self):
         with tempfile.TemporaryDirectory() as d:
