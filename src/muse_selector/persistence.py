@@ -10,6 +10,7 @@ import hashlib
 import json
 import sqlite3
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
@@ -68,8 +69,23 @@ class SelectorStore:
         connection.row_factory = sqlite3.Row
         return connection
 
+    @contextmanager
+    def _connection(self):
+        """Open, commit/rollback, and always close one SQLite connection."""
+
+        connection = self._connect()
+        try:
+            yield connection
+        except BaseException:
+            connection.rollback()
+            raise
+        else:
+            connection.commit()
+        finally:
+            connection.close()
+
     def _init_schema(self) -> None:
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.executescript(
                 """
                 PRAGMA foreign_keys = ON;
@@ -116,7 +132,7 @@ class SelectorStore:
         payload_dict = dict(payload)
         resolved_id = run_id or run_id_for_payload(payload_dict)
         serialized = _canonical(payload_dict)
-        with self._connect() as conn:
+        with self._connection() as conn:
             return self._save_run_connection(conn, payload_dict, resolved_id, serialized)
 
     def _save_run_connection(
@@ -148,14 +164,14 @@ class SelectorStore:
         return resolved_id, inserted
 
     def get_run(self, run_id: str) -> dict[str, Any] | None:
-        with self._connect() as conn:
+        with self._connection() as conn:
             row = conn.execute("SELECT payload_json FROM runs WHERE run_id = ?", (run_id,)).fetchone()
         return json.loads(row["payload_json"]) if row else None
 
     def list_cards(self, run_id: str) -> list[dict[str, Any]]:
         """Read the result cards stored for a run in deterministic order."""
 
-        with self._connect() as conn:
+        with self._connection() as conn:
             rows = conn.execute(
                 "SELECT card_json FROM result_cards WHERE run_id = ? ORDER BY listing_id",
                 (run_id,),
@@ -168,7 +184,7 @@ class SelectorStore:
         if interval_seconds <= 0:
             raise ValueError("interval_seconds must be positive")
         resolved_id = watch_id or f"watch_{uuid.uuid4().hex[:16]}"
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute(
                 "INSERT INTO watches(watch_id, query, fixture_path, interval_seconds, enabled, revision, created_at) VALUES (?, ?, ?, ?, 1, 0, ?)",
                 (resolved_id, query.strip(), str(fixture_path) if fixture_path is not None else None, int(interval_seconds), _now()),
@@ -180,19 +196,19 @@ class SelectorStore:
         if enabled_only:
             sql += " WHERE enabled = 1"
         sql += " ORDER BY created_at, watch_id"
-        with self._connect() as conn:
+        with self._connection() as conn:
             rows = conn.execute(sql).fetchall()
         return [dict(row) for row in rows]
 
     def get_watch(self, watch_id: str) -> dict[str, Any] | None:
         """Return one persisted watch specification without executing it."""
 
-        with self._connect() as conn:
+        with self._connection() as conn:
             row = conn.execute("SELECT * FROM watches WHERE watch_id = ?", (watch_id,)).fetchone()
         return dict(row) if row else None
 
     def disable_watch(self, watch_id: str) -> None:
-        with self._connect() as conn:
+        with self._connection() as conn:
             cursor = conn.execute("UPDATE watches SET enabled = 0, revision = revision + 1 WHERE watch_id = ?", (watch_id,))
         if cursor.rowcount == 0:
             raise KeyError(f"unknown watch_id: {watch_id}")
@@ -205,7 +221,7 @@ class SelectorStore:
     def resume_watch(self, watch_id: str) -> None:
         """Resume a paused watch without creating a run until refresh."""
 
-        with self._connect() as conn:
+        with self._connection() as conn:
             cursor = conn.execute("UPDATE watches SET enabled = 1, revision = revision + 1 WHERE watch_id = ?", (watch_id,))
         if cursor.rowcount == 0:
             raise KeyError(f"unknown watch_id: {watch_id}")
@@ -252,7 +268,7 @@ class SelectorStore:
         if updates:
             updates.append("revision = revision + 1")
             values.append(watch_id)
-            with self._connect() as conn:
+            with self._connection() as conn:
                 conn.execute(f"UPDATE watches SET {', '.join(updates)} WHERE watch_id = ?", values)
         updated = self.get_watch(watch_id)
         if updated is None:  # pragma: no cover - row cannot disappear inside this call
@@ -278,7 +294,7 @@ class SelectorStore:
         return self.replay_run(str(watch["last_run_id"]))
 
     def refresh_watch(self, watch_id: str) -> dict[str, Any]:
-        with self._connect() as conn:
+        with self._connection() as conn:
             row = conn.execute("SELECT * FROM watches WHERE watch_id = ?", (watch_id,)).fetchone()
         if row is None:
             raise KeyError(f"unknown watch_id: {watch_id}")
@@ -295,7 +311,7 @@ class SelectorStore:
         # checkpoint update must roll back the newly inserted run as well,
         # otherwise a later restart sees an orphan run that was never the
         # watch's committed observation.
-        with self._connect() as conn:
+        with self._connection() as conn:
             # Serialize the final validation and checkpoint write with any
             # concurrent watch mutation.  An update that committed while the
             # search was running is rejected and the transaction rolls back.
