@@ -122,6 +122,9 @@ class EbayBrowseConnector:
                 "Accept": "application/json",
                 "Accept-Language": "zh-HK",
                 "X-EBAY-C-MARKETPLACE-ID": self.config.marketplace_id,
+                # eBay recommends contextualLocation for more accurate
+                # delivery estimates; HK does not use postal codes here.
+                "X-EBAY-C-ENDUSERCTX": "contextualLocation=country%3DHK",
             },
         )
         try:

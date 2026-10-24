@@ -52,6 +52,10 @@ class EbayLiveAdapterTests(unittest.TestCase):
         self.assertNotEqual(rows[0]["source_observed_at"], None)
         self.assertEqual([method for method, _, _ in opener.requests], ["POST", "GET"])
         self.assertEqual(opener.requests[1][2].get("X-ebay-c-marketplace-id"), "EBAY_HK")
+        self.assertEqual(
+            opener.requests[1][2].get("X-ebay-c-enduserctx"),
+            "contextualLocation=country%3DHK",
+        )
         self.assertIn("deliveryCountry%3AHK", opener.requests[1][1])
 
 
