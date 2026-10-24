@@ -85,6 +85,12 @@ class EbayBrowseConnectorTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             EbayConnectorConfig(api_base="http://127.0.0.1:8080")
 
+    def test_connector_rejects_endpoint_userinfo_and_nonstandard_port(self):
+        with self.assertRaises(ValueError):
+            EbayConnectorConfig(api_base="https://user:secret@api.ebay.com")
+        with self.assertRaises(ValueError):
+            EbayConnectorConfig(token_url="https://api.ebay.com:8443/identity/v1/oauth2/token")
+
 
 if __name__ == "__main__":
     unittest.main()

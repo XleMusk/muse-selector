@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from urllib.error import HTTPError
 
-from muse_selector.connectors.ebay import ConnectorUnavailable, EbayBrowseConnector
+from muse_selector.connectors.ebay import ConnectorUnavailable, EbayBrowseConnector, _NoRedirectHandler
 from muse_selector.pipeline import _to_listing
 from muse_selector.result_card import build_card
 
@@ -102,11 +102,14 @@ class _SecretEchoHttpErrorOpener(_Opener):
             503,
             "service unavailable",
             hdrs=None,
-            fp=io.BytesIO(b'{"error":"secret-value","token":"test-token"}'),
+            fp=io.BytesIO(b'{"error":"secret-value","token":"test-token","client":"client-id"}'),
         )
 
 
 class EbayLiveAdapterTests(unittest.TestCase):
+    def test_default_redirect_handler_does_not_replay_credentials(self):
+        self.assertIsNone(_NoRedirectHandler().redirect_request(None, None, 302, "found", {}, "https://evil.example"))
+
     def test_oauth_and_browse_are_read_only_and_normalized(self):
         opener = _Opener()
         connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=opener)
@@ -171,6 +174,7 @@ class EbayLiveAdapterTests(unittest.TestCase):
         with self.assertRaises(ConnectorUnavailable) as raised:
             connector.search({"query": "mini pc"})
         message = str(raised.exception)
+        self.assertNotIn("client-id", message)
         self.assertNotIn("secret-value", message)
         self.assertNotIn("test-token", message)
         self.assertIn("[redacted]", message)

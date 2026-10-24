@@ -26,6 +26,13 @@ class ConnectorUnavailable(RuntimeError):
     """Raised when the connector cannot run in the requested read-only mode."""
 
 
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Reject redirects so credentials never follow an untrusted Location."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401
+        return None
+
+
 @dataclass(frozen=True)
 class EbayConnectorConfig:
     marketplace_id: str = "EBAY_HK"
@@ -49,7 +56,17 @@ class EbayConnectorConfig:
             raise ValueError("default_limit must be an integer between 1 and 200")
         for name, value in (("api_base", self.api_base), ("token_url", self.token_url)):
             parsed = urllib.parse.urlparse(value)
-            if parsed.scheme != "https" or parsed.hostname != "api.ebay.com":
+            try:
+                port = parsed.port
+            except ValueError as exc:
+                raise ValueError(f"{name} must use the official https://api.ebay.com host") from exc
+            if (
+                parsed.scheme != "https"
+                or parsed.hostname != "api.ebay.com"
+                or parsed.username is not None
+                or parsed.password is not None
+                or port not in (None, 443)
+            ):
                 raise ValueError(f"{name} must use the official https://api.ebay.com host")
 
     @classmethod
@@ -82,7 +99,9 @@ class EbayBrowseConnector:
         self.fixture_path = Path(fixture_path) if fixture_path else None
         self.client_id = client_id if client_id is not None else os.getenv("EBAY_CLIENT_ID")
         self.client_secret = client_secret if client_secret is not None else os.getenv("EBAY_CLIENT_SECRET")
-        self.opener = opener or urllib.request.build_opener()
+        # The official endpoints are fixed above. Do not let urllib follow a
+        # redirect and replay Basic/Bearer headers at another host.
+        self.opener = opener or urllib.request.build_opener(_NoRedirectHandler())
         self._token: str | None = None
         self._token_expires_at = 0.0
 
@@ -98,7 +117,7 @@ class EbayBrowseConnector:
         """Keep connector diagnostics useful without echoing credentials/tokens."""
 
         text = str(message)
-        sensitive = (self.client_secret, self._token, *extra_values)
+        sensitive = (self.client_id, self.client_secret, self._token, *extra_values)
         for value in sensitive:
             if value is None:
                 continue

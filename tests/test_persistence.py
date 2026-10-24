@@ -1,6 +1,8 @@
+import threading
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from muse_selector.persistence import SelectorStore, watch_content_fingerprint
 
@@ -10,6 +12,46 @@ FIXTURE = ROOT / "tests" / "fixtures" / "ebay_hk_sample.json"
 
 
 class PersistenceTests(unittest.TestCase):
+    def test_concurrent_same_run_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db_path = Path(directory) / "selector.sqlite3"
+            first_store = SelectorStore(db_path)
+            second_store = SelectorStore(db_path)
+            watch_id = first_store.add_watch("香港预算 HKD 7000 以内的迷你主机", FIXTURE, watch_id="watch_race")
+            payload = {
+                "ok": True,
+                "status": "complete",
+                "search_spec": {"query": "same"},
+                "recommended": [],
+                "rejected": [],
+                "dropped": [],
+                "source": "ebay.browse.hk.v1",
+                "read_only": True,
+            }
+            barrier = threading.Barrier(2)
+            results = []
+            errors = []
+
+            def fake_search(*_args):
+                barrier.wait(timeout=2)
+                return payload
+
+            def refresh(store):
+                try:
+                    results.append(store.refresh_watch(watch_id))
+                except Exception as exc:  # pragma: no cover - assertion reports the unexpected error
+                    errors.append(exc)
+
+            with patch("muse_selector.persistence.run_search", side_effect=fake_search):
+                threads = [threading.Thread(target=refresh, args=(store,)) for store in (first_store, second_store)]
+                for thread in threads:
+                    thread.start()
+                for thread in threads:
+                    thread.join(timeout=3)
+            self.assertFalse(errors)
+            self.assertEqual(len(results), 2)
+            self.assertEqual({item["run_id"] for item in results}, {results[0]["run_id"]})
+
     def test_watch_fingerprint_ignores_observation_clocks(self):
         base = {
             "status": "complete",

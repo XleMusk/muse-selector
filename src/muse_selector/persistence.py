@@ -111,21 +111,35 @@ class SelectorStore:
         resolved_id = run_id or run_id_for_payload(payload_dict)
         serialized = _canonical(payload_dict)
         with self._connect() as conn:
-            existing = conn.execute("SELECT payload_json FROM runs WHERE run_id = ?", (resolved_id,)).fetchone()
-            if existing is not None:
-                if existing["payload_json"] != serialized:
-                    raise ValueError("run_id already exists with different payload")
-                return resolved_id, False
-            conn.execute(
-                "INSERT INTO runs(run_id, created_at, status, source_id, read_only, payload_json) VALUES (?, ?, ?, ?, 1, ?)",
-                (resolved_id, _now(), str(payload_dict.get("status")), str(payload_dict.get("source", "unknown")), serialized),
-            )
+            return self._save_run_connection(conn, payload_dict, resolved_id, serialized)
+
+    def _save_run_connection(
+        self,
+        conn: sqlite3.Connection,
+        payload_dict: Mapping[str, Any],
+        resolved_id: str,
+        serialized: str | None = None,
+    ) -> tuple[str, bool]:
+        """Insert a run atomically on an existing SQLite connection."""
+
+        serialized = serialized or _canonical(payload_dict)
+        cursor = conn.execute(
+            "INSERT OR IGNORE INTO runs(run_id, created_at, status, source_id, read_only, payload_json) VALUES (?, ?, ?, ?, 1, ?)",
+            (resolved_id, _now(), str(payload_dict.get("status")), str(payload_dict.get("source", "unknown")), serialized),
+        )
+        existing = conn.execute("SELECT payload_json FROM runs WHERE run_id = ?", (resolved_id,)).fetchone()
+        if existing is None:  # pragma: no cover - INSERT OR IGNORE cannot omit a valid row
+            raise RuntimeError("run insert did not produce a row")
+        if existing["payload_json"] != serialized:
+            raise ValueError("run_id already exists with different payload")
+        inserted = cursor.rowcount == 1
+        if inserted:
             for card in payload_dict.get("recommended", []) or []:
                 conn.execute(
                     "INSERT INTO result_cards(run_id, listing_id, card_json) VALUES (?, ?, ?)",
                     (resolved_id, str(card["listing_id"]), _canonical(card)),
                 )
-        return resolved_id, True
+        return resolved_id, inserted
 
     def get_run(self, run_id: str) -> dict[str, Any] | None:
         with self._connect() as conn:
@@ -274,7 +288,11 @@ class SelectorStore:
                         (_now(), watch_id),
                     )
                 return {"watch_id": watch_id, "run_id": previous_run_id, "changed": False, "payload": payload}
-        run_id, inserted = self.save_run(payload)
+        payload_dict = dict(payload)
+        run_id = run_id_for_payload(payload_dict)
+        serialized = _canonical(payload_dict)
+        with self._connect() as conn:
+            run_id, inserted = self._save_run_connection(conn, payload_dict, run_id, serialized)
         with self._connect() as conn:
             conn.execute(
                 "UPDATE watches SET last_run_id = ?, last_refreshed_at = ? WHERE watch_id = ?",

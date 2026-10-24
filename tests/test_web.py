@@ -34,6 +34,9 @@ class WebTests(unittest.TestCase):
                 "evidence_coverage": 1.0,
                 "currency": "HKD",
                 "source_id": "ebay.browse.hk.v1",
+                "source_rank": 1,
+                "fit_score": 100.0,
+                "fit_breakdown": {"policy": "source_order_preserved"},
                 "source_observed_at": "2026-10-24T04:00:00Z",
                 "stock_status": "in_stock",
                 "condition": "new",
@@ -54,6 +57,8 @@ class WebTests(unittest.TestCase):
         self.assertIn("已知费用小计", page)
         self.assertIn("基准：item_price_plus_shipping", page)
         self.assertIn("来源标识：<code>ebay.browse.hk.v1</code>", page)
+        self.assertIn("来源顺序：1", page)
+        self.assertIn("source_order_preserved", page)
         self.assertIn("运费/税费：0.00 / unknown HKD", page)
         self.assertIn("关键字段证据覆盖率：100.0%", page)
         self.assertIn("观测时间：2026-10-24T04:00:00Z", page)

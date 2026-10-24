@@ -15,6 +15,26 @@ FIXTURE = ROOT / "tests" / "fixtures" / "ebay_hk_sample.json"
 
 
 class PipelineTests(unittest.TestCase):
+    def test_source_url_rejects_userinfo_ports_and_control_chars(self):
+        base = {
+            "listing_id": "unsafe",
+            "source_id": "ebay.browse.hk.v1",
+            "title": "Mini PC",
+            "price": {"value": 1, "currency": "HKD"},
+            "availability": "IN_STOCK",
+            "condition": "New",
+            "evidence": [],
+        }
+        for url in (
+            "https://user:secret@www.ebay.com.hk/itm/unsafe",
+            "https://www.ebay.com.hk:8443/itm/unsafe",
+            "https://www.ebay.com.hk/itm/unsafe\n\n[phish](https://evil.example)",
+        ):
+            listing, evidence, reason = _to_listing({**base, "url": url})
+            self.assertIsNone(listing)
+            self.assertEqual(evidence, [])
+            self.assertEqual(reason, "untrusted_source_url")
+
     def test_query_parser_extracts_explicit_hk_constraints(self):
         spec = parse_query("香港预算 HKD 12000 以内，32GB 内存、1TB SSD、支持 USB4 的轻薄本")
         self.assertEqual(spec.region, "HK")
@@ -35,6 +55,17 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(payload["recommended"][0]["specs"], {"ram_gb": 32, "storage_gb": 1024})
         self.assertTrue(payload["read_only"])
         self.assertTrue(all("USB4 NVMe enclosure" not in card["title"] for card in payload["recommended"]))
+
+    def test_pipeline_preserves_source_order_and_explains_fit(self):
+        payload = run_search("香港预算 HKD 30000 以内的电脑", FIXTURE)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["ranking_policy"], "source_order_preserved")
+        self.assertEqual([card["listing_id"] for card in payload["recommended"]], [
+            "v1|100000000001|0",
+            "v1|100000000002|0",
+        ])
+        self.assertEqual([card["source_rank"] for card in payload["recommended"]], [1, 2])
+        self.assertTrue(all("policy" in card["fit_breakdown"] for card in payload["recommended"]))
 
     def test_policy_blocked_query_does_not_call_connector(self):
         with self.assertRaises(PolicyBlockedError):
@@ -77,6 +108,42 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("只读状态：true", report)
         self.assertIn("来源观测时间", report)
         self.assertIn("关键字段证据覆盖率：100.0%", report)
+
+    def test_markdown_escapes_error_and_url_text(self):
+        report = render_markdown({
+            "ok": False,
+            "status": "source_unavailable",
+            "message": "upstream\n\n# injected\n[phish](https://evil.example)",
+        })
+        self.assertNotIn("[phish](https://evil.example)", report)
+        self.assertIn(r"upstream  # injected \[phish\]\(https://evil.example\)", report)
+
+    def test_markdown_escapes_result_url(self):
+        report = render_markdown({
+            "ok": True,
+            "search_spec": {"query": "mini pc", "region": "HK", "currency": "HKD", "budget_max": "7000"},
+            "source": "ebay.browse.hk.v1",
+            "recommended": [{
+                "title": "Mini PC",
+                "source_id": "ebay.browse.hk.v1",
+                "url": "https://www.ebay.com.hk/itm/x) [phish](https://evil.example)",
+                "landed_cost": "1.00",
+                "currency": "HKD",
+                "cost_status": "partial",
+                "cost_basis": "item_price",
+                "shipping_cost": None,
+                "tax": None,
+                "evidence_coverage": 1.0,
+                "source_observed_at": "unknown",
+                "stock_status": "in_stock",
+                "condition": "new",
+                "specs": {},
+                "risk_flags": [],
+                "evidence": [],
+            }],
+        })
+        self.assertNotIn("[phish](https://evil.example)", report)
+        self.assertIn("https://www.ebay.com.hk/itm/x\\)", report)
 
     def test_markdown_reports_blocked_and_unavailable_states(self):
         blocked = render_markdown(run_search("帮我买一个游戏账号并完成转移"))

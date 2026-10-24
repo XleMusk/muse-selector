@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 import re
 from typing import Any, Iterable, Mapping
@@ -32,6 +32,9 @@ class ResultCard:
     cost_status: str = "unknown"
     cost_basis: str = "unknown"
     evidence_coverage: float = 0.0
+    source_rank: int = 0
+    fit_score: float = 0.0
+    fit_breakdown: Mapping[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
@@ -51,7 +54,15 @@ def _markdown_untrusted(value: Any) -> str:
     return re.sub(r"([\\`*_\[\]{}()<>])", r"\\\1", text)
 
 
-def build_card(listing: Listing, evidence: Iterable[Evidence], *, status: str = "recommended") -> ResultCard:
+def build_card(
+    listing: Listing,
+    evidence: Iterable[Evidence],
+    *,
+    status: str = "recommended",
+    source_rank: int = 0,
+    fit_score: float = 0.0,
+    fit_breakdown: Mapping[str, Any] | None = None,
+) -> ResultCard:
     return ResultCard(
         listing_id=listing.listing_id,
         title=listing.title,
@@ -72,6 +83,9 @@ def build_card(listing: Listing, evidence: Iterable[Evidence], *, status: str = 
         cost_status=listing.cost_status,
         cost_basis=listing.cost_basis,
         evidence_coverage=listing.evidence_coverage,
+        source_rank=source_rank,
+        fit_score=fit_score,
+        fit_breakdown=dict(fit_breakdown or {}),
     )
 
 
@@ -83,7 +97,7 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
             "# Muse Selector 结果卡",
             "",
             f"状态：{payload.get('status') or 'unknown'}",
-            f"说明：{payload.get('message') or '没有可展示的结果。'}",
+            f"说明：{_markdown_untrusted(payload.get('message') or '没有可展示的结果。')}",
             "",
             "只读状态：true",
         ]
@@ -96,7 +110,7 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
         f"查询：{_markdown_untrusted(spec['query'])}",
         f"地区/币种：{spec['region']} / {spec['currency']}",
         f"预算上限：{spec.get('budget_max') or '未指定'}",
-        f"来源：{payload.get('source') or 'unknown'}",
+        f"来源：{_markdown_untrusted(payload.get('source') or 'unknown')}",
         "只读状态：true",
         "",
         "## 推荐结果",
@@ -109,15 +123,17 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
         cost_label = "到手价" if card.get("cost_status") == "complete" else "已知费用小计"
         lines.extend([
             f"### {index}. {_markdown_untrusted(card['title'])}",
-            f"- 来源标识：{card.get('source_id') or 'unknown'}",
+            f"- 来源顺序：{card.get('source_rank') or index}（保留 eBay 来源顺序，未在客户端重排）",
+            f"- 匹配分：{float(card.get('fit_score', 0.0)):.1f}/100；拆解：{_markdown_untrusted(card.get('fit_breakdown') or 'unknown')}",
+            f"- 来源标识：{_markdown_untrusted(card.get('source_id') or 'unknown')}",
             f"- {cost_label}：{card['landed_cost'] or 'unknown'} {card['currency']}（{card.get('cost_basis') or 'unknown'}）",
             f"- 运费/税费：{card.get('shipping_cost') or 'unknown'} / {card.get('tax') or 'unknown'} {card['currency']}",
             f"- 关键字段证据覆盖率：{float(card.get('evidence_coverage', 0.0)):.1%}",
-            f"- 来源观测时间：{card.get('source_observed_at') or 'unknown'}",
-            f"- 状态：{card['stock_status']}；成色：{card['condition']}",
+            f"- 来源观测时间：{_markdown_untrusted(card.get('source_observed_at') or 'unknown')}",
+            f"- 状态：{_markdown_untrusted(card['stock_status'])}；成色：{_markdown_untrusted(card['condition'])}",
             f"- 规格：{_markdown_untrusted(card['specs'] or 'unknown')}",
-            f"- 来源：[打开原平台]({card['url']})",
-            f"- 风险：{', '.join(card['risk_flags']) if card['risk_flags'] else '未标记'}",
+            f"- 来源：[打开原平台]({_markdown_untrusted(card['url'])})",
+            f"- 风险：{_markdown_untrusted(', '.join(card['risk_flags']) if card['risk_flags'] else '未标记')}",
             f"- 证据字段：{_markdown_untrusted(', '.join(item['field'] for item in card['evidence']) or 'unknown')}",
             "",
         ])

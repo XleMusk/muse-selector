@@ -24,8 +24,20 @@ _MIN_EVIDENCE_COVERAGE = 0.95
 
 
 def _allowed_source_url(value: str) -> bool:
-    parsed = urlparse(value)
-    return parsed.scheme == "https" and (parsed.hostname or "").lower() in _ALLOWED_SOURCE_HOSTS
+    if not isinstance(value, str) or not value or any(ord(char) < 0x20 or ord(char) == 0x7f for char in value):
+        return False
+    try:
+        parsed = urlparse(value)
+        port = parsed.port
+    except ValueError:
+        return False
+    return (
+        parsed.scheme == "https"
+        and (parsed.hostname or "").lower() in _ALLOWED_SOURCE_HOSTS
+        and parsed.username is None
+        and parsed.password is None
+        and port in (None, 443)
+    )
 
 
 def _extract_specs(title: str) -> dict[str, Any]:
@@ -63,6 +75,26 @@ def _query_matches_title(query: str, title: str) -> bool:
         if any(needle in q for needle in needles):
             return any(match in t for match in matches)
     return True
+
+
+def _fit_explanation(spec: Any, listing: Listing) -> tuple[float, dict[str, Any]]:
+    """Explain fit without changing the source's mandated result ordering."""
+
+    preferred = dict(spec.preferred_specs or {})
+    matched = 0
+    for key, expected in preferred.items():
+        actual = listing.specs.get(key)
+        if actual is not None and str(actual).strip().lower() == str(expected).strip().lower():
+            matched += 1
+    preferred_ratio = matched / len(preferred) if preferred else 1.0
+    availability = {"in_stock": 1.0, "preorder": 0.5}.get(listing.stock_status, 0.0)
+    score = round((preferred_ratio * 0.4 + listing.evidence_coverage * 0.4 + availability * 0.2) * 100, 2)
+    return score, {
+        "preferred_specs": f"{matched}/{len(preferred)}" if preferred else "not specified",
+        "evidence_coverage": listing.evidence_coverage,
+        "availability": listing.stock_status,
+        "policy": "source_order_preserved",
+    }
 
 
 def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], str | None]:
@@ -242,9 +274,23 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
         listings.append(listing)
         evidence_by_id[listing.listing_id] = evidence
     accepted, decisions = filter_listings(spec, listings)
-    accepted = sorted(accepted, key=lambda item: (item.landed_cost is None, item.landed_cost or 0, item.listing_id))[:limit]
+    # eBay's Buy API requirements prohibit partner-side re-sorting. Preserve
+    # the source's best-match order and expose an explainable fit score instead.
+    accepted = accepted[:limit]
     accepted_ids = {item.listing_id for item in accepted}
     decision_by_id = {item.listing_id: item for item in decisions}
+    recommended_cards = []
+    for index, item in enumerate(accepted, 1):
+        fit_score, fit_breakdown = _fit_explanation(spec, item)
+        recommended_cards.append(
+            build_card(
+                item,
+                evidence_by_id[item.listing_id],
+                source_rank=index,
+                fit_score=fit_score,
+                fit_breakdown=fit_breakdown,
+            ).to_dict()
+        )
     rejected = [
         {"listing_id": item.listing_id, "reasons": list(decision_by_id[item.listing_id].reasons)}
         for item in listings
@@ -254,7 +300,8 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
         "ok": True,
         "status": "complete",
         "search_spec": spec.to_dict(),
-        "recommended": [build_card(item, evidence_by_id[item.listing_id]).to_dict() for item in accepted],
+        "recommended": recommended_cards,
+        "ranking_policy": "source_order_preserved",
         "rejected": rejected,
         "dropped": dropped,
         "source": "ebay.browse.hk.v1",

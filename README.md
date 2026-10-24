@@ -121,6 +121,7 @@ muse-watch --db "D:\muse\data\selector.sqlite3" --action replay --watch-id "mini
 关键字段证据覆盖率低于 95% 的来源记录会被标记为风险并排除，不会进入推荐。
 查询未提供预算上限时，系统返回 `needs_clarification` 并要求补充地区与 `max_total_hkd`；只有明确写出“价格不限”等表达才会在无预算上限下继续筛选。
 结果卡会同时输出 `cost_status` 和 `cost_basis`：税费或运费未知时显示“已知费用小计”，不会把未知税费伪装成完整到手价。
+eBay Browse API 的官方要求不允许合作方在客户端重新排序搜索结果，因此系统保留 eBay 返回的最佳匹配顺序，并在每张结果卡中显示 `source_rank`、`fit_score` 和拆解字段；预算、地区、库存、成色、必选规格和风险仍先经过硬约束过滤。
 
 ## 可选 eBay 只读 API
 
@@ -139,7 +140,7 @@ python -m muse_selector --query "香港 RTX 4070 显卡，预算 HKD 9000" --for
 muse-live-smoke --query "香港 RTX 4070 显卡，预算 HKD 9000"
 ```
 
-生产使用前需要再次核对 eBay Buy API requirements、API License Agreement、地区支持、缓存和展示规则。连接器不提供购物车、支付、出价或订单接口。
+生产使用前需要再次核对 [eBay Buy API requirements](https://developer.ebay.com/api-docs/buy/buy-requirements.html)、API License Agreement、地区支持、缓存和展示规则。连接器不提供购物车、支付、出价或订单接口。
 
 ## 代码结构
 
