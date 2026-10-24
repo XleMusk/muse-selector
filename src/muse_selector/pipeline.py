@@ -104,6 +104,8 @@ def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], st
             status=str(item.get("status") or "unknown"),
             confidence=1.0 if item.get("status") == "confirmed" else 0.5,
         ))
+    if any(item.status in {"stale", "conflict"} for item in evidence):
+        flags.append("evidence_conflict_or_stale")
     listing = Listing(
         listing_id=str(row["listing_id"]),
         source_id=str(row["source_id"]),

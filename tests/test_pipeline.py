@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from muse_selector.filtering import filter_listings
 from muse_selector.pipeline import _to_listing, run_search
 from muse_selector.query_parser import PolicyBlockedError, parse_query
 from muse_selector.result_card import render_markdown
@@ -99,6 +100,33 @@ class PipelineTests(unittest.TestCase):
         self.assertIsNone(listing)
         self.assertEqual(evidence, [])
         self.assertEqual(reason, "untrusted_source_url")
+
+    def test_stale_or_conflict_evidence_is_flagged_for_filtering(self):
+        row = {
+            "listing_id": "stale-1",
+            "source_id": "ebay.browse.hk.v1",
+            "title": "Mini PC 32GB 1TB NVMe",
+            "url": "https://www.ebay.com.hk/itm/stale-1",
+            "price": {"value": 4999, "currency": "HKD"},
+            "availability": "IN_STOCK",
+            "condition": "New",
+            "evidence": [{
+                "source_id": "ebay.browse.hk.v1",
+                "source_url": "https://www.ebay.com.hk/itm/stale-1",
+                "field": "price",
+                "value": 4999,
+                "observed_at": "2026-10-01T00:00:00Z",
+                "status": "stale",
+            }],
+        }
+        listing, evidence, reason = _to_listing(row)
+        self.assertIsNone(reason)
+        self.assertEqual(len(evidence), 1)
+        self.assertIn("evidence_conflict_or_stale", listing.risk_flags)
+        spec = parse_query("香港预算 HKD 7000 以内的迷你主机")
+        accepted, decisions = filter_listings(spec, [listing])
+        self.assertEqual(accepted, [])
+        self.assertIn("risk_flagged", decisions[0].reasons)
 
     def test_malformed_listing_required_fields_are_dropped_without_traceback(self):
         for field, reason in (("listing_id", "missing_listing_id"), ("title", "missing_title")):
