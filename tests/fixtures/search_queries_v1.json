@@ -1,0 +1,22 @@
+[
+  {"case_id": "mini_pc_16gb", "intent": "mini_pc", "query": "香港预算 HKD 8000 以内的迷你主机，16GB 内存"},
+  {"case_id": "laptop_32gb_usb4", "intent": "laptop", "query": "香港预算 HKD 12000 以内的轻薄本，32GB 内存、1TB SSD、支持 USB4"},
+  {"case_id": "gpu_16gb", "intent": "gpu", "query": "香港 16GB 显存 GPU，预算 HKD 9000"},
+  {"case_id": "dock_unbounded", "intent": "dock", "query": "香港 USB4 扩展坞，双 4K、100W PD，价格不限"},
+  {"case_id": "mini_pc_storage", "intent": "mini_pc", "query": "香港预算 HKD 6000 以内的迷你主机，16GB 内存、512GB SSD"},
+  {"case_id": "desktop_workstation", "intent": "desktop", "query": "香港预算 HKD 18000 以内的台式机，64GB 内存、2TB SSD"},
+  {"case_id": "laptop_entry", "intent": "laptop", "query": "香港预算 HKD 5000 以内的笔记本，16GB 内存、512GB SSD"},
+  {"case_id": "dock_60w", "intent": "dock", "query": "香港预算 HKD 3000 以内的 USB4 扩展坞，双 4K、60W PD"},
+  {"case_id": "laptop_32gb", "intent": "laptop", "query": "香港预算 HKD 15000 以内的轻薄本，32GB 内存、支持 USB4"},
+  {"case_id": "gpu_24gb", "intent": "gpu", "query": "香港 24GB 显存 GPU，预算 HKD 25000"},
+  {"case_id": "mini_pc_1tb", "intent": "mini_pc", "query": "香港预算 HKD 7000 以内的迷你主机，32GB 内存、1TB SSD"},
+  {"case_id": "gpu_12gb", "intent": "gpu", "query": "香港 12GB 显存 GPU，预算 HKD 10000"},
+  {"case_id": "dock_basic", "intent": "dock", "query": "香港预算 HKD 4000 以内的 USB4 扩展坞"},
+  {"case_id": "workstation_2tb", "intent": "workstation", "query": "香港预算 HKD 20000 以内的工作站，64GB 内存、2TB SSD"},
+  {"case_id": "laptop_1tb", "intent": "laptop", "query": "香港预算 HKD 9000 以内的笔记本，16GB 内存、1TB SSD"},
+  {"case_id": "dock_100w", "intent": "dock", "query": "香港预算 HKD 3500 以内的扩展坞，双 4K、100W PD"},
+  {"case_id": "mini_pc_usb4", "intent": "mini_pc", "query": "香港预算 HKD 13000 以内的迷你主机，32GB 内存、支持 USB4"},
+  {"case_id": "gpu_16gb_high", "intent": "gpu", "query": "香港 16GB 显存以上 GPU，预算 HKD 22000"},
+  {"case_id": "laptop_512gb", "intent": "laptop", "query": "香港预算 HKD 7000 以内的笔记本，16GB 内存、512GB SSD"},
+  {"case_id": "mini_pc_range", "intent": "mini_pc", "query": "香港预算 HKD 5000-8000 的迷你主机，16GB 内存"}
+]

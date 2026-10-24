@@ -144,9 +144,11 @@ muse-live-smoke --query "香港 RTX 4070 显卡，预算 HKD 9000"
 
 ## 代码结构
 
+- `scope_decision.md`：香港/HKD、电脑硬件、eBay HK 只读首版范围与降级决策。
 - `src/muse_selector/contracts.py`：`SearchSpec`、`Listing`、`Product`、`Evidence`、`PolicyRecord`。
 - `src/muse_selector/query_parser.py`：只解析用户明确写出的预算和硬件规格。
 - `src/muse_selector/connectors/ebay.py`：fixture/官方 Browse API 只读连接器。
 - `src/muse_selector/pipeline.py`：解析、来源查询、规范化、硬过滤和结果卡。
 - `src/muse_selector/result_card.py`：JSON/Markdown 结果卡。
+- `tests/fixtures/search_queries_v1.json`：20 条可解析的首版 SearchSpec 样例。
 - `tests/`：契约、连接器、端到端结果卡和离线回归。
