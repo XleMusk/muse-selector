@@ -1,0 +1,26 @@
+sources:
+  - source_id: ebay.browse.hk.v1
+    display_name: eBay Browse API (Hong Kong marketplace)
+    category: computers_hardware
+    access_mode: official_api
+    endpoint: https://api.ebay.com/buy/browse/v1/item_summary/search
+    marketplace_id: EBAY_HK
+    delivery_country: HK
+    read_only: true
+    writes_enabled: false
+    authentication: oauth2_client_credentials_application_token
+    authorization_evidence_url: https://developer.ebay.com/api-docs/buy/api-browse.html
+    terms_url: https://developer.ebay.com/devzone/license-agreement/api_license_agreement.pdf
+    allowed_fields: [title, url, price, condition, stock, shipping, seller]
+    write_actions: []
+    credentials_from_environment:
+      - EBAY_CLIENT_ID
+      - EBAY_CLIENT_SECRET
+    default_policy: allow_read_only
+    retention_days: 30
+    cache_ttl_minutes: 15
+    kill_switch: source_ebay_browse_hk
+    notes: >-
+      Search-only adapter. Review current eBay API License Agreement and Buy
+      API requirements before production release.
+

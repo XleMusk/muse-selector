@@ -1,0 +1,63 @@
+import unittest
+from decimal import Decimal
+
+from muse_selector.contracts import Evidence, Listing, PolicyRecord, SearchSpec
+from muse_selector.filtering import filter_listings
+
+
+class ContractTests(unittest.TestCase):
+    def test_search_spec_normalizes_money(self):
+        spec = SearchSpec.from_dict({"query": "USB4 laptop", "budget_max": "12000", "required_specs": {"ram_gb": 32}})
+        self.assertEqual(spec.budget_max, Decimal("12000.00"))
+        self.assertEqual(spec.region, "HK")
+
+    def test_listing_landed_cost_and_filter(self):
+        spec = SearchSpec(query="laptop", budget_max=12000, required_specs={"ram_gb": 32})
+        listing = Listing(
+            listing_id="ebay:1",
+            source_id="ebay_browse",
+            title="Test laptop",
+            url="https://www.ebay.com.hk/itm/1",
+            price=10000,
+            shipping_cost=200,
+            tax=0,
+            stock_status="in_stock",
+            condition="new",
+            specs={"ram_gb": 32},
+        )
+        accepted, decisions = filter_listings(spec, [listing])
+        self.assertEqual(listing.landed_cost, Decimal("10200.00"))
+        self.assertEqual(len(accepted), 1)
+        self.assertTrue(decisions[0].accepted)
+
+    def test_missing_required_spec_is_rejected(self):
+        spec = SearchSpec(query="laptop", required_specs={"usb4": True})
+        listing = Listing(
+            listing_id="ebay:2",
+            source_id="ebay_browse",
+            title="Unknown laptop",
+            url="https://www.ebay.com.hk/itm/2",
+            price=1000,
+            stock_status="in_stock",
+            condition="new",
+        )
+        accepted, decisions = filter_listings(spec, [listing])
+        self.assertFalse(accepted)
+        self.assertIn("required_spec:usb4", decisions[0].reasons)
+
+    def test_evidence_and_policy_require_http_source(self):
+        evidence = Evidence("ev1", "ebay_browse", "https://www.ebay.com.hk/itm/1", "price", "10")
+        self.assertEqual(evidence.status, "confirmed")
+        policy = PolicyRecord(
+            source_id="ebay_browse",
+            category="computers_hardware",
+            access_mode="official_api",
+            authorization_evidence_url="https://developer.ebay.com/api-docs/buy/browse/overview.html",
+            allowed_fields=("title", "price"),
+        )
+        self.assertEqual(policy.default_policy, "allow_read_only")
+
+
+if __name__ == "__main__":
+    unittest.main()
+

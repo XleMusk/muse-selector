@@ -1,0 +1,293 @@
+[
+  {
+    "listing_id": "ebay-hk-laptop-001",
+    "category": "laptop",
+    "title": "Lenovo ThinkPad T14 Gen 4 32GB 1TB USB4",
+    "brand": "Lenovo",
+    "model": "21K3",
+    "mpn": "21K3001MHH",
+    "price": {
+      "amount": 8999,
+      "currency": "HKD",
+      "shipping": 0,
+      "tax": 0,
+      "total": 8999
+    },
+    "specs": {
+      "ram_gb": 32,
+      "storage_gb": 1000,
+      "usb4": true
+    },
+    "availability": "IN_STOCK",
+    "condition": "NEW",
+    "region": "HK",
+    "source": {
+      "source_id": "ebay_browse_api",
+      "url": "https://www.ebay.com.hk/itm/100000001",
+      "observed_at": "2026-10-24T10:00:00Z"
+    },
+    "evidence": [
+      {
+        "field": "price.total",
+        "value": 8999,
+        "source_url": "https://www.ebay.com.hk/itm/100000001",
+        "observed_at": "2026-10-24T10:00:00Z",
+        "status": "confirmed"
+      }
+    ],
+    "field_status": {
+      "price.total": "confirmed",
+      "specs.ram_gb": "confirmed",
+      "specs.storage_gb": "confirmed",
+      "specs.usb4": "confirmed"
+    },
+    "risk": "LOW"
+  },
+  {
+    "listing_id": "ebay-hk-gpu-001",
+    "category": "gpu",
+    "title": "NVIDIA RTX 4080 SUPER 16GB",
+    "brand": "NVIDIA",
+    "model": "RTX 4080 SUPER",
+    "mpn": "9001G1362510000",
+    "price": {
+      "amount": 7999,
+      "currency": "HKD",
+      "shipping": 120,
+      "tax": 0,
+      "total": 8119
+    },
+    "specs": {
+      "vram_gb": 16
+    },
+    "availability": "IN_STOCK",
+    "condition": "NEW",
+    "region": "HK",
+    "source": {
+      "source_id": "ebay_browse_api",
+      "url": "https://www.ebay.com.hk/itm/100000002",
+      "observed_at": "2026-10-24T10:00:00Z"
+    },
+    "evidence": [
+      {
+        "field": "specs.vram_gb",
+        "value": 16,
+        "source_url": "https://www.ebay.com.hk/itm/100000002",
+        "observed_at": "2026-10-24T10:00:00Z",
+        "status": "confirmed"
+      }
+    ],
+    "field_status": {
+      "price.total": "confirmed",
+      "specs.vram_gb": "confirmed"
+    },
+    "risk": "LOW"
+  },
+  {
+    "listing_id": "ebay-hk-dock-001",
+    "category": "dock",
+    "title": "USB4 Dock Dual 4K 100W PD",
+    "brand": "Example",
+    "model": "U4-DUAL-100",
+    "mpn": "U4-DUAL-100",
+    "price": {
+      "amount": 1299,
+      "currency": "HKD",
+      "shipping": 0,
+      "tax": 0,
+      "total": 1299
+    },
+    "specs": {
+      "usb4": true,
+      "display_4k_count": 2,
+      "pd_watt": 100
+    },
+    "availability": "IN_STOCK",
+    "condition": "NEW",
+    "region": "HK",
+    "source": {
+      "source_id": "ebay_browse_api",
+      "url": "https://www.ebay.com.hk/itm/100000003",
+      "observed_at": "2026-10-24T10:00:00Z"
+    },
+    "evidence": [
+      {
+        "field": "specs.usb4",
+        "value": true,
+        "source_url": "https://www.ebay.com.hk/itm/100000003",
+        "observed_at": "2026-10-24T10:00:00Z",
+        "status": "confirmed"
+      }
+    ],
+    "field_status": {
+      "price.total": "confirmed",
+      "specs.usb4": "confirmed",
+      "specs.display_4k_count": "confirmed",
+      "specs.pd_watt": "confirmed"
+    },
+    "risk": "LOW"
+  },
+  {
+    "listing_id": "ebay-hk-stale-001",
+    "category": "laptop",
+    "title": "Old 32GB Laptop Listing",
+    "brand": "Example",
+    "model": "OLD-32",
+    "mpn": "OLD-32",
+    "price": {
+      "amount": 6999,
+      "currency": "HKD",
+      "shipping": 0,
+      "tax": 0,
+      "total": 6999
+    },
+    "specs": {
+      "ram_gb": 32
+    },
+    "availability": "UNKNOWN",
+    "condition": "USED",
+    "region": "HK",
+    "source": {
+      "source_id": "ebay_browse_api",
+      "url": "https://www.ebay.com.hk/itm/100000004",
+      "observed_at": "2026-08-01T10:00:00Z"
+    },
+    "evidence": [
+      {
+        "field": "price.total",
+        "value": 6999,
+        "source_url": "https://www.ebay.com.hk/itm/100000004",
+        "observed_at": "2026-08-01T10:00:00Z",
+        "status": "stale"
+      }
+    ],
+    "field_status": {
+      "price.total": "stale",
+      "specs.ram_gb": "stale"
+    },
+    "risk": "MEDIUM"
+  },
+  {
+    "listing_id": "ebay-hk-conflict-001",
+    "category": "gpu",
+    "title": "RTX 4080 16GB - shipping varies",
+    "brand": "Example",
+    "model": "RTX-4080",
+    "mpn": "RTX-4080",
+    "price": {
+      "amount": 8800,
+      "currency": "HKD",
+      "shipping": null,
+      "tax": null,
+      "total": null
+    },
+    "specs": {
+      "vram_gb": 16
+    },
+    "availability": "IN_STOCK",
+    "condition": "NEW",
+    "region": "HK",
+    "source": {
+      "source_id": "ebay_browse_api",
+      "url": "https://www.ebay.com.hk/itm/100000005",
+      "observed_at": "2026-10-24T10:00:00Z"
+    },
+    "evidence": [
+      {
+        "field": "price.total",
+        "value": null,
+        "source_url": "https://www.ebay.com.hk/itm/100000005",
+        "observed_at": "2026-10-24T10:00:00Z",
+        "status": "conflict"
+      }
+    ],
+    "field_status": {
+      "price.total": "conflict",
+      "specs.vram_gb": "confirmed"
+    },
+    "risk": "HIGH"
+  },
+  {
+    "listing_id": "game-account-001",
+    "category": "game_account",
+    "title": "Rare skin game account - transfer available",
+    "brand": null,
+    "model": null,
+    "mpn": null,
+    "price": {
+      "amount": 500,
+      "currency": "HKD",
+      "shipping": 0,
+      "tax": 0,
+      "total": 500
+    },
+    "specs": {
+      "credentials_required": true,
+      "account_transfer": true
+    },
+    "availability": "IN_STOCK",
+    "condition": "USED",
+    "region": "HK",
+    "source": {
+      "source_id": "unverified_listing",
+      "url": "https://example.invalid/account/1",
+      "observed_at": "2026-10-24T10:00:00Z"
+    },
+    "evidence": [
+      {
+        "field": "specs.account_transfer",
+        "value": true,
+        "source_url": "https://example.invalid/account/1",
+        "observed_at": "2026-10-24T10:00:00Z",
+        "status": "confirmed"
+      }
+    ],
+    "field_status": {
+      "specs.credentials_required": "confirmed",
+      "specs.account_transfer": "confirmed"
+    },
+    "risk": "BLOCKED"
+  },
+  {
+    "listing_id": "ebay-hk-mini-001",
+    "category": "mini_pc",
+    "title": "Mini PC 16GB 512GB SSD",
+    "brand": "Example",
+    "model": "MINI-16-512",
+    "mpn": "MINI-16-512",
+    "price": {
+      "amount": 4999,
+      "currency": "HKD",
+      "shipping": 0,
+      "tax": 0,
+      "total": 4999
+    },
+    "specs": {
+      "ram_gb": 16,
+      "storage_gb": 512
+    },
+    "availability": "IN_STOCK",
+    "condition": "NEW",
+    "region": "HK",
+    "source": {
+      "source_id": "ebay_browse_api",
+      "url": "https://www.ebay.com.hk/itm/100000006",
+      "observed_at": "2026-10-24T10:00:00Z"
+    },
+    "evidence": [
+      {
+        "field": "price.total",
+        "value": 4999,
+        "source_url": "https://www.ebay.com.hk/itm/100000006",
+        "observed_at": "2026-10-24T10:00:00Z",
+        "status": "confirmed"
+      }
+    ],
+    "field_status": {
+      "price.total": "confirmed",
+      "specs.ram_gb": "confirmed",
+      "specs.storage_gb": "confirmed"
+    },
+    "risk": "LOW"
+  }
+]

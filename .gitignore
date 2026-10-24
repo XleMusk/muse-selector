@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.db
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local runtime output; keep curated examples under examples/ tracked.
+data/*.sqlite3
+data/*.db
+logs/
+
+# Credentials and local overrides.
+*.pem
+*.key
+secrets/

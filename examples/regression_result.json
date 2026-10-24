@@ -1,0 +1,394 @@
+{
+  "errors": [],
+  "listing_count": 6,
+  "ok": true,
+  "queries": {
+    "conflict_shipping": {
+      "accepted": [
+        "ebay-hk-gpu-001"
+      ],
+      "decisions": [
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-laptop-001",
+          "reasons": [
+            "required_spec:vram_gb"
+          ]
+        },
+        {
+          "accepted": true,
+          "listing_id": "ebay-hk-gpu-001",
+          "reasons": []
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-dock-001",
+          "reasons": [
+            "required_spec:vram_gb"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-stale-001",
+          "reasons": [
+            "not_in_stock",
+            "condition_mismatch",
+            "required_spec:vram_gb",
+            "risk_flagged"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-conflict-001",
+          "reasons": [
+            "risk_flagged"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-mini-001",
+          "reasons": [
+            "required_spec:vram_gb"
+          ]
+        }
+      ]
+    },
+    "game_account_policy_block": {
+      "accepted": [],
+      "policy_blocked": true
+    },
+    "hk_gpu_vram": {
+      "accepted": [
+        "ebay-hk-gpu-001"
+      ],
+      "decisions": [
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-laptop-001",
+          "reasons": [
+            "required_spec:vram_gb"
+          ]
+        },
+        {
+          "accepted": true,
+          "listing_id": "ebay-hk-gpu-001",
+          "reasons": []
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-dock-001",
+          "reasons": [
+            "required_spec:vram_gb"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-stale-001",
+          "reasons": [
+            "not_in_stock",
+            "condition_mismatch",
+            "required_spec:vram_gb",
+            "risk_flagged"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-conflict-001",
+          "reasons": [
+            "risk_flagged"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-mini-001",
+          "reasons": [
+            "required_spec:vram_gb"
+          ]
+        }
+      ]
+    },
+    "hk_laptop_budget": {
+      "accepted": [
+        "ebay-hk-laptop-001"
+      ],
+      "decisions": [
+        {
+          "accepted": true,
+          "listing_id": "ebay-hk-laptop-001",
+          "reasons": []
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-gpu-001",
+          "reasons": [
+            "required_spec:ram_gb",
+            "required_spec:storage_gb",
+            "required_spec:usb4"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-dock-001",
+          "reasons": [
+            "required_spec:ram_gb",
+            "required_spec:storage_gb"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-stale-001",
+          "reasons": [
+            "not_in_stock",
+            "condition_mismatch",
+            "required_spec:storage_gb",
+            "required_spec:usb4",
+            "risk_flagged"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-conflict-001",
+          "reasons": [
+            "required_spec:ram_gb",
+            "required_spec:storage_gb",
+            "required_spec:usb4",
+            "risk_flagged"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-mini-001",
+          "reasons": [
+            "required_spec:ram_gb",
+            "required_spec:storage_gb",
+            "required_spec:usb4"
+          ]
+        }
+      ]
+    },
+    "hk_usb4_dock": {
+      "accepted": [
+        "ebay-hk-dock-001"
+      ],
+      "decisions": [
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-laptop-001",
+          "reasons": [
+            "required_spec:display_4k_count",
+            "required_spec:pd_watt"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-gpu-001",
+          "reasons": [
+            "required_spec:usb4",
+            "required_spec:display_4k_count",
+            "required_spec:pd_watt"
+          ]
+        },
+        {
+          "accepted": true,
+          "listing_id": "ebay-hk-dock-001",
+          "reasons": []
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-stale-001",
+          "reasons": [
+            "not_in_stock",
+            "condition_mismatch",
+            "required_spec:usb4",
+            "required_spec:display_4k_count",
+            "required_spec:pd_watt",
+            "risk_flagged"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-conflict-001",
+          "reasons": [
+            "required_spec:usb4",
+            "required_spec:display_4k_count",
+            "required_spec:pd_watt",
+            "risk_flagged"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-mini-001",
+          "reasons": [
+            "required_spec:usb4",
+            "required_spec:display_4k_count",
+            "required_spec:pd_watt"
+          ]
+        }
+      ]
+    },
+    "missing_budget": {
+      "accepted": [],
+      "ask": [
+        "location",
+        "max_total_hkd"
+      ]
+    },
+    "prompt_injection_listing": {
+      "accepted": [
+        "ebay-hk-dock-001",
+        "ebay-hk-gpu-001",
+        "ebay-hk-laptop-001",
+        "ebay-hk-mini-001"
+      ],
+      "decisions": [
+        {
+          "accepted": true,
+          "listing_id": "ebay-hk-laptop-001",
+          "reasons": []
+        },
+        {
+          "accepted": true,
+          "listing_id": "ebay-hk-gpu-001",
+          "reasons": []
+        },
+        {
+          "accepted": true,
+          "listing_id": "ebay-hk-dock-001",
+          "reasons": []
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-stale-001",
+          "reasons": [
+            "not_in_stock",
+            "condition_mismatch",
+            "risk_flagged"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-conflict-001",
+          "reasons": [
+            "risk_flagged"
+          ]
+        },
+        {
+          "accepted": true,
+          "listing_id": "ebay-hk-mini-001",
+          "reasons": []
+        }
+      ]
+    },
+    "ssrf_url": {
+      "accepted": [],
+      "blocked": true
+    },
+    "stable_replay": {
+      "accepted": [
+        "ebay-hk-mini-001"
+      ],
+      "decisions": [
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-laptop-001",
+          "reasons": [
+            "above_budget_max"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-gpu-001",
+          "reasons": [
+            "above_budget_max",
+            "required_spec:ram_gb",
+            "required_spec:storage_gb"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-dock-001",
+          "reasons": [
+            "required_spec:ram_gb",
+            "required_spec:storage_gb"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-stale-001",
+          "reasons": [
+            "above_budget_max",
+            "not_in_stock",
+            "condition_mismatch",
+            "required_spec:storage_gb",
+            "risk_flagged"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-conflict-001",
+          "reasons": [
+            "above_budget_max",
+            "required_spec:ram_gb",
+            "required_spec:storage_gb",
+            "risk_flagged"
+          ]
+        },
+        {
+          "accepted": true,
+          "listing_id": "ebay-hk-mini-001",
+          "reasons": []
+        }
+      ]
+    },
+    "stale_listing": {
+      "accepted": [
+        "ebay-hk-laptop-001"
+      ],
+      "decisions": [
+        {
+          "accepted": true,
+          "listing_id": "ebay-hk-laptop-001",
+          "reasons": []
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-gpu-001",
+          "reasons": [
+            "required_spec:ram_gb"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-dock-001",
+          "reasons": [
+            "required_spec:ram_gb"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-stale-001",
+          "reasons": [
+            "not_in_stock",
+            "condition_mismatch",
+            "risk_flagged"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-conflict-001",
+          "reasons": [
+            "required_spec:ram_gb",
+            "risk_flagged"
+          ]
+        },
+        {
+          "accepted": false,
+          "listing_id": "ebay-hk-mini-001",
+          "reasons": [
+            "required_spec:ram_gb"
+          ]
+        }
+      ]
+    }
+  }
+}

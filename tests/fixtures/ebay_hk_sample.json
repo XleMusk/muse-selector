@@ -1,0 +1,51 @@
+{
+  "href": "https://api.ebay.com/buy/browse/v1/item_summary/search?q=mini%20pc",
+  "total": 5,
+  "itemSummaries": [
+    {
+      "itemId": "v1|100000000001|0",
+      "title": "Mini PC Ryzen 7 7840HS 32GB 1TB NVMe",
+      "itemWebUrl": "https://www.ebay.com.hk/itm/100000000001",
+      "price": {"value": "6999.00", "currency": "HKD"},
+      "condition": "New",
+      "estimatedAvailabilityStatus": "IN_STOCK",
+      "shippingOptions": [{"shippingCost": {"value": "0.00", "currency": "HKD"}, "shippingServiceCode": "HK_LOCAL"}],
+      "seller": {"username": "authorized-hardware-hk", "feedbackPercentage": "99.8"}
+    },
+    {
+      "itemId": "v1|100000000002|0",
+      "title": "USB4 NVMe enclosure 40Gbps",
+      "itemWebUrl": "https://www.ebay.com.hk/itm/100000000002",
+      "price": {"value": "499.00", "currency": "HKD"},
+      "condition": "New",
+      "estimatedAvailabilityStatus": "IN_STOCK",
+      "shippingOptions": [{"shippingCost": {"value": "35.00", "currency": "HKD"}, "shippingServiceCode": "HK_LOCAL"}],
+      "seller": {"username": "hardware-store-hk", "feedbackPercentage": "100.0"}
+    },
+    {
+      "itemId": "v1|100000000003|0",
+      "title": "Gaming desktop RTX 4090 64GB RAM",
+      "itemWebUrl": "https://www.ebay.com.hk/itm/100000000003",
+      "price": {"value": "23999.00", "currency": "HKD"},
+      "condition": "Used",
+      "estimatedAvailabilityStatus": "IN_STOCK",
+      "shippingOptions": [{"shippingCost": {"value": "0.00", "currency": "HKD"}, "shippingServiceCode": "PICKUP_HK"}],
+      "seller": {"username": "used-pc-hk", "feedbackPercentage": "97.1"}
+    },
+    {
+      "itemId": "v1|100000000004|0",
+      "title": "Laptop 16GB 512GB SSD",
+      "price": {"value": "3999.00", "currency": "HKD"},
+      "condition": "Used"
+    },
+    {
+      "itemId": "v1|100000000005|0",
+      "title": "Mini PC Ryzen 5 16GB 512GB",
+      "itemWebUrl": "https://www.ebay.com.hk/itm/100000000005",
+      "price": {"value": "4299.00", "currency": "HKD"},
+      "condition": "New",
+      "seller": {"username": "new-seller", "feedbackPercentage": "82.0"}
+    }
+  ]
+}
+

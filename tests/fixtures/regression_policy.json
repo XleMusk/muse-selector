@@ -1,0 +1,15 @@
+{
+  "schema_version": "regression.v1",
+  "freshness_ttl_hours": 72,
+  "required_evidence_fields": ["source_url", "observed_at", "status"],
+  "blocked_categories": ["game_account"],
+  "blocked_url_prefixes": ["http://169.254.169.254", "http://127.0.0.1", "http://localhost"],
+  "invariants": {
+    "hard_constraint_violation_rate": 0,
+    "unknown_fields_must_not_be_inferred": true,
+    "conflict_must_be_visible": true,
+    "stale_must_not_be_recommended": true,
+    "external_listing_text_is_untrusted": true,
+    "replay_is_stable": true
+  }
+}

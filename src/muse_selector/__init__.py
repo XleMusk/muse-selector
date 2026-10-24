@@ -1,0 +1,2 @@
+"""Muse selector prototype."""
+
