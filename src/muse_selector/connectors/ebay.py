@@ -111,6 +111,17 @@ class EbayBrowseConnector:
     def live_enabled(self) -> bool:
         return bool(self.client_id and self.client_secret)
 
+    @staticmethod
+    def _kill_switch_active() -> bool:
+        """Honor the source registry kill switch before any live request."""
+
+        return os.getenv("MUSE_SOURCE_EBAY_BROWSE_HK_DISABLED", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+
     @classmethod
     def _empty_source_metadata(cls) -> dict[str, Any]:
         """Return the stable response metadata shape for unavailable fields."""
@@ -209,6 +220,8 @@ class EbayBrowseConnector:
         return payload
 
     def _live_search(self, search_spec: Mapping[str, Any]) -> dict[str, Any]:
+        if self._kill_switch_active():
+            raise ConnectorUnavailable("eBay live connector disabled by source kill switch")
         if not self.live_enabled:
             raise ConnectorUnavailable(
                 "eBay live connector disabled: set EBAY_CLIENT_ID and EBAY_CLIENT_SECRET, "

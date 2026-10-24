@@ -1,7 +1,9 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 from muse_selector.connectors.ebay import ConnectorUnavailable, EbayBrowseConnector, EbayConnectorConfig
 
@@ -102,6 +104,14 @@ class EbayBrowseConnectorTests(unittest.TestCase):
         connector = EbayBrowseConnector(config=EbayConnectorConfig())
         with self.assertRaises(ConnectorUnavailable):
             connector.search({"query": "mini pc"})
+
+    def test_live_kill_switch_fails_closed_before_network(self):
+        opener = Mock()
+        with patch.dict(os.environ, {"MUSE_SOURCE_EBAY_BROWSE_HK_DISABLED": "true"}, clear=False):
+            connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=opener)
+            with self.assertRaises(ConnectorUnavailable):
+                connector.search({"query": "mini pc"})
+        opener.open.assert_not_called()
 
     def test_query_params_are_read_only_hk_fixed_price(self):
         params = EbayBrowseConnector()._query_params({"query": "rtx 4070", "limit": 999})

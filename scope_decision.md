@@ -25,6 +25,7 @@
 - 查询明确要求配送时限时，只接受来源 `shippingOptions` 的预计最晚送达日期；日期缺失或无法计算时标记 `delivery_unknown` 并排除。
 - eBay 返回的最佳匹配顺序保留在结果卡中；客户端不按价格重新排序。匹配分仅用于解释，不扩大来源权限。
 - 观察任务只写本地 SQLite；run、结果卡和 watch checkpoint 在同一事务中提交，失败时整体回滚。
+- 来源注册表的 `source_ebay_browse_hk` kill switch 在实时 OAuth 请求前生效；启用时连接器 fail-closed，离线 fixture 仍可用于回归。
 
 ## 证据入口
 

@@ -141,6 +141,12 @@ python -m muse_selector --query "香港 RTX 4070 显卡，预算 HKD 9000" --for
 muse-live-smoke --query "香港 RTX 4070 显卡，预算 HKD 9000"
 ```
 
+如需立即停用实时 eBay 来源，可设置来源注册表中的 kill switch；它会在 OAuth 请求之前 fail-closed，fixture 离线模式不受影响：
+
+```powershell
+$env:MUSE_SOURCE_EBAY_BROWSE_HK_DISABLED = "1"
+```
+
 生产使用前需要再次核对 [eBay Buy API requirements](https://developer.ebay.com/api-docs/buy/buy-requirements.html)、API License Agreement、地区支持、缓存和展示规则。连接器不提供购物车、支付、出价或订单接口。
 
 ## 代码结构
