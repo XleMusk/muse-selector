@@ -101,6 +101,13 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(payload["read_only"])
         self.assertEqual(payload["recommended"], [])
 
+    def test_non_positive_limit_is_a_read_only_invalid_query(self):
+        payload = run_search("香港预算 HKD 7000 以内的迷你主机", FIXTURE, limit=0)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["status"], "invalid_query")
+        self.assertIn("positive integer", payload["message"])
+        self.assertTrue(payload["read_only"])
+
     def test_explicit_unbounded_budget_can_search_fixture(self):
         payload = run_search("香港 USB4 扩展坞，双 4K、100W PD，价格不限", FIXTURE)
         self.assertTrue(payload["ok"])

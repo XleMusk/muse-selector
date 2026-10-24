@@ -250,6 +250,19 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
             "source": "policy.guard",
             "read_only": True,
         }
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
+        return {
+            "ok": False,
+            "status": "invalid_query",
+            "message": "limit must be a positive integer",
+            "search_spec": spec.to_dict(),
+            "recommended": [],
+            "rejected": [],
+            "dropped": [],
+            "source": "policy.guard",
+            "read_only": True,
+        }
+    limit = min(limit, 200)
     if spec.budget_max is None and not has_explicit_unbounded_budget(query):
         return {
             "ok": False,
