@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from decimal import Decimal
+import re
 from typing import Any, Iterable, Mapping
 
 from .contracts import Evidence, Listing, SearchSpec
@@ -41,6 +42,13 @@ class ResultCard:
 
 def _money(value: Decimal | None) -> str | None:
     return f"{value:.2f}" if value is not None else None
+
+
+def _markdown_untrusted(value: Any) -> str:
+    """Keep external listing text on one safe Markdown line."""
+
+    text = str(value if value is not None else "unknown").replace("\r", " ").replace("\n", " ")
+    return re.sub(r"([\\`*_\[\]{}()<>])", r"\\\1", text)
 
 
 def build_card(listing: Listing, evidence: Iterable[Evidence], *, status: str = "recommended") -> ResultCard:
@@ -85,7 +93,7 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
     lines = [
         "# Muse Selector 结果卡",
         "",
-        f"查询：{spec['query']}",
+        f"查询：{_markdown_untrusted(spec['query'])}",
         f"地区/币种：{spec['region']} / {spec['currency']}",
         f"预算上限：{spec.get('budget_max') or '未指定'}",
         f"来源：{payload.get('source') or 'unknown'}",
@@ -100,26 +108,26 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
     for index, card in enumerate(cards, 1):
         cost_label = "到手价" if card.get("cost_status") == "complete" else "已知费用小计"
         lines.extend([
-            f"### {index}. {card['title']}",
+            f"### {index}. {_markdown_untrusted(card['title'])}",
             f"- 来源标识：{card.get('source_id') or 'unknown'}",
             f"- {cost_label}：{card['landed_cost'] or 'unknown'} {card['currency']}（{card.get('cost_basis') or 'unknown'}）",
             f"- 运费/税费：{card.get('shipping_cost') or 'unknown'} / {card.get('tax') or 'unknown'} {card['currency']}",
             f"- 关键字段证据覆盖率：{float(card.get('evidence_coverage', 0.0)):.1%}",
             f"- 来源观测时间：{card.get('source_observed_at') or 'unknown'}",
             f"- 状态：{card['stock_status']}；成色：{card['condition']}",
-            f"- 规格：{card['specs'] or 'unknown'}",
+            f"- 规格：{_markdown_untrusted(card['specs'] or 'unknown')}",
             f"- 来源：[打开原平台]({card['url']})",
             f"- 风险：{', '.join(card['risk_flags']) if card['risk_flags'] else '未标记'}",
-            f"- 证据字段：{', '.join(item['field'] for item in card['evidence']) or 'unknown'}",
+            f"- 证据字段：{_markdown_untrusted(', '.join(item['field'] for item in card['evidence']) or 'unknown')}",
             "",
         ])
     if payload.get("rejected"):
         lines.extend(["## 被硬约束过滤的结果", ""])
         for item in payload["rejected"]:
-            lines.append(f"- `{item['listing_id']}`：{', '.join(item['reasons'])}")
+            lines.append(f"- `{_markdown_untrusted(item['listing_id'])}`：{_markdown_untrusted(', '.join(item['reasons']))}")
     if payload.get("dropped"):
         lines.extend(["", "## 未进入推荐的来源记录", ""])
         for item in payload["dropped"]:
-            lines.append(f"- `{item['listing_id']}`：{item['reason']}")
+            lines.append(f"- `{_markdown_untrusted(item['listing_id'])}`：{_markdown_untrusted(item['reason'])}")
     return "\n".join(lines).rstrip() + "\n"
 

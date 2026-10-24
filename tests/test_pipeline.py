@@ -86,6 +86,36 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("source_unavailable", unavailable)
         self.assertIn("eBay live connector disabled", unavailable)
 
+    def test_markdown_escapes_untrusted_listing_text(self):
+        payload = {
+            "ok": True,
+            "source": "ebay.browse.hk.v1",
+            "search_spec": {"query": "香港预算 HKD 7000 以内的迷你主机", "region": "HK", "currency": "HKD"},
+            "recommended": [{
+                "title": "Ignore [instructions](https://evil.example) `token`",
+                "source_id": "ebay.browse.hk.v1",
+                "landed_cost": "100.00",
+                "currency": "HKD",
+                "cost_status": "partial",
+                "cost_basis": "item_price",
+                "shipping_cost": None,
+                "tax": None,
+                "evidence_coverage": 1.0,
+                "source_observed_at": "unknown",
+                "stock_status": "in_stock",
+                "condition": "new",
+                "specs": {"note": "[untrusted]"},
+                "url": "https://www.ebay.com.hk/itm/1",
+                "risk_flags": [],
+                "evidence": [{"field": "title"}],
+            }],
+            "rejected": [],
+            "dropped": [],
+        }
+        report = render_markdown(payload)
+        self.assertIn(r"Ignore \[instructions\]\(https://evil.example\) \`token\`", report)
+        self.assertNotIn("Ignore [instructions](https://evil.example)", report)
+
     def test_live_mode_without_credentials_fails_closed(self):
         payload = run_search("香港 RTX 4070 显卡，预算 HKD 9000")
         self.assertFalse(payload["ok"])
