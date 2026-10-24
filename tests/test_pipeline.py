@@ -65,6 +65,7 @@ class PipelineTests(unittest.TestCase):
         report = render_markdown(payload)
         self.assertIn("结果卡", report)
         self.assertIn("打开原平台", report)
+        self.assertIn("来源标识：ebay.browse.hk.v1", report)
         self.assertIn("来源观测时间", report)
         self.assertIn("关键字段证据覆盖率：100.0%", report)
 

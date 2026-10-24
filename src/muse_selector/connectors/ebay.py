@@ -178,9 +178,16 @@ class EbayBrowseConnector:
         )
         try:
             with self.opener.open(request, timeout=self.config.timeout_seconds) as response:
-                payload = json.loads(response.read().decode("utf-8"))
-        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as exc:
+                status = getattr(response, "status", 200)
+                body = response.read()
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as exc:
             raise ConnectorUnavailable(f"eBay OAuth token request failed: {exc}") from exc
+        if status >= 400:
+            raise ConnectorUnavailable(f"eBay OAuth token request failed: HTTP {status}")
+        try:
+            payload = json.loads(body.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ConnectorUnavailable("eBay OAuth response was invalid JSON") from exc
         if not isinstance(payload, dict):
             raise ConnectorUnavailable("eBay OAuth response was not a JSON object")
         token = payload.get("access_token")

@@ -99,6 +99,7 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
         cost_label = "到手价" if card.get("cost_status") == "complete" else "已知费用小计"
         lines.extend([
             f"### {index}. {card['title']}",
+            f"- 来源标识：{card.get('source_id') or 'unknown'}",
             f"- {cost_label}：{card['landed_cost'] or 'unknown'} {card['currency']}（{card.get('cost_basis') or 'unknown'}）",
             f"- 运费/税费：{card.get('shipping_cost') or 'unknown'} / {card.get('tax') or 'unknown'} {card['currency']}",
             f"- 关键字段证据覆盖率：{float(card.get('evidence_coverage', 0.0)):.1%}",

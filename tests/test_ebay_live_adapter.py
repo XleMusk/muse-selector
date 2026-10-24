@@ -80,6 +80,14 @@ class _HttpErrorOpener(_Opener):
         return _Response({"itemSummaries": []})
 
 
+class _OAuthStatusErrorOpener(_Opener):
+    def open(self, request, timeout=None):
+        self.requests.append((request.get_method(), request.full_url, dict(request.headers)))
+        if request.full_url.endswith("/identity/v1/oauth2/token"):
+            return _Response({"access_token": "unexpected-token"}, status=401)
+        return _Response({"itemSummaries": []})
+
+
 class EbayLiveAdapterTests(unittest.TestCase):
     def test_oauth_and_browse_are_read_only_and_normalized(self):
         opener = _Opener()
@@ -107,6 +115,11 @@ class EbayLiveAdapterTests(unittest.TestCase):
 
     def test_oauth_http_error_fails_closed(self):
         connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=_HttpErrorOpener(fail_on="POST"))
+        with self.assertRaises(ConnectorUnavailable):
+            connector.search({"query": "mini pc"})
+
+    def test_oauth_non_success_status_fails_closed(self):
+        connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=_OAuthStatusErrorOpener())
         with self.assertRaises(ConnectorUnavailable):
             connector.search({"query": "mini pc"})
 
