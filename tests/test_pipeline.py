@@ -100,6 +100,7 @@ class PipelineTests(unittest.TestCase):
             "condition": "New",
             "shipping_options": [{"shippingCost": {"value": "0.00", "currency": "HKD"}}],
             "seller": {"feedback_percentage": "99.9"},
+            "specs": {"pd_watt": 100},
             "source_observed_at": "2026-10-24T00:00:00Z",
             "evidence": [
                 {"field": field, "source_id": "ebay.browse.hk.v1", "source_url": "https://www.ebay.com.hk/itm/live-mini-1", "observed_at": "2026-10-24T00:00:00Z", "status": "confirmed", "value": field}
@@ -114,6 +115,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(payload["source"], "ebay.browse.hk.v1")
         self.assertEqual(payload["recommended"][0]["source_observed_at"], "2026-10-24T00:00:00Z")
         self.assertEqual(payload["recommended"][0]["evidence_coverage"], 1.0)
+        self.assertEqual(payload["recommended"][0]["specs"]["pd_watt"], 100)
         self.assertEqual(payload["recommended"][0]["status"], "recommended")
 
     def test_untrusted_listing_url_is_dropped_before_result_card(self):
