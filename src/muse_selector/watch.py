@@ -21,35 +21,68 @@ def default_watch_id(query: str, fixture: str | Path | None = None) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run a read-only Muse Selector watch")
     parser.add_argument("--db", default="data/selector.sqlite3")
-    parser.add_argument("--query", required=True)
+    parser.add_argument("--action", choices=("refresh", "pause", "resume", "update", "replay"), default="refresh")
+    parser.add_argument("--query", default=None)
     parser.add_argument("--fixture", default=None, help="offline fixture; omit for live read-only API")
     parser.add_argument("--watch-id", default=None)
-    parser.add_argument("--interval-seconds", type=int, default=900)
+    parser.add_argument("--interval-seconds", type=int, default=None)
     parser.add_argument("--once", action="store_true", help="refresh once and exit")
     args = parser.parse_args()
-    if args.interval_seconds <= 0:
+    if args.interval_seconds is not None and args.interval_seconds <= 0:
         parser.error("--interval-seconds must be positive")
 
     store = SelectorStore(Path(args.db))
+    if args.action != "refresh":
+        if not args.watch_id:
+            parser.error("--watch-id is required for --action " + args.action)
+        if args.once:
+            parser.error("--once is only valid with --action refresh")
+        if args.action == "pause":
+            store.pause_watch(args.watch_id)
+            result = {"action": "pause", "watch": store.get_watch(args.watch_id)}
+        elif args.action == "resume":
+            store.resume_watch(args.watch_id)
+            result = {"action": "resume", "watch": store.get_watch(args.watch_id)}
+        elif args.action == "replay":
+            result = {"action": "replay", "watch_id": args.watch_id, "payload": store.replay_watch(args.watch_id)}
+        else:
+            if args.query is None and args.fixture is None and args.interval_seconds is None:
+                parser.error("--action update requires --query, --fixture or --interval-seconds")
+            kwargs = {}
+            if args.query is not None:
+                kwargs["query"] = args.query
+            if args.fixture is not None:
+                kwargs["fixture_path"] = Path(args.fixture)
+            if args.interval_seconds is not None:
+                kwargs["interval_seconds"] = args.interval_seconds
+            result = {"action": "update", "watch": store.update_watch(args.watch_id, **kwargs)}
+        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+
+    if not args.watch_id and not args.query:
+        parser.error("--query is required when --watch-id is omitted")
     # Keep the implicit watch stable across process restarts so rerunning the
     # same command does not create duplicate persistent watch rows. Callers
     # that need parallel watches can still provide an explicit --watch-id.
-    watch_id = args.watch_id or default_watch_id(args.query, args.fixture)
-    existing = {item["watch_id"] for item in store.list_watches()}
-    if watch_id not in existing:
+    watch_id = args.watch_id or default_watch_id(args.query or "", args.fixture)
+    existing = store.get_watch(watch_id)
+    if existing is None:
+        interval_seconds = args.interval_seconds or 900
         store.add_watch(
-            args.query,
+            args.query or "",
             Path(args.fixture) if args.fixture else None,
-            interval_seconds=args.interval_seconds,
+            interval_seconds=interval_seconds,
             watch_id=watch_id,
         )
+        existing = store.get_watch(watch_id)
+    interval_seconds = args.interval_seconds or int(existing["interval_seconds"])
 
     while True:
         result = store.refresh_watch(watch_id)
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
         if args.once:
             return 0 if result["payload"].get("ok") else 2
-        time.sleep(args.interval_seconds)
+        time.sleep(interval_seconds)
 
 
 if __name__ == "__main__":

@@ -104,6 +104,18 @@ print(store.replay_run(latest["run_id"]))
 
 这些操作只修改本地观察状态或读取已保存结果，不会向来源平台发起写操作。
 
+同样可以直接使用 `muse-watch` 管理生命周期：
+
+```powershell
+muse-watch --db "D:\muse\data\selector.sqlite3" --action pause --watch-id "mini_pc_hk"
+muse-watch --db "D:\muse\data\selector.sqlite3" --action resume --watch-id "mini_pc_hk"
+muse-watch --db "D:\muse\data\selector.sqlite3" --action update --watch-id "mini_pc_hk" `
+  --query "香港 RTX 4070 显卡，预算 HKD 9000" --interval-seconds 600
+muse-watch --db "D:\muse\data\selector.sqlite3" --action replay --watch-id "mini_pc_hk"
+```
+
+这些 action 只读写本地 SQLite 状态；`replay` 不会调用连接器，`update` 会保留旧 run 供重放。
+
 回归集覆盖预算、地区、必选规格、陈旧/冲突证据、缺失 URL、账号策略阻断、提示注入、SSRF 和重放稳定性。fixture 中的价格和库存是测试数据，不能当作当前市场报价。
 回归产物 `examples/regression_result.json` 同时记录 `hard_constraint_violation_rate`；当前验收值必须为 `0.0`。
 关键字段证据覆盖率低于 95% 的来源记录会被标记为风险并排除，不会进入推荐。
