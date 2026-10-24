@@ -3,9 +3,10 @@ import io
 import unittest
 from pathlib import Path
 from urllib.error import HTTPError
+from unittest.mock import patch
 
 from muse_selector.connectors.ebay import ConnectorUnavailable, EbayBrowseConnector, _NoRedirectHandler
-from muse_selector.pipeline import _to_listing
+from muse_selector.pipeline import _to_listing, run_search
 from muse_selector.result_card import build_card
 
 
@@ -161,6 +162,27 @@ class EbayLiveAdapterTests(unittest.TestCase):
         self.assertEqual(card["specs"]["display_4k_count"], 2)
         self.assertEqual(card["evidence_coverage"], 1.0)
         self.assertTrue(card["evidence"])
+
+    def test_live_connector_flows_through_pipeline_end_to_end(self):
+        opener = _Opener()
+
+        def build_live_connector(*args, **kwargs):
+            return EbayBrowseConnector(client_id="id", client_secret="secret", opener=opener)
+
+        with patch("muse_selector.pipeline.EbayBrowseConnector", side_effect=build_live_connector):
+            payload = run_search("香港预算 HKD 7000 以内的迷你主机")
+
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["read_only"])
+        self.assertEqual(payload["source"], "ebay.browse.hk.v1")
+        self.assertEqual(payload["source_metadata"]["total"], 3)
+        self.assertEqual(len(payload["recommended"]), 1)
+        card = payload["recommended"][0]
+        self.assertEqual(card["source_rank"], 1)
+        self.assertEqual(card["source_observed_at"], card["evidence"][0]["observed_at"])
+        self.assertEqual(card["specs"]["ram_gb"], 32)
+        self.assertEqual(card["status"], "recommended")
+        self.assertEqual([method for method, _, _ in opener.requests], ["POST", "GET"])
 
     def test_explicit_localized_aspect_aliases_map_without_fuzzy_matching(self):
         self.assertEqual(
