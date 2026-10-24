@@ -87,6 +87,23 @@ python -m muse_selector.watch `
 去掉 `--once` 后按 `--interval-seconds` 持续刷新；按 `Ctrl+C` 停止。省略 `--fixture` 会走实时只读 API。
 省略 `--watch-id` 时，程序会按“查询 + fixture”生成稳定 ID，重复启动同一命令会复用已有观察任务，不会重复创建记录。
 
+观察任务也支持暂停、恢复、人工修改和无副作用重放；修改查询或来源后会清空该观察任务的最新 checkpoint，但旧 run 仍可按 `run_id` 重放：
+
+```powershell
+@'
+from muse_selector.persistence import SelectorStore
+
+store = SelectorStore(r"D:\muse\data\selector.sqlite3")
+store.pause_watch("mini_pc_hk")
+store.update_watch("mini_pc_hk", query="香港 RTX 4070 显卡，预算 HKD 9000", interval_seconds=600)
+store.resume_watch("mini_pc_hk")
+latest = store.refresh_watch("mini_pc_hk")
+print(store.replay_run(latest["run_id"]))
+'@ | python -
+```
+
+这些操作只修改本地观察状态或读取已保存结果，不会向来源平台发起写操作。
+
 回归集覆盖预算、地区、必选规格、陈旧/冲突证据、缺失 URL、账号策略阻断、提示注入、SSRF 和重放稳定性。fixture 中的价格和库存是测试数据，不能当作当前市场报价。
 回归产物 `examples/regression_result.json` 同时记录 `hard_constraint_violation_rate`；当前验收值必须为 `0.0`。
 关键字段证据覆盖率低于 95% 的来源记录会被标记为风险并排除，不会进入推荐。

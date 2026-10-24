@@ -86,6 +86,33 @@ class PersistenceTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 store.refresh_watch(watch_id)
 
+    def test_watch_can_pause_resume_and_replay_checkpoint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            watch_id = store.add_watch("香港预算 HKD 7000 以内的迷你主机", FIXTURE, watch_id="watch_lifecycle")
+            first = store.refresh_watch(watch_id)
+            store.pause_watch(watch_id)
+            self.assertFalse(store.get_watch(watch_id)["enabled"])
+            self.assertEqual(store.replay_watch(watch_id), first["payload"])
+            with self.assertRaises(ValueError):
+                store.refresh_watch(watch_id)
+            store.resume_watch(watch_id)
+            second = store.refresh_watch(watch_id)
+            self.assertFalse(second["changed"])
+            self.assertEqual(store.replay_run(first["run_id"]), first["payload"])
+
+    def test_manual_watch_edit_clears_checkpoint_but_preserves_old_run(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            watch_id = store.add_watch("香港预算 HKD 7000 以内的迷你主机", FIXTURE, watch_id="watch_edit")
+            first = store.refresh_watch(watch_id)
+            updated = store.update_watch(watch_id, query="香港 RTX 4070 显卡，预算 HKD 9000", interval_seconds=60)
+            self.assertEqual(updated["interval_seconds"], 60)
+            self.assertIsNone(updated["last_run_id"])
+            self.assertEqual(store.replay_run(first["run_id"]), first["payload"])
+            second = store.refresh_watch(watch_id)
+            self.assertNotEqual(second["run_id"], first["run_id"])
+
 
 if __name__ == "__main__":
     unittest.main()

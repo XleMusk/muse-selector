@@ -17,6 +17,9 @@ from typing import Any, Mapping
 from .pipeline import run_search
 
 
+_UNSET = object()
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -161,9 +164,97 @@ class SelectorStore:
             rows = conn.execute(sql).fetchall()
         return [dict(row) for row in rows]
 
+    def get_watch(self, watch_id: str) -> dict[str, Any] | None:
+        """Return one persisted watch specification without executing it."""
+
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM watches WHERE watch_id = ?", (watch_id,)).fetchone()
+        return dict(row) if row else None
+
     def disable_watch(self, watch_id: str) -> None:
         with self._connect() as conn:
-            conn.execute("UPDATE watches SET enabled = 0 WHERE watch_id = ?", (watch_id,))
+            cursor = conn.execute("UPDATE watches SET enabled = 0 WHERE watch_id = ?", (watch_id,))
+        if cursor.rowcount == 0:
+            raise KeyError(f"unknown watch_id: {watch_id}")
+
+    def pause_watch(self, watch_id: str) -> None:
+        """Pause a watch while preserving its last successful checkpoint."""
+
+        self.disable_watch(watch_id)
+
+    def resume_watch(self, watch_id: str) -> None:
+        """Resume a paused watch without creating a run until refresh."""
+
+        with self._connect() as conn:
+            cursor = conn.execute("UPDATE watches SET enabled = 1 WHERE watch_id = ?", (watch_id,))
+        if cursor.rowcount == 0:
+            raise KeyError(f"unknown watch_id: {watch_id}")
+
+    def update_watch(
+        self,
+        watch_id: str,
+        *,
+        query: str | None = None,
+        fixture_path: str | Path | None | object = _UNSET,
+        interval_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """Apply a user edit and clear the checkpoint when its input changes.
+
+        The previous run remains available for replay.  The next refresh uses
+        the edited query/source and creates a new deterministic run if the
+        result differs.
+        """
+
+        current = self.get_watch(watch_id)
+        if current is None:
+            raise KeyError(f"unknown watch_id: {watch_id}")
+        updates: list[str] = []
+        values: list[Any] = []
+        input_changed = False
+        if query is not None:
+            if not query.strip():
+                raise ValueError("watch query must be non-empty")
+            updates.append("query = ?")
+            values.append(query.strip())
+            input_changed = query.strip() != current["query"]
+        if fixture_path is not _UNSET:
+            normalized_fixture = str(fixture_path) if fixture_path is not None else None
+            updates.append("fixture_path = ?")
+            values.append(normalized_fixture)
+            input_changed = normalized_fixture != current["fixture_path"]
+        if interval_seconds is not None:
+            if interval_seconds <= 0:
+                raise ValueError("interval_seconds must be positive")
+            updates.append("interval_seconds = ?")
+            values.append(int(interval_seconds))
+        if input_changed:
+            updates.extend(["last_run_id = NULL", "last_refreshed_at = NULL"])
+        if updates:
+            values.append(watch_id)
+            with self._connect() as conn:
+                conn.execute(f"UPDATE watches SET {', '.join(updates)} WHERE watch_id = ?", values)
+        updated = self.get_watch(watch_id)
+        if updated is None:  # pragma: no cover - row cannot disappear inside this call
+            raise KeyError(f"unknown watch_id: {watch_id}")
+        return updated
+
+    def replay_run(self, run_id: str) -> dict[str, Any]:
+        """Return a stored read-only result without calling a connector."""
+
+        payload = self.get_run(run_id)
+        if payload is None:
+            raise KeyError(f"unknown run_id: {run_id}")
+        return payload
+
+    def replay_watch(self, watch_id: str) -> dict[str, Any]:
+        """Replay the latest checkpoint for a watch without side effects."""
+
+        watch = self.get_watch(watch_id)
+        if watch is None:
+            raise KeyError(f"unknown watch_id: {watch_id}")
+        if not watch["last_run_id"]:
+            raise ValueError(f"watch has no completed run: {watch_id}")
+        return self.replay_run(str(watch["last_run_id"]))
 
     def refresh_watch(self, watch_id: str) -> dict[str, Any]:
         with self._connect() as conn:
