@@ -278,22 +278,41 @@ class SelectorStore:
         if not row["enabled"]:
             raise ValueError(f"watch is disabled: {watch_id}")
         payload = run_search(row["query"], row["fixture_path"])
-        previous_run_id = row["last_run_id"]
-        if previous_run_id:
-            previous_payload = self.get_run(previous_run_id)
-            if previous_payload and watch_content_fingerprint(previous_payload) == watch_content_fingerprint(payload):
-                with self._connect() as conn:
+        payload_dict = dict(payload)
+        run_id = run_id_for_payload(payload_dict)
+        serialized = _canonical(payload_dict)
+
+        # Keep run insertion, result-card insertion and checkpoint advancement
+        # in one transaction.  A process crash or a SQLite error during the
+        # checkpoint update must roll back the newly inserted run as well,
+        # otherwise a later restart sees an orphan run that was never the
+        # watch's committed observation.
+        with self._connect() as conn:
+            current = conn.execute("SELECT * FROM watches WHERE watch_id = ?", (watch_id,)).fetchone()
+            if current is None:
+                raise KeyError(f"unknown watch_id: {watch_id}")
+            if not current["enabled"]:
+                raise ValueError(f"watch is disabled: {watch_id}")
+
+            previous_run_id = current["last_run_id"]
+            if previous_run_id:
+                previous = conn.execute(
+                    "SELECT payload_json FROM runs WHERE run_id = ?", (previous_run_id,)
+                ).fetchone()
+                previous_payload = json.loads(previous["payload_json"]) if previous else None
+                if previous_payload and watch_content_fingerprint(previous_payload) == watch_content_fingerprint(payload):
                     conn.execute(
                         "UPDATE watches SET last_refreshed_at = ? WHERE watch_id = ?",
                         (_now(), watch_id),
                     )
-                return {"watch_id": watch_id, "run_id": previous_run_id, "changed": False, "payload": payload}
-        payload_dict = dict(payload)
-        run_id = run_id_for_payload(payload_dict)
-        serialized = _canonical(payload_dict)
-        with self._connect() as conn:
+                    return {
+                        "watch_id": watch_id,
+                        "run_id": previous_run_id,
+                        "changed": False,
+                        "payload": payload,
+                    }
+
             run_id, inserted = self._save_run_connection(conn, payload_dict, run_id, serialized)
-        with self._connect() as conn:
             conn.execute(
                 "UPDATE watches SET last_run_id = ?, last_refreshed_at = ? WHERE watch_id = ?",
                 (run_id, _now(), watch_id),

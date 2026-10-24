@@ -1,5 +1,6 @@
-import threading
+import sqlite3
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -154,6 +155,44 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(store.replay_run(first["run_id"]), first["payload"])
             second = store.refresh_watch(watch_id)
             self.assertNotEqual(second["run_id"], first["run_id"])
+
+    def test_refresh_rolls_back_run_when_checkpoint_update_fails(self):
+        """A failed checkpoint cannot leave an orphan persisted observation."""
+
+        with tempfile.TemporaryDirectory() as directory:
+            db_path = Path(directory) / "selector.sqlite3"
+            store = SelectorStore(db_path)
+            watch_id = store.add_watch(
+                "香港预算 HKD 7000 以内的迷你主机",
+                FIXTURE,
+                watch_id="watch_atomic",
+            )
+            conn = store._connect()
+            try:
+                conn.execute(
+                    """
+                    CREATE TRIGGER abort_watch_checkpoint
+                    BEFORE UPDATE OF last_run_id ON watches
+                    BEGIN
+                        SELECT RAISE(ABORT, 'checkpoint write blocked');
+                    END;
+                    """
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+            with self.assertRaises(sqlite3.IntegrityError):
+                store.refresh_watch(watch_id)
+
+            watch = store.get_watch(watch_id)
+            self.assertIsNone(watch["last_run_id"])
+            conn = store._connect()
+            try:
+                run_count = conn.execute("SELECT COUNT(*) FROM runs").fetchone()[0]
+            finally:
+                conn.close()
+            self.assertEqual(run_count, 0)
 
 
 if __name__ == "__main__":
