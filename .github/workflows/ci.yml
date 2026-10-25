@@ -54,6 +54,50 @@ jobs:
           set -e
           test "$zhuan_status" -eq 2
           python -c "import json; p=json.load(open('zhuanzhuan_smoke.json', encoding='utf-8')); assert p['schema_version'] == 'muse.zhuanzhuan.smoke.v1'; assert p['status'] == 'source_unavailable'; assert p['read_only'] is True"
+      - name: Verify local web runtime
+        shell: bash
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          set -euo pipefail
+          web_log="$RUNNER_TEMP/muse-web.log"
+          muse-selector-web --fixture tests/fixtures/ebay_hk_sample.json --host 127.0.0.1 --port 8765 >"$web_log" 2>&1 &
+          web_pid=$!
+          cleanup() {
+            kill "$web_pid" 2>/dev/null || true
+            wait "$web_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          python - <<'PY'
+          import json
+          import time
+          from urllib.parse import urlencode
+          from urllib.request import urlopen
+
+          base = "http://127.0.0.1:8765"
+          last_error = None
+          for _ in range(20):
+              try:
+                  with urlopen(base + "/healthz", timeout=1) as response:
+                      health = json.load(response)
+                  assert health["ok"] is True
+                  assert health["read_only"] is True
+                  assert health["schema_version"] == "muse.selector.v1"
+                  query = urlencode({"q": "香港预算 HKD 7000 以内的迷你主机", "limit": 1})
+                  with urlopen(base + "/api/search?" + query, timeout=2) as response:
+                      payload = json.load(response)
+                  assert payload["ok"] is True
+                  assert payload["read_only"] is True
+                  assert payload["schema_version"] == "muse.selector.v1"
+                  assert payload["recommended"]
+                  print("web_runtime_ok", len(payload["recommended"]))
+                  break
+              except Exception as exc:
+                  last_error = exc
+                  time.sleep(0.25)
+          else:
+              raise SystemExit(f"local web runtime did not become ready: {last_error}")
+          PY
       - name: Run unit and regression tests
         shell: bash
         env:
