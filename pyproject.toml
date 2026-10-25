@@ -39,6 +39,7 @@ files = [
   "src/muse_selector/source_capabilities.py",
   "src/muse_selector/source_normalizer.py",
   "src/muse_selector/url_policy.py",
+  "src/muse_selector/watch_contracts.py",
 ]
 check_untyped_defs = true
 ignore_missing_imports = true

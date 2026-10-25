@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .pipeline import run_search
+from .watch_contracts import WatchEvent, WatchSpec
 
 
 _UNSET = object()
@@ -364,6 +365,12 @@ class SelectorStore:
             row = conn.execute("SELECT * FROM watches WHERE watch_id = ?", (watch_id,)).fetchone()
         return self._watch_dict(row) if row else None
 
+    def get_watch_spec(self, watch_id: str) -> WatchSpec | None:
+        """Return the typed watch contract without refreshing it."""
+
+        watch = self.get_watch(watch_id)
+        return WatchSpec.from_mapping(watch) if watch is not None else None
+
     def disable_watch(self, watch_id: str) -> None:
         with self._connection() as conn:
             cursor = conn.execute("UPDATE watches SET enabled = 0, revision = revision + 1 WHERE watch_id = ?", (watch_id,))
@@ -592,6 +599,11 @@ class SelectorStore:
                 "details": details,
             })
         return result
+
+    def list_watch_event_models(self, watch_id: str, *, limit: int = 100, offset: int = 0) -> list[WatchEvent]:
+        """Return the same event feed as typed domain objects."""
+
+        return [WatchEvent.from_mapping(item) for item in self.list_watch_events(watch_id, limit=limit, offset=offset)]
 
     def refresh_watch(self, watch_id: str, *, environment: str | None = None) -> dict[str, Any]:
         with self._connection() as conn:
