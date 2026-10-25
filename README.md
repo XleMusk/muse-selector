@@ -43,6 +43,15 @@ python -m muse_selector `
   --format json
 ```
 
+比较 Artifact（保留来源顺序、实体标识、成本、证据覆盖率和风险）：
+
+```powershell
+python -m muse_selector `
+  --query "香港预算 HKD 30000 以内的电脑" `
+  --fixture "D:\muse\tests\fixtures\ebay_hk_sample.json" `
+  --format comparison
+```
+
 本地结果页（默认只读）：
 
 ```powershell

@@ -68,6 +68,12 @@ def _evidence_excerpt(item: Mapping[str, Any]) -> str:
     return _markdown_untrusted(text)
 
 
+def _table_untrusted(value: Any) -> str:
+    """Keep untrusted listing text safe inside a Markdown table cell."""
+
+    return _markdown_untrusted(value).replace("|", r"\|")
+
+
 def build_card(
     listing: Listing,
     evidence: Iterable[Evidence],
@@ -169,5 +175,55 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
         lines.extend(["", "## 未进入推荐的来源记录", ""])
         for item in payload["dropped"]:
             lines.append(f"- `{_markdown_untrusted(item['listing_id'])}`：{_markdown_untrusted(item['reason'])}")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def render_comparison(payload: Mapping[str, Any]) -> str:
+    """Render source-order recommendations as a compact comparison artifact."""
+
+    if not payload.get("ok"):
+        return render_markdown(payload)
+    spec = payload.get("search_spec") or {}
+    lines = [
+        "# Muse Selector 比较表",
+        "",
+        f"查询：{_table_untrusted(spec.get('query') or 'unknown')}",
+        f"地区/币种：{_table_untrusted(spec.get('region') or 'unknown')} / {_table_untrusted(spec.get('currency') or 'unknown')}",
+        f"来源：{_table_untrusted(payload.get('source') or 'unknown')}（保留来源顺序，不在客户端重排）",
+        "只读状态：true",
+        "",
+        "| 来源顺序 | 商品 | 实体标识 | 成本 | 证据覆盖 | 状态/成色 | 配送 | 保修 | 风险 | 来源 |",
+        "| ---: | --- | --- | --- | ---: | --- | ---: | --- | --- | --- |",
+    ]
+    for index, card in enumerate(payload.get("recommended") or [], 1):
+        cost = card.get("landed_cost") or "unknown"
+        currency = card.get("currency") or ""
+        cost_status = card.get("cost_status") or "unknown"
+        coverage = card.get("evidence_coverage")
+        try:
+            coverage_text = f"{float(coverage):.1%}"
+        except (TypeError, ValueError):
+            coverage_text = "unknown"
+        delivery = card.get("delivery_max_days")
+        delivery_text = f"{delivery} 天" if delivery is not None else "unknown"
+        risk = ", ".join(card.get("risk_flags") or []) or "未标记"
+        lines.append(
+            "| "
+            + " | ".join([
+                _table_untrusted(card.get("source_rank") or index),
+                _table_untrusted(card.get("title") or "unknown"),
+                _table_untrusted(card.get("product_id") or "unknown"),
+                _table_untrusted(f"{cost} {currency} ({cost_status})".strip()),
+                _table_untrusted(coverage_text),
+                _table_untrusted(f"{card.get('stock_status') or 'unknown'} / {card.get('condition') or 'unknown'}"),
+                _table_untrusted(delivery_text),
+                _table_untrusted(card.get("warranty") or "unknown"),
+                _table_untrusted(risk),
+                _table_untrusted(f"{card.get('source_id') or 'unknown'} · {card.get('url') or 'unknown'}"),
+            ])
+            + " |"
+        )
+    if not payload.get("recommended"):
+        lines.extend(["", "没有满足全部硬约束的结果。"])
     return "\n".join(lines).rstrip() + "\n"
 

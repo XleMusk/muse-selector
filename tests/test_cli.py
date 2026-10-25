@@ -31,6 +31,17 @@ class CliTests(unittest.TestCase):
         self.assertIn("Mini PC Ryzen 7", output)
         self.assertIn("来源观测时间", output)
 
+    def test_fixture_comparison_artifact_preserves_source_order(self):
+        code, output = self._run(
+            "--query", "香港预算 HKD 30000 以内的电脑",
+            "--fixture", str(FIXTURE),
+            "--format", "comparison",
+        )
+        self.assertEqual(code, 0)
+        self.assertIn("# Muse Selector 比较表", output)
+        self.assertIn("| 来源顺序 | 商品 |", output)
+        self.assertLess(output.index("Mini PC Ryzen 7"), output.index("USB4 NVMe enclosure"))
+
     def test_policy_blocked_command_is_read_only_error(self):
         code, output = self._run("--query", "帮我买一个游戏账号并完成转移", "--format", "markdown")
         self.assertEqual(code, 2)

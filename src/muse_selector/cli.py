@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 from .pipeline import run_search
-from .result_card import render_markdown
+from .result_card import render_comparison, render_markdown
 
 
 def main() -> int:
@@ -17,7 +17,7 @@ def main() -> int:
     parser.add_argument("--fixture", default=None, help="offline eBay response fixture; omit to use live read-only API")
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--environment", choices=("sandbox", "production"), default=None)
-    parser.add_argument("--format", choices=("json", "markdown"), default="markdown")
+    parser.add_argument("--format", choices=("json", "markdown", "comparison"), default="markdown")
     args = parser.parse_args()
     fixture = Path(args.fixture) if args.fixture else None
     previous_environment = os.environ.get("EBAY_ENVIRONMENT")
@@ -32,6 +32,8 @@ def main() -> int:
             os.environ["EBAY_ENVIRONMENT"] = previous_environment
     if args.format == "json":
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    elif args.format == "comparison":
+        print(render_comparison(payload))
     else:
         print(render_markdown(payload))
     return 0 if payload.get("ok") else 2
