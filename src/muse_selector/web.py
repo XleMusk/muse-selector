@@ -5,11 +5,13 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from .connectors.ebay import EbayBrowseConnector
 from .pipeline import _allowed_source_url, run_search
 
 
@@ -65,6 +67,56 @@ def _validate_bind_host(host: str) -> str:
     if host not in {"127.0.0.1", "::1"}:
         raise ValueError("local result page host must be 127.0.0.1 or ::1")
     return host
+
+
+def capability_snapshot() -> dict[str, Any]:
+    """Return local source readiness without issuing any network request."""
+
+    client_id = str(os.environ.get("EBAY_CLIENT_ID") or "").strip()
+    client_secret = str(os.environ.get("EBAY_CLIENT_SECRET") or "").strip()
+    credential_state = "configured" if client_id and client_secret else "partial" if client_id or client_secret else "missing"
+    ebay: dict[str, Any] = {
+        "source_id": "ebay.browse.hk.v1",
+        "read_only": True,
+        "listing_search": True,
+        "credential_state": credential_state,
+        "environment": "unknown",
+        "status": "unavailable",
+    }
+    try:
+        connector = EbayBrowseConnector()
+        ebay.update(
+            {
+                "environment": connector.config.environment,
+                "status": "disabled" if connector._kill_switch_active() else "ready" if connector.live_enabled else "credential_unavailable",
+            }
+        )
+    except (TypeError, ValueError, OSError):
+        ebay["status"] = "configuration_error"
+    return {
+        "ok": True,
+        "read_only": True,
+        "sources": {
+            "ebay.browse.hk.v1": ebay,
+            "xianyu.partner.v1": {
+                "source_id": "xianyu.partner.v1",
+                "read_only": True,
+                "listing_search": False,
+                "region": "CN",
+                "currency": "CNY",
+                "status": "link_only",
+            },
+            "zhuanzhuan.recommerce.mcp.v1": {
+                "source_id": "zhuanzhuan.recommerce.mcp.v1",
+                "read_only": True,
+                "listing_search": False,
+                "region": "CN",
+                "currency": "CNY",
+                "status": "auxiliary_only",
+                "capabilities": ["recycle_valuation", "open_recycle_entry"],
+            },
+        },
+    }
 
 
 def render_html(payload: dict[str, Any], query: str) -> str:
@@ -168,6 +220,10 @@ def make_handler(fixture_path: str | Path | None = None) -> type[BaseHTTPRequest
             parsed = urlparse(self.path)
             if parsed.path == "/healthz":
                 self._send(200, "application/json; charset=utf-8", b'{"ok":true,"read_only":true}')
+                return
+            if parsed.path == "/api/capabilities":
+                content = json.dumps(capability_snapshot(), ensure_ascii=False, sort_keys=True).encode("utf-8")
+                self._send(200, "application/json; charset=utf-8", content)
                 return
             if parsed.path == "/api/search":
                 query = parse_qs(parsed.query).get("q", [""])[0]

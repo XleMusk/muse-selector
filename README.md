@@ -89,6 +89,14 @@ Invoke-RestMethod `
 
 端点复用相同的 SearchSpec、来源证据和过滤逻辑，只返回 JSON，不提供登录、购买或写操作；`limit` 非法时返回 `invalid_query`。
 
+本地服务还提供不联网的来源能力状态端点，用于判断 eBay 环境和凭据是否已经配置，以及国内来源是否仍处于人工入口模式：
+
+```powershell
+Invoke-RestMethod "http://127.0.0.1:8765/api/capabilities"
+```
+
+返回只包含 `configured`、`partial` 或 `missing` 等凭据状态，不返回任何凭据值，也不会发起 eBay 或国内平台请求。
+
 运行离线回归：
 
 ```powershell

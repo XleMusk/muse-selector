@@ -1,11 +1,13 @@
 import json
+import os
 import threading
 import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.request import urlopen
+from unittest.mock import patch
 
-from muse_selector.web import make_handler, render_html, serve
+from muse_selector.web import capability_snapshot, make_handler, render_html, serve
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -120,6 +122,41 @@ class WebTests(unittest.TestCase):
             self.assertIn("Mini PC Ryzen 7", page)
             self.assertIn("证据", page)
             self.assertIn("没有登录、购买或写操作能力", page)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
+    def test_capability_snapshot_is_local_and_reports_source_readiness(self):
+        with patch.dict(
+            os.environ,
+            {"EBAY_ENVIRONMENT": "sandbox", "EBAY_CLIENT_ID": "", "EBAY_CLIENT_SECRET": ""},
+            clear=False,
+        ):
+            snapshot = capability_snapshot()
+        self.assertTrue(snapshot["ok"])
+        self.assertTrue(snapshot["read_only"])
+        self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["environment"], "sandbox")
+        self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["credential_state"], "missing")
+        self.assertEqual(snapshot["sources"]["xianyu.partner.v1"]["status"], "link_only")
+        self.assertEqual(snapshot["sources"]["zhuanzhuan.recommerce.mcp.v1"]["status"], "auxiliary_only")
+
+    def test_capability_endpoint_does_not_require_network_or_credentials(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch.dict(
+                os.environ,
+                {"EBAY_ENVIRONMENT": "sandbox", "EBAY_CLIENT_ID": "", "EBAY_CLIENT_SECRET": ""},
+                clear=False,
+            ):
+                with urlopen(f"http://127.0.0.1:{server.server_port}/api/capabilities", timeout=2) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                    content_type = response.headers.get_content_type()
+            self.assertEqual(content_type, "application/json")
+            self.assertTrue(payload["read_only"])
+            self.assertEqual(payload["sources"]["ebay.browse.hk.v1"]["status"], "credential_unavailable")
         finally:
             server.shutdown()
             server.server_close()
