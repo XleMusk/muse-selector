@@ -237,6 +237,7 @@ muse-live-smoke --query "香港 RTX 4070 显卡，预算 HKD 9000"
 
 实时连接器只对明确的瞬态 HTTP 状态 `429`、`500`、`502`、`503`、`504` 做有限重试；默认最多重试 2 次并使用短退避。可用 `EBAY_MAX_RETRIES` 和 `EBAY_RETRY_BACKOFF_SECONDS` 调整，认证、参数和其他 4xx 错误不会重试，也不会自动分页或跟随重定向。
 如果响应提供合法的 `Retry-After`，连接器会优先采用并将等待时间限制在 30 秒；缺失或非法时回退到指数退避。
+OAuth 和 Browse 响应体读取上限为 4,000,000 字节；超限时会 fail-closed 为 `source_unavailable`，不会继续解析超大响应。
 
 如需立即停用实时 eBay 来源，可设置来源注册表中的 kill switch；它会在 OAuth 请求之前 fail-closed，fixture 离线模式不受影响：
 

@@ -21,8 +21,8 @@ class _Response:
     def __exit__(self, *args):
         return False
 
-    def read(self):
-        return self._body
+    def read(self, size=None):
+        return self._body if size is None else self._body[:size]
 
 
 class _Opener:
@@ -162,6 +162,20 @@ class _RetryAfterHttpErrorOpener(_TransientStatusOpener):
                 hdrs={"Retry-After": self.retry_after},
                 fp=io.BytesIO(b'{"error":"temporary"}'),
             )
+        if request.full_url.endswith("/identity/v1/oauth2/token"):
+            return _Response({"access_token": "test-token", "expires_in": 7200})
+        return _Response({"itemSummaries": []})
+
+
+class _LargeResponseOpener(_Opener):
+    def __init__(self, large_method):
+        super().__init__()
+        self.large_method = large_method
+
+    def open(self, request, timeout=None):
+        self.requests.append((request.get_method(), request.full_url, dict(request.headers)))
+        if request.get_method() == self.large_method:
+            return _Response({"padding": "x" * 100})
         if request.full_url.endswith("/identity/v1/oauth2/token"):
             return _Response({"access_token": "test-token", "expires_in": 7200})
         return _Response({"itemSummaries": []})
@@ -407,6 +421,18 @@ class EbayLiveAdapterTests(unittest.TestCase):
             connector.search({"query": "mini pc"})
         self.assertEqual([method for method, _, _ in opener.requests], ["POST", "GET", "GET"])
         sleep.assert_not_called()
+
+    def test_oauth_and_browse_response_sizes_are_bounded(self):
+        for method in ("POST", "GET"):
+            with self.subTest(method=method):
+                connector = EbayBrowseConnector(
+                    client_id="id",
+                    client_secret="secret",
+                    opener=_LargeResponseOpener(method),
+                )
+                with patch.object(EbayBrowseConnector, "_MAX_RESPONSE_BYTES", 32):
+                    with self.assertRaisesRegex(ConnectorUnavailable, "response exceeded the size limit"):
+                        connector.search({"query": "mini pc"})
 
 
 if __name__ == "__main__":

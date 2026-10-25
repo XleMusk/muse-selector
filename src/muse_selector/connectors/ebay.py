@@ -114,6 +114,7 @@ class EbayBrowseConnector:
     source_id = "ebay.browse.hk.v1"
     _RESPONSE_METADATA_FIELDS = ("href", "next", "prev", "total", "limit", "offset")
     _RETRYABLE_HTTP_STATUSES = frozenset({429, 500, 502, 503, 504})
+    _MAX_RESPONSE_BYTES = 4_000_000
     _MAX_RETRY_AFTER_SECONDS = 30.0
 
     def __init__(
@@ -268,9 +269,13 @@ class EbayBrowseConnector:
             try:
                 with self.opener.open(request, timeout=self.config.timeout_seconds) as response:
                     status = self._response_status(response, context)
-                    body = response.read()
+                    body = response.read(self._MAX_RESPONSE_BYTES + 1)
+                    if not isinstance(body, (bytes, bytearray)):
+                        raise ConnectorUnavailable(f"eBay {context} returned a non-byte response")
+                    if len(body) > self._MAX_RESPONSE_BYTES:
+                        raise ConnectorUnavailable(f"eBay {context} response exceeded the size limit")
             except urllib.error.HTTPError as exc:
-                detail = exc.read().decode("utf-8", errors="replace")[:500]
+                detail = exc.read(min(self._MAX_RESPONSE_BYTES + 1, 4096)).decode("utf-8", errors="replace")[:500]
                 if exc.code in self._RETRYABLE_HTTP_STATUSES and attempt < self.config.max_retries:
                     self._retry_delay(attempt, getattr(exc, "headers", None) or getattr(exc, "hdrs", None))
                     continue
