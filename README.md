@@ -260,6 +260,7 @@ W10 故障矩阵可独立运行 `python tests/fault_harness.py`，覆盖 OAuth/4
 W11 合成负载指标可运行 `python tests/metrics_harness.py`，输出 `muse.selector.metrics.v1`，记录 p50/p95、成功/失败率、硬约束违规率、checkpoint 重放稳定性和外部请求成本代理；fixture 模式的外部请求数必须为 0。
 逐项验收证据和唯一未验证的外部门见 [acceptance_matrix.md](acceptance_matrix.md)。
 未完成的 W2–W12 执行顺序、并行边界、角色分工和 Go/No-Go 条件见 [remaining_execution_plan.md](remaining_execution_plan.md)。
+启动、故障熔断、数据删除、事故响应和 Go/No-Go 操作见 [release_runbook.md](release_runbook.md)。
 关键字段证据覆盖率低于 95% 的来源记录会被标记为风险并排除，不会进入推荐。
 查询未提供预算上限时，系统返回 `needs_clarification` 并要求补充地区与 `max_total_hkd`；只有明确写出“价格不限”等表达才会在无预算上限下继续筛选。
 结果卡会同时输出 `cost_status` 和 `cost_basis`：税费或运费未知时显示“已知费用小计”，不会把未知税费伪装成完整到手价。

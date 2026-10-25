@@ -24,6 +24,7 @@
 | 凭据泄露、SSRF、分页元数据越界、越权来源、跨租户页面、重复副作用 | 连接器/管线/Web/SQLite 测试集；分页 `href`/`next`/`prev` 仅接受官方 eBay Browse 搜索端点；本地 Web 仅 loopback | 已通过 |
 | W10 故障注入矩阵 | `tests/fault_harness.py`、`examples/fault_result.json`、`.github/workflows/ci.yml` | OAuth/429/坏响应、token 脱敏、损坏 checkpoint、重复事件、SSRF/提示注入均通过；离线、只读 |
 | W11 合成灰度指标 | `tests/metrics_harness.py`、`tests/test_metrics.py`、`examples/metrics_result.json`、`.github/workflows/ci.yml` | p50/p95、成功率、失败率、重放稳定性、硬约束率和外部请求成本代理可复现；只读 |
+| W12 Runbook 与 Go/No-Go | `release_runbook.md`、`remaining_execution_plan.md`、`.github/workflows/ci.yml` | 启动、熔断、删除、事故响应、回滚和发布条件已形成可执行文档；真实生产 smoke 仍待官方批准/keyset |
 | 账号登录、购买、转移、代打、支付和平台控制绕过 | `src/muse_selector/query_parser.py`、`scope_decision.md` | 已排除并阻断 |
 | GitHub 主线自动验证 | `.github/workflows/ci.yml` | 最新 CI 通过 |
 | CN/CNY 国内市场 SearchSpec 与来源路由 | `src/muse_selector/contracts.py`、`src/muse_selector/query_parser.py`、`src/muse_selector/pipeline.py`、`tests/test_query_parser.py`、`tests/test_pipeline.py` | 契约和 fail-closed 路由已通过；官方挂牌搜索连接器待授权 |
