@@ -25,6 +25,7 @@ class ResultCard:
     condition: str
     specs: Mapping[str, Any]
     evidence: tuple[Mapping[str, Any], ...]
+    evidence_ids: tuple[str, ...]
     risk_flags: tuple[str, ...]
     delivery_max_days: int | None = None
     warranty: str | None = None
@@ -42,6 +43,7 @@ class ResultCard:
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
         result["evidence"] = [dict(item) for item in self.evidence]
+        result["evidence_ids"] = list(self.evidence_ids)
         result["risk_flags"] = list(self.risk_flags)
         return result
 
@@ -99,6 +101,7 @@ def build_card(
         warranty=listing.specs.get("warranty"),
         product_id=listing.product_id,
         evidence=tuple(item.to_dict() for item in evidence),
+        evidence_ids=listing.evidence_ids,
         risk_flags=listing.risk_flags,
         status=status,
         shipping_cost=_money(listing.shipping_cost),
@@ -176,6 +179,7 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
             f"- 来源：[打开原平台]({_markdown_untrusted(card['url'])})",
             f"- 风险：{_markdown_untrusted(', '.join(card['risk_flags']) if card['risk_flags'] else '未标记')}",
             f"- 证据字段：{_markdown_untrusted(', '.join(item['field'] for item in card['evidence']) or 'unknown')}",
+            f"- 证据标识：{_markdown_untrusted(', '.join(card.get('evidence_ids') or ()) or 'unknown')}",
             *[
                 f"- 证据片段（{_markdown_untrusted(item.get('field') or 'unknown')}）：{_evidence_excerpt(item)}"
                 for item in card.get('evidence', [])

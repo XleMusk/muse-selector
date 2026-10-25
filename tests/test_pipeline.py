@@ -81,6 +81,8 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(payload["recommended"][0]["evidence_coverage"], 1.0)
         self.assertEqual(payload["recommended"][0]["source_observed_at"], "unknown")
         self.assertEqual(payload["recommended"][0]["specs"], {"ram_gb": 32, "storage_gb": 1024})
+        card = payload["recommended"][0]
+        self.assertEqual(card["evidence_ids"], [item["evidence_id"] for item in card["evidence"]])
         self.assertTrue(payload["read_only"])
         self.assertTrue(all("USB4 NVMe enclosure" not in card["title"] for card in payload["recommended"]))
 
@@ -174,6 +176,7 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("保修：unknown", report)
         self.assertIn("关键字段证据覆盖率：100.0%", report)
         self.assertIn("证据片段（title）：Mini PC Ryzen 7", report)
+        self.assertIn("证据标识：v1|100000000001|0:ev:0", report)
 
     def test_markdown_escapes_error_and_url_text(self):
         report = render_markdown({
