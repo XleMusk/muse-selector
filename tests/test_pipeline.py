@@ -297,6 +297,9 @@ class PipelineTests(unittest.TestCase):
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["status"], "source_unavailable")
         self.assertTrue(payload["read_only"])
+        self.assertEqual(payload["source_capability"]["access_mode"], "official_api")
+        self.assertEqual(payload["source_capability"]["status"], "credential_unavailable")
+        self.assertEqual(payload["source_capability"]["environment"], "production")
 
     def test_invalid_connector_environment_fails_closed(self):
         with patch.dict(os.environ, {"EBAY_TIMEOUT_SECONDS": "invalid"}, clear=False):

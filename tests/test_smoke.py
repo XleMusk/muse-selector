@@ -101,6 +101,8 @@ class SmokeTests(unittest.TestCase):
         self.assertTrue(payload["read_only"])
         self.assertEqual(payload["credential_state"], "missing")
         self.assertEqual(payload["source_metadata"]["environment"], "sandbox")
+        self.assertEqual(payload["source_capability"]["status"], "credential_unavailable")
+        self.assertEqual(payload["source_capability"]["environment"], "sandbox")
         self.assertNotIn("test-secret-value", output.getvalue())
         self.assertNotIn("test-token-value", output.getvalue())
 
