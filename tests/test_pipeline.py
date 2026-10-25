@@ -205,13 +205,14 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("打开原平台", report)
         self.assertIn("来源标识：ebay.browse.hk.v1", report)
         self.assertIn("来源：ebay.browse.hk.v1", report)
-        self.assertIn(r"来源能力：official\_api", report)
+        self.assertIn(r"来源能力：local\_fixture", report)
         self.assertIn("只读状态：true", report)
         self.assertIn("来源观测时间", report)
         self.assertIn("保修：unknown", report)
         self.assertIn("关键字段证据覆盖率：100.0%", report)
         self.assertIn("证据片段（title）：Mini PC Ryzen 7", report)
         self.assertIn(r"source\_field", report)
+        self.assertEqual(payload["source_capability"]["access_mode"], "local_fixture")
         self.assertIn("证据标识：v1|100000000001|0:ev:0", report)
 
     def test_markdown_escapes_error_and_url_text(self):

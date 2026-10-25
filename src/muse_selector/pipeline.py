@@ -32,9 +32,24 @@ _ALLOWED_SOURCE_HOSTS = frozenset(
 )
 
 
-def _source_capability(source_id: str) -> dict[str, Any] | None:
+def _source_capability(source_id: str, connector: Any = None) -> dict[str, Any] | None:
     capability = source_capability_registry().get(source_id)
-    return capability.to_dict() if capability is not None else None
+    if capability is None:
+        return None
+    result = capability.to_dict()
+    if getattr(connector, "fixture_path", None) is not None:
+        result.update({"access_mode": "local_fixture", "status": "ready"})
+    elif source_id == "ebay.browse.hk.v1" and connector is not None:
+        kill_switch = getattr(connector, "_kill_switch_active", None)
+        if callable(kill_switch) and kill_switch():
+            result["status"] = "disabled"
+        elif getattr(connector, "live_enabled", False):
+            result["status"] = "ready"
+        else:
+            result["status"] = "credential_unavailable"
+        result["credential_state"] = getattr(connector, "credential_state", "missing")
+        result["environment"] = getattr(getattr(connector, "config", None), "environment", "unknown")
+    return result
 
 
 def _allowed_source_url(value: str) -> bool:
@@ -231,7 +246,7 @@ def run_search(
             "dropped": [],
             "source": source_id,
             "source_metadata": source_metadata,
-            "source_capability": _source_capability(source_id),
+            "source_capability": _source_capability(source_id, connector),
             "read_only": True,
         }
     source_metadata = connector.source_metadata
@@ -317,7 +332,7 @@ def run_search(
         "dropped": dropped,
         "source": source_id,
         "source_metadata": source_metadata,
-        "source_capability": _source_capability(source_id),
+        "source_capability": _source_capability(source_id, connector),
         "read_only": True,
     }
 
