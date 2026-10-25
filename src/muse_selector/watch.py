@@ -147,7 +147,10 @@ def main() -> int:
             return 0
         if args.action == "events":
             try:
-                events = store.list_watch_events(args.watch_id, limit=args.limit, offset=args.offset)
+                events = [
+                    event.to_dict()
+                    for event in store.list_watch_event_models(args.watch_id, limit=args.limit, offset=args.offset)
+                ]
             except KeyError as exc:
                 return _print_error("events", "watch_not_found", _exception_message(exc))
             _print_result({

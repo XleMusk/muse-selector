@@ -475,7 +475,10 @@ def make_handler(
                     offset = int(params.get("offset", ["0"])[0])
                     if limit <= 0 or limit > 1000 or offset < 0:
                         raise ValueError
-                    events = store.list_watch_events(watch_id, limit=limit, offset=offset)
+                    events = [
+                        event.to_dict()
+                        for event in store.list_watch_event_models(watch_id, limit=limit, offset=offset)
+                    ]
                 except ValueError:
                     self._send_json(400, {"ok": False, "status": "invalid_query", "message": "limit must be 1..1000 and offset must be non-negative", "read_only": True})
                     return
