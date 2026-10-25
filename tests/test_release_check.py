@@ -34,7 +34,7 @@ class ReleaseCheckTests(unittest.TestCase):
                 "status": "complete",
                 "source": "ebay.browse.hk.v1",
                 "read_only": True,
-                "source_metadata": {"environment": "sandbox"},
+                "source_metadata": {"environment": "sandbox", "latency_ms": 125.5},
                 "source_capability": {
                     "source_id": "ebay.browse.hk.v1",
                     "access_mode": "official_api",

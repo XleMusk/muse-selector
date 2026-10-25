@@ -44,6 +44,8 @@ def _valid_live_smoke_evidence(value: Mapping[str, Any] | None) -> bool:
     )
     recommended_count = value.get("recommended_count", 0)
     coverage = value.get("evidence_coverage_min")
+    latency = metadata.get("latency_ms") if isinstance(metadata, Mapping) else None
+    latency_ok = isinstance(latency, (int, float)) and latency >= 0
     coverage_ok = (
         recommended_count == 0
         or isinstance(coverage, (int, float))
@@ -59,6 +61,7 @@ def _valid_live_smoke_evidence(value: Mapping[str, Any] | None) -> bool:
         and metadata.get("environment") in {"production", "sandbox"}
         and capability_ok
         and coverage_ok
+        and latency_ok
     )
 
 
