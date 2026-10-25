@@ -7,6 +7,7 @@ reuse the same normalized Listing/Evidence objects and run this suite before mer
 from __future__ import annotations
 
 import json
+import math
 import sys
 from dataclasses import asdict
 from decimal import Decimal
@@ -125,6 +126,46 @@ def canonical_ids(listings: Iterable[Listing]) -> list[str]:
     return sorted(item.listing_id for item in listings)
 
 
+def _ranking_metrics(predicted_ids: list[str], relevant_ids: Iterable[str], k: int) -> dict[str, float]:
+    """Return bounded offline ranking metrics for a labeled fixture case.
+
+    Precision uses the conventional ``k`` denominator, so missing results in
+    the top-k window count as non-relevant.  The fixture is small, but keeping
+    the calculation explicit makes the baseline reusable for larger snapshots.
+    """
+
+    relevant = set(relevant_ids)
+    top_ids = predicted_ids[:k]
+    hits = sum(1 for listing_id in top_ids if listing_id in relevant)
+    precision = hits / k if k else 0.0
+    recall = hits / len(relevant) if relevant else 0.0
+    dcg = sum(
+        1.0 / math.log2(index + 2)
+        for index, listing_id in enumerate(top_ids)
+        if listing_id in relevant
+    )
+    ideal_hits = min(len(relevant), k)
+    idcg = sum(1.0 / math.log2(index + 2) for index in range(ideal_hits))
+    ndcg = dcg / idcg if idcg else 0.0
+    return {
+        "precision": precision,
+        "recall": recall,
+        "ndcg": ndcg,
+    }
+
+
+def _jaccard(left: Iterable[str], right: Iterable[str]) -> float:
+    left_set = set(left)
+    right_set = set(right)
+    union = left_set | right_set
+    return len(left_set & right_set) / len(union) if union else 1.0
+
+
+def _mean(values: Iterable[float]) -> float:
+    values = list(values)
+    return sum(values) / len(values) if values else 0.0
+
+
 def validate_fixture_shape() -> list[str]:
     policy = load_json("regression_policy.json")
     errors: list[str] = []
@@ -148,6 +189,8 @@ def run_regression() -> dict[str, Any]:
     query_results: dict[str, Any] = {}
     accepted_total = 0
     accepted_violations = 0
+    labeled_metrics: list[dict[str, float]] = []
+    replay_jaccards: list[float] = []
 
     for case in load_queries():
         case_id = case["case_id"]
@@ -171,6 +214,7 @@ def run_regression() -> dict[str, Any]:
         spec = build_spec(case)
         accepted, decisions = filter_listings(spec, listings)
         ids = canonical_ids(accepted)
+        ranked_ids = [item.listing_id for item in accepted]
         query_results[case_id] = {"accepted": ids, "decisions": [asdict(d) for d in decisions]}
         if expected.get("must_return") and not accepted:
             errors.append(f"{case_id}: expected at least one accepted listing")
@@ -178,6 +222,26 @@ def run_regression() -> dict[str, Any]:
             accepted_again, _ = filter_listings(spec, listings)
             if ids != canonical_ids(accepted_again):
                 errors.append(f"{case_id}: replay ordering changed")
+        accepted_again, _ = filter_listings(spec, listings)
+        replay_ranked_ids = [item.listing_id for item in accepted_again]
+        top_k_jaccard = _jaccard(ranked_ids[:10], replay_ranked_ids[:10])
+        query_results[case_id]["top_k_jaccard"] = top_k_jaccard
+        relevant_ids = expected.get("relevant_listing_ids")
+        if relevant_ids is not None:
+            relevant_ids = [str(item) for item in relevant_ids]
+            known_ids = {item.listing_id for item in listings}
+            unknown_relevant = sorted(set(relevant_ids) - known_ids)
+            if unknown_relevant:
+                errors.append(f"{case_id}: relevant fixture ids are unknown: {unknown_relevant}")
+            metrics_at_10 = _ranking_metrics(ranked_ids, relevant_ids, 10)
+            metrics_at_20 = _ranking_metrics(ranked_ids, relevant_ids, 20)
+            query_results[case_id]["ranking_metrics"] = {
+                "precision_at_10": metrics_at_10["precision"],
+                "recall_at_20": metrics_at_20["recall"],
+                "ndcg_at_10": metrics_at_10["ndcg"],
+            }
+            labeled_metrics.append(query_results[case_id]["ranking_metrics"])
+            replay_jaccards.append(top_k_jaccard)
         for item in accepted:
             accepted_total += 1
             decision = next(item_decision for item_decision in decisions if item_decision.listing_id == item.listing_id)
@@ -203,6 +267,13 @@ def run_regression() -> dict[str, Any]:
     if conflict["evidence"][0]["status"] != "conflict":
         errors.append("conflict fixture: conflict status was lost")
     violation_rate = accepted_violations / accepted_total if accepted_total else 0.0
+    ranking_metrics = {
+        "labeled_case_count": len(labeled_metrics),
+        "precision_at_10": _mean(item["precision_at_10"] for item in labeled_metrics),
+        "recall_at_20": _mean(item["recall_at_20"] for item in labeled_metrics),
+        "ndcg_at_10": _mean(item["ndcg_at_10"] for item in labeled_metrics),
+        "top_k_jaccard": _mean(replay_jaccards),
+    }
     return {
         "ok": not errors and violation_rate == 0.0,
         "errors": errors,
@@ -210,6 +281,7 @@ def run_regression() -> dict[str, Any]:
         "listing_count": len(listings),
         "hard_constraint_violation_rate": violation_rate,
         "hard_constraint_checked_count": accepted_total,
+        "ranking_metrics": ranking_metrics,
     }
 
 

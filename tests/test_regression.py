@@ -15,6 +15,16 @@ class RegressionTests(unittest.TestCase):
         for case_id in ("hk_laptop_budget", "hk_gpu_vram", "hk_usb4_dock"):
             self.assertTrue(result["queries"][case_id]["accepted"], case_id)
 
+    def test_labeled_ranking_baseline_is_reproducible(self):
+        result = run_regression()
+        metrics = result["ranking_metrics"]
+        self.assertEqual(metrics["labeled_case_count"], 6)
+        self.assertGreater(metrics["precision_at_10"], 0.0)
+        self.assertEqual(metrics["recall_at_20"], 1.0)
+        self.assertEqual(metrics["ndcg_at_10"], 1.0)
+        self.assertEqual(metrics["top_k_jaccard"], 1.0)
+        self.assertEqual(result["queries"]["hk_gpu_vram"]["ranking_metrics"]["recall_at_20"], 1.0)
+
     def test_policy_cases_are_blocked(self):
         result = run_regression()
         self.assertTrue(result["queries"]["game_account_policy_block"]["policy_blocked"])

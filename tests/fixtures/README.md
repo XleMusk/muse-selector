@@ -10,6 +10,10 @@ snapshot and must not be presented as current inventory or price data.
 `regression_policy.json` records the invariants for the read-only MVP:
 `hard_constraint_violation_rate=0`, unknown values are not inferred, conflict/stale
 states remain visible, external listing text is untrusted, and replay is stable.
+Positive cases in `queries.json` also carry curated `relevant_listing_ids` labels;
+the harness reports reproducible Precision@10, Recall@20, NDCG@10 and replay
+Top-k Jaccard baselines over those labels. These are fixture metrics, not live-market
+quality claims.
 
 Run without network or credentials from the repository root:
 

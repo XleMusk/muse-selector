@@ -243,6 +243,8 @@ muse-watch --db "D:\muse\data\selector.sqlite3" --action changes --watch-id "min
 
 回归集覆盖预算、地区、必选规格、陈旧/冲突证据、缺失 URL、账号策略阻断、提示注入、SSRF 和重放稳定性。fixture 中的价格和库存是测试数据，不能当作当前市场报价。
 回归产物 `examples/regression_result.json` 同时记录 `hard_constraint_violation_rate`；当前验收值必须为 `0.0`。
+回归集的正例还带有明确的 `relevant_listing_ids` 标签，产物会报告基于 fixture 的
+`Precision@10`、`Recall@20`、`NDCG@10` 和重放 `Top-k Jaccard` 基线；这些指标用于比较代码变更，不能当作实时市场质量或平台整体覆盖率。
 逐项验收证据和唯一未验证的外部门见 [acceptance_matrix.md](acceptance_matrix.md)。
 关键字段证据覆盖率低于 95% 的来源记录会被标记为风险并排除，不会进入推荐。
 查询未提供预算上限时，系统返回 `needs_clarification` 并要求补充地区与 `max_total_hkd`；只有明确写出“价格不限”等表达才会在无预算上限下继续筛选。

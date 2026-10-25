@@ -53,7 +53,13 @@
             "required_spec:vram_gb"
           ]
         }
-      ]
+      ],
+      "ranking_metrics": {
+        "ndcg_at_10": 1.0,
+        "precision_at_10": 0.1,
+        "recall_at_20": 1.0
+      },
+      "top_k_jaccard": 1.0
     },
     "game_account_policy_block": {
       "accepted": [],
@@ -107,7 +113,13 @@
             "required_spec:vram_gb"
           ]
         }
-      ]
+      ],
+      "ranking_metrics": {
+        "ndcg_at_10": 1.0,
+        "precision_at_10": 0.1,
+        "recall_at_20": 1.0
+      },
+      "top_k_jaccard": 1.0
     },
     "hk_laptop_budget": {
       "accepted": [
@@ -166,7 +178,13 @@
             "required_spec:usb4"
           ]
         }
-      ]
+      ],
+      "ranking_metrics": {
+        "ndcg_at_10": 1.0,
+        "precision_at_10": 0.1,
+        "recall_at_20": 1.0
+      },
+      "top_k_jaccard": 1.0
     },
     "hk_usb4_dock": {
       "accepted": [
@@ -226,7 +244,13 @@
             "required_spec:pd_watt"
           ]
         }
-      ]
+      ],
+      "ranking_metrics": {
+        "ndcg_at_10": 1.0,
+        "precision_at_10": 0.1,
+        "recall_at_20": 1.0
+      },
+      "top_k_jaccard": 1.0
     },
     "missing_budget": {
       "accepted": [],
@@ -279,7 +303,13 @@
           "listing_id": "ebay-hk-mini-001",
           "reasons": []
         }
-      ]
+      ],
+      "ranking_metrics": {
+        "ndcg_at_10": 1.0,
+        "precision_at_10": 0.4,
+        "recall_at_20": 1.0
+      },
+      "top_k_jaccard": 1.0
     },
     "ssrf_url": {
       "accepted": [],
@@ -340,7 +370,13 @@
           "listing_id": "ebay-hk-mini-001",
           "reasons": []
         }
-      ]
+      ],
+      "ranking_metrics": {
+        "ndcg_at_10": 1.0,
+        "precision_at_10": 0.1,
+        "recall_at_20": 1.0
+      },
+      "top_k_jaccard": 1.0
     },
     "stale_listing": {
       "accepted": [
@@ -390,7 +426,15 @@
             "required_spec:ram_gb"
           ]
         }
-      ]
+      ],
+      "top_k_jaccard": 1.0
     }
+  },
+  "ranking_metrics": {
+    "labeled_case_count": 6,
+    "ndcg_at_10": 1.0,
+    "precision_at_10": 0.15,
+    "recall_at_20": 1.0,
+    "top_k_jaccard": 1.0
   }
 }
