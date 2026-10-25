@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .application import search as run_search
+from .watch_contracts import RefreshJob
 from .watch_contracts import WatchEvent, WatchSpec
 
 
@@ -613,6 +614,7 @@ class SelectorStore:
         if not row["enabled"]:
             raise ValueError(f"watch is disabled: {watch_id}")
         initial_revision = int(row["revision"])
+        started_at = _now()
         selected_environment = environment or row["environment"] or "production"
         if selected_environment not in {"production", "sandbox"}:
             raise ValueError("environment must be production or sandbox")
@@ -695,12 +697,21 @@ class SelectorStore:
                     (watch_id, observed_at, str(previous_run_id), encoded_change_summary),
                 )
                 events = persist_threshold_events(str(previous_run_id), observed_at)
+                refresh_job = RefreshJob(
+                    job_id=f"{watch_id}:{initial_revision}:{previous_run_id}",
+                    watch_id=watch_id,
+                    status="complete",
+                    run_id=str(previous_run_id),
+                    started_at=started_at,
+                    finished_at=observed_at,
+                )
                 return {
                     "watch_id": watch_id,
                     "run_id": previous_run_id,
                     "changed": False,
                     "change_summary": change_summary,
                     "events": events,
+                    "refresh_job": refresh_job.to_dict(),
                     "payload": payload,
                 }
 
@@ -719,12 +730,21 @@ class SelectorStore:
                 (watch_id, observed_at, run_id, int(inserted), encoded_change_summary),
             )
             events = persist_threshold_events(run_id, observed_at)
+        refresh_job = RefreshJob(
+            job_id=f"{watch_id}:{initial_revision}:{run_id}",
+            watch_id=watch_id,
+            status="complete",
+            run_id=run_id,
+            started_at=started_at,
+            finished_at=observed_at,
+        )
         return {
             "watch_id": watch_id,
             "run_id": run_id,
             "changed": inserted,
             "change_summary": change_summary,
             "events": events,
+            "refresh_job": refresh_job.to_dict(),
             "payload": payload,
         }
 

@@ -64,6 +64,9 @@ class WatchContractTests(unittest.TestCase):
             self.assertEqual(spec.thresholds["stock_required"], True)
             store.refresh_watch(watch_id)
             self.assertIsInstance(store.list_watch_event_models(watch_id), list)
+            refreshed = store.refresh_watch(watch_id)
+            self.assertEqual(refreshed["refresh_job"]["status"], "complete")
+            self.assertEqual(refreshed["refresh_job"]["run_id"], refreshed["run_id"])
 
 
 if __name__ == "__main__":
