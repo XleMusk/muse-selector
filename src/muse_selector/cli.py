@@ -5,13 +5,28 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 
 from .pipeline import run_search
 from .result_card import render_comparison, render_markdown
 
 
+def _configure_console_encoding() -> None:
+    """Keep localized result reports readable on Windows console code pages."""
+
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (AttributeError, ValueError):
+                # Test streams and detached handles may not support reconfigure.
+                pass
+
+
 def main() -> int:
+    _configure_console_encoding()
     parser = argparse.ArgumentParser(description="Read-only Hong Kong hardware search")
     parser.add_argument("--query", required=True, help="natural-language hardware query")
     parser.add_argument("--fixture", default=None, help="offline eBay response fixture; omit to use live read-only API")
