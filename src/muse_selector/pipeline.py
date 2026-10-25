@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 from .connectors.ebay import ConnectorUnavailable, EbayBrowseConnector
 from .contracts import ALLOWED_SOURCE_IDS, ALLOWED_STATUSES, KEY_EVIDENCE_FIELDS, Evidence, Listing
 from .filtering import filter_listings
+from .link_only import build_link_only_plan
 from .query_parser import PolicyBlockedError, has_explicit_unbounded_budget, parse_query
 from .result_card import build_card
 
@@ -303,6 +304,7 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
             "dropped": [],
             "source": "domestic.secondhand.pending",
             "source_metadata": None,
+            "link_only": build_link_only_plan(spec),
             "read_only": True,
         }
     try:

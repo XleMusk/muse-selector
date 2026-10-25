@@ -124,6 +124,21 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
             "",
             "只读状态：true",
         ]
+        link_only = payload.get("link_only") or []
+        if link_only:
+            lines.extend(["", "## 可人工打开的平台入口", ""])
+            for item in link_only:
+                entry_url = item.get("entry_url") or ""
+                lines.extend(
+                    [
+                        f"### {_markdown_untrusted(item.get('display_name') or item.get('source_id') or 'unknown')}（link_only）",
+                        f"- 官方入口：[{_markdown_untrusted(entry_url)}]({_markdown_untrusted(entry_url)})",
+                        f"- 手动查询：{_markdown_untrusted(item.get('manual_query') or 'unknown')}",
+                        f"- 说明：{_markdown_untrusted(item.get('instruction') or '仅允许人工打开和查看')}",
+                        "- 只读状态：true；系统不会抓取、排序或执行平台写操作",
+                        "",
+                    ]
+                )
         return "\n".join(lines) + "\n"
 
     spec = payload["search_spec"]

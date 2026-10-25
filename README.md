@@ -7,6 +7,8 @@
 
 当前 CN/CNY 查询已经进入 SearchSpec 和安全路由，但会在没有官方挂牌搜索授权时返回 `source_unavailable`。闲鱼公开合作方能力需要入驻、OAuth、逐项权限申请和相应部署条件；转转公开官方 MCP 当前提供商品识别、回收估价和回收入口，不提供通用挂牌搜索。
 
+无官方挂牌搜索权限时，结果 JSON/Markdown 仍会给出 `link_only` 人工入口卡：包含官方平台入口、原始手动查询和只读说明。用户可以点击官方入口并在平台内自行搜索；系统不会抓取、排序、读取登录态或执行写操作。这是人工接管路径，不是 API 搜索结果。
+
 因此，国内主线的第一步是获得官方搜索能力或合作方授权；系统不会使用 Cookie、私有接口、逆向签名或网页批量抓取来填补这个缺口。详见 [scope_decision.md](scope_decision.md) 和 [acceptance_matrix.md](acceptance_matrix.md)。
 
 ### 转转官方 MCP 估价辅助

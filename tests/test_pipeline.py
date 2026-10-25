@@ -129,7 +129,18 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(payload["search_spec"]["currency"], "CNY")
         self.assertEqual(payload["source"], "domestic.secondhand.pending")
         self.assertEqual(payload["recommended"], [])
+        self.assertEqual([item["source_id"] for item in payload["link_only"]], [
+            "xianyu.partner.v1",
+            "zhuanzhuan.recommerce.mcp.v1",
+        ])
+        self.assertEqual(payload["link_only"][0]["manual_query"], "国内预算 CNY 8000 以内的二手迷你主机")
         self.assertTrue(payload["read_only"])
+
+    def test_domestic_markdown_exposes_manual_link_only_entries(self):
+        report = render_markdown(run_search("国内预算 CNY 8000 以内的二手迷你主机"))
+        self.assertIn("可人工打开的平台入口", report)
+        self.assertIn("https://www.goofish.com/", report)
+        self.assertIn("link_only", report)
 
     def test_blank_query_returns_read_only_invalid_query_state(self):
         payload = run_search("   ")

@@ -22,7 +22,7 @@
 | GitHub 主线自动验证 | `.github/workflows/ci.yml` | 最新 CI 通过 |
 | CN/CNY 国内市场 SearchSpec 与来源路由 | `src/muse_selector/contracts.py`、`src/muse_selector/query_parser.py`、`src/muse_selector/pipeline.py`、`tests/test_query_parser.py`、`tests/test_pipeline.py` | 契约和 fail-closed 路由已通过；官方挂牌搜索连接器待授权 |
 | 转转官方 MCP 估价/回收入口适配 | `src/muse_selector/connectors/zhuanzhuan.py`、`tests/test_zhuanzhuan_connector.py`、`src/muse_selector/zhuanzhuan_smoke.py` | 官方 Streamable HTTP 工具调用、字段归一化、Token 缺失/权限错误 fail-closed 已通过；不作为挂牌搜索来源 |
-| 闲鱼/转转官方能力登记 | `data/source_registry.yaml`、`scope_decision.md` | 闲鱼 link-only/pending；转转官方 MCP 估价/回收入口适配已完成 |
+| 闲鱼/转转官方能力登记 | `data/source_registry.yaml`、`scope_decision.md`、`src/muse_selector/link_only.py` | 闲鱼 link-only/pending；CN/CNY 查询会返回可人工打开的官方入口卡；转转官方 MCP 估价/回收入口适配已完成 |
 
 ## 当前外部验收门
 
