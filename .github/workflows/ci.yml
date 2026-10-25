@@ -114,3 +114,5 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_*.py' -v
           python tests/regression_harness.py
+          python tests/fault_harness.py > fault_result.json
+          python -c "import json; p=json.load(open('fault_result.json', encoding='utf-8')); assert p['schema_version'] == 'muse.selector.faults.v1'; assert p['ok'] is True; assert p['read_only'] is True; assert not p['failed_cases']"
