@@ -116,3 +116,5 @@ jobs:
           python tests/regression_harness.py
           python tests/fault_harness.py > fault_result.json
           python -c "import json; p=json.load(open('fault_result.json', encoding='utf-8')); assert p['schema_version'] == 'muse.selector.faults.v1'; assert p['ok'] is True; assert p['read_only'] is True; assert not p['failed_cases']"
+          python tests/metrics_harness.py > metrics_result.json
+          python -c "import json; p=json.load(open('metrics_result.json', encoding='utf-8')); assert p['schema_version'] == 'muse.selector.metrics.v1'; assert p['ok'] is True; assert p['read_only'] is True; assert p['failure_count'] == 0; assert p['hard_constraint_violation_rate'] == 0.0; assert p['replay_mismatch_count'] == 0; assert p['cost_proxy']['external_requests'] == 0"
