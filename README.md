@@ -78,6 +78,14 @@ python -m muse_selector `
   --format json
 ```
 
+状态图入口会输出 `Parse → FanOut → Normalize → Filter → Rank → Verify → Present` 的阶段状态和可重放 checkpoint；重放 checkpoint 不会再次调用连接器：
+
+```powershell
+muse-state-graph --query "香港预算 HKD 7000 以内的迷你主机" --fixture "D:\muse\tests\fixtures\ebay_hk_sample.json"
+```
+
+把上次输出中的 `checkpoint` 保存为 JSON 后，可用 `--checkpoint` 重放同一个执行请求。
+
 所有 pipeline、CLI JSON、live smoke 和 Web JSON 响应都带有稳定的顶层
 `schema_version: "muse.selector.v1"`。这是结果/接口 envelope 的版本标识；新增字段保持向后兼容，已保存的 watch payload 重放时也保留该字段。嵌套的 `SearchSpec`、商品、挂牌和证据对象继续使用各自已有的对象版本字段。
 
