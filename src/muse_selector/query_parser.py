@@ -23,21 +23,21 @@ _MONEY_NUMBER = r"[\d,]+(?:\.\d+)?"
 # use 至/到 rather than a hyphen.
 _MONEY_RANGE_RE = re.compile(
     rf"(?:"
-    rf"(?:HKD|HK\$|港币|港元)\s*[:：]?\s*(?P<low1>{_MONEY_NUMBER})\s*(?:-|–|—|~|～|至|到)\s*(?P<high1>{_MONEY_NUMBER})"
-    rf"|(?P<low2>{_MONEY_NUMBER})\s*(?:-|–|—|~|～|至|到)\s*(?P<high2>{_MONEY_NUMBER})\s*(?:HKD|HK\$|港币|港元)"
+    rf"(?:HKD|HK\$|港币|港幣|港元)\s*[:：]?\s*(?P<low1>{_MONEY_NUMBER})\s*(?:-|–|—|~|～|至|到)\s*(?P<high1>{_MONEY_NUMBER})"
+    rf"|(?P<low2>{_MONEY_NUMBER})\s*(?:-|–|—|~|～|至|到)\s*(?P<high2>{_MONEY_NUMBER})\s*(?:HKD|HK\$|港币|港幣|港元)"
     rf")",
     re.I,
 )
-_MONEY_RE = re.compile(rf"(?:HKD|HK\$|港币|港元|预算)\s*[:：]?\s*(?:不超过|以内|上限|最多)?\s*({_MONEY_NUMBER})\s*(万)?", re.I)
-_MONEY_SUFFIX_RE = re.compile(rf"(?P<amount>{_MONEY_NUMBER})\s*(?:HKD|港币|港元)\b", re.I)
+_MONEY_RE = re.compile(rf"(?:HKD|HK\$|港币|港幣|港元|预算|預算)\s*[:：]?\s*(?:不超过|以内|上限|最多)?\s*({_MONEY_NUMBER})\s*(万)?", re.I)
+_MONEY_SUFFIX_RE = re.compile(rf"(?P<amount>{_MONEY_NUMBER})\s*(?:HKD|港币|港幣|港元)\b", re.I)
 _CNY_MONEY_RANGE_RE = re.compile(
     rf"(?:"
-    rf"(?:CNY|人民币|预算)\s*[:：]?\s*(?P<low1>{_MONEY_NUMBER})\s*(?:-|–|—|~|～|至|到)\s*(?P<high1>{_MONEY_NUMBER})"
+    rf"(?:CNY|人民币|预算|預算)\s*[:：]?\s*(?P<low1>{_MONEY_NUMBER})\s*(?:-|–|—|~|～|至|到)\s*(?P<high1>{_MONEY_NUMBER})"
     rf"|(?P<low2>{_MONEY_NUMBER})\s*(?:-|–|—|~|～|至|到)\s*(?P<high2>{_MONEY_NUMBER})\s*(?:CNY|人民币|元|￥|¥)"
     rf")",
     re.I,
 )
-_CNY_MONEY_RE = re.compile(rf"(?:CNY|人民币|预算)\s*[:：]?\s*(?:不超过|以内|上限|最多)?\s*({_MONEY_NUMBER})\s*(万)?", re.I)
+_CNY_MONEY_RE = re.compile(rf"(?:CNY|人民币|预算|預算)\s*[:：]?\s*(?:不超过|以内|上限|最多)?\s*({_MONEY_NUMBER})\s*(万)?", re.I)
 _CNY_MONEY_SUFFIX_RE = re.compile(rf"(?P<amount>{_MONEY_NUMBER})\s*(?:CNY|人民币|元|￥|¥)", re.I)
 _GB_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(GB|TB)\s*(?:内存|RAM|显存|VRAM|SSD|存储|硬盘)?", re.I)
 _DELIVERY_DAYS_RE = re.compile(
@@ -45,7 +45,7 @@ _DELIVERY_DAYS_RE = re.compile(
     r"(?P<days_prefix>\d+)\s*(?:天|日)\s*(?:内|以内)\s*(?:送达|到货|配送)",
     re.I,
 )
-_UNBOUNDED_BUDGET_TOKENS = ("价格不限", "预算不限", "不限预算", "不设预算", "不限制预算", "no budget limit", "unlimited budget")
+_UNBOUNDED_BUDGET_TOKENS = ("价格不限", "预算不限", "預算不限", "不限预算", "不限預算", "不设预算", "不設預算", "不限制预算", "不限制預算", "no budget limit", "unlimited budget")
 _ACCOUNT_POLICY_TOKENS = (
     "游戏账号",
     "游戏账户",
@@ -111,7 +111,7 @@ def parse_query(text: str) -> SearchSpec:
         raise ValueError("query must be non-empty")
     lowered = text.lower()
     explicit_domestic = any(token in lowered for token in ("中国大陆", "中国内地", "大陆", "国内", "人民币", "cny", "￥", "¥"))
-    explicit_hk = any(token in lowered for token in ("香港", "港币", "港元", "hkd", "hk$"))
+    explicit_hk = any(token in lowered for token in ("香港", "港币", "港幣", "港元", "hkd", "hk$"))
     domestic = explicit_domestic or (
         bool(re.search(r"\d[\d,]*(?:\.\d+)?\s*元", text)) and not explicit_hk
     )

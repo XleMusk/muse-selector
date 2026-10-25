@@ -32,6 +32,17 @@ class QueryParserBudgetRangeTests(unittest.TestCase):
         self.assertEqual(spec.budget_min, Decimal("5000.00"))
         self.assertEqual(spec.budget_max, Decimal("7000.00"))
 
+    def test_traditional_hong_kong_currency_and_budget_aliases(self):
+        range_spec = parse_query("香港輕薄本，5000 至 7000 港幣")
+        self.assertEqual(range_spec.region, "HK")
+        self.assertEqual(range_spec.currency, "HKD")
+        self.assertEqual(range_spec.budget_min, Decimal("5000.00"))
+        self.assertEqual(range_spec.budget_max, Decimal("7000.00"))
+
+        upper_spec = parse_query("香港預算 7000 以内的迷你主機")
+        self.assertEqual(upper_spec.region, "HK")
+        self.assertEqual(upper_spec.budget_max, Decimal("7000.00"))
+
     def test_existing_upper_bound_is_unchanged(self):
         spec = parse_query("香港预算 HKD 7000 以内的迷你主机")
         self.assertIsNone(spec.budget_min)
