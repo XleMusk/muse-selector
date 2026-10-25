@@ -40,6 +40,8 @@ W2 的真实生产授权是唯一外部门。没有 keyset 时只完成合同、
 
 浏览器路径只允许在隔离 mock 和官方测试域上推进。它的 feature flag 默认关闭，直到 W10 的安全退出条件满足。
 
+W8 第一阶段已完成 broker contract：`MUSE_READONLY_BROWSER_ENABLED` 未开启时只返回 `feature_disabled` 和人工接管状态；开启后仍只接受 eBay HK HTTPS allowlist，并通过注入 adapter 读取和清理 accessibility tree，不提供点击、输入、脚本或真实凭据能力。
+
 ### Wave D：灰度、运行手册和 Go/No-Go
 
 | 工作包 | 主责 | 交付物 | 退出条件 |
