@@ -203,6 +203,8 @@ def main() -> int:
         parser.error("environment must be production or sandbox")
     watch_id = args.watch_id or default_watch_id(args.query or "", args.fixture, args.environment)
     existing = store.get_watch(watch_id)
+    if existing is None and args.watch_id and args.query is None:
+        return _print_error("refresh", "watch_not_found", f"unknown watch_id: {watch_id}")
     if existing is None:
         interval_seconds = args.interval_seconds or 900
         store.add_watch(

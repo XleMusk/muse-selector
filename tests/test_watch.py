@@ -140,12 +140,26 @@ class WatchTests(unittest.TestCase):
                     code = main()
                 return code, json.loads(output.getvalue())
 
-            for action in ("status", "changes"):
-                code, result = invoke("--db", str(db), "--action", action, "--watch-id", "missing")
+            for action, extra in (
+                ("refresh", ("--once",)),
+                ("status", ()),
+                ("changes", ()),
+                ("pause", ()),
+                ("resume", ()),
+                ("replay", ()),
+                ("update", ("--environment", "sandbox")),
+            ):
+                code, result = invoke(
+                    "--db", str(db), "--action", action, "--watch-id", "missing", *extra
+                )
                 self.assertEqual(code, 2)
                 self.assertFalse(result["ok"])
                 self.assertEqual(result["status"], "watch_not_found")
                 self.assertTrue(result["read_only"])
+                self.assertEqual(result["message"], "unknown watch_id: missing")
+            code, listed = invoke("--db", str(db), "--action", "list")
+            self.assertEqual(code, 0)
+            self.assertEqual(listed["watches"], [])
 
     def test_cli_refresh_environment_selects_sandbox(self):
         with tempfile.TemporaryDirectory() as directory:
