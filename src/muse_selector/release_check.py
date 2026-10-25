@@ -33,6 +33,22 @@ def _valid_live_smoke_evidence(value: Mapping[str, Any] | None) -> bool:
     if not isinstance(value, Mapping):
         return False
     metadata = value.get("source_metadata")
+    capability = value.get("source_capability")
+    capability_ok = (
+        isinstance(capability, Mapping)
+        and capability.get("source_id") == "ebay.browse.hk.v1"
+        and capability.get("access_mode") == "official_api"
+        and capability.get("status") == "ready"
+        and capability.get("read_only") is True
+        and capability.get("listing_search") is True
+    )
+    recommended_count = value.get("recommended_count", 0)
+    coverage = value.get("evidence_coverage_min")
+    coverage_ok = (
+        recommended_count == 0
+        or isinstance(coverage, (int, float))
+        and float(coverage) >= 0.95
+    )
     return (
         value.get("schema_version") == "muse.selector.v1"
         and value.get("ok") is True
@@ -41,6 +57,8 @@ def _valid_live_smoke_evidence(value: Mapping[str, Any] | None) -> bool:
         and value.get("read_only") is True
         and isinstance(metadata, Mapping)
         and metadata.get("environment") in {"production", "sandbox"}
+        and capability_ok
+        and coverage_ok
     )
 
 

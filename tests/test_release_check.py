@@ -35,6 +35,14 @@ class ReleaseCheckTests(unittest.TestCase):
                 "source": "ebay.browse.hk.v1",
                 "read_only": True,
                 "source_metadata": {"environment": "sandbox"},
+                "source_capability": {
+                    "source_id": "ebay.browse.hk.v1",
+                    "access_mode": "official_api",
+                    "status": "ready",
+                    "read_only": True,
+                    "listing_search": True,
+                },
+                "recommended_count": 0,
             }), encoding="utf-8")
             result = run_release_check(root)
         self.assertTrue(result["local_ready"])
