@@ -472,9 +472,20 @@ class SelectorStore:
             change_summary = watch_change_summary(previous_payload, payload)
             encoded_change_summary = _canonical(change_summary)
             if previous_payload and watch_content_fingerprint(previous_payload) == watch_content_fingerprint(payload):
+                observed_at = _now()
                 conn.execute(
                     "UPDATE watches SET last_refreshed_at = ?, last_change_summary_json = ? WHERE watch_id = ?",
-                    (_now(), encoded_change_summary, watch_id),
+                    (observed_at, encoded_change_summary, watch_id),
+                )
+                # Backfill the first checkpoint for databases upgraded from a
+                # schema that had last_change_summary but no history table.
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO watch_changes(
+                        watch_id, observed_at, run_id, changed, summary_json
+                    ) VALUES (?, ?, ?, 0, ?)
+                    """,
+                    (watch_id, observed_at, str(previous_run_id), encoded_change_summary),
                 )
                 return {
                     "watch_id": watch_id,

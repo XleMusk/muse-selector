@@ -274,6 +274,24 @@ class PersistenceTests(unittest.TestCase):
                 store.list_watch_changes(watch_id, offset=-1)
             self.assertEqual(len(store.list_watch_changes(watch_id, limit=1, offset=1)), 0)
 
+    def test_watch_change_history_backfills_an_upgraded_checkpoint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db_path = Path(directory) / "selector.sqlite3"
+            store = SelectorStore(db_path)
+            watch_id = store.add_watch("香港预算 HKD 7000 以内的迷你主机", FIXTURE, watch_id="watch_backfill")
+            first = store.refresh_watch(watch_id)
+            conn = store._connect()
+            try:
+                conn.execute("DELETE FROM watch_changes WHERE watch_id = ?", (watch_id,))
+                conn.commit()
+            finally:
+                conn.close()
+            second = store.refresh_watch(watch_id)
+            self.assertFalse(second["changed"])
+            history = store.list_watch_changes(watch_id)
+            self.assertEqual(len(history), 1)
+            self.assertEqual(history[0]["run_id"], first["run_id"])
+
     def test_live_watch_unavailable_is_saved_as_read_only_state(self):
         with tempfile.TemporaryDirectory() as directory:
             store = SelectorStore(Path(directory) / "selector.sqlite3")
