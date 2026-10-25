@@ -55,6 +55,53 @@ def watch_content_fingerprint(payload: Mapping[str, Any]) -> str:
     return hashlib.sha256(_canonical(stable).encode("utf-8")).hexdigest()
 
 
+def watch_change_summary(
+    previous_payload: Mapping[str, Any] | None,
+    current_payload: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Describe recommendation changes without exposing volatile timestamps.
+
+    The summary is derived from persisted result-card content and is returned
+    by a watch refresh.  It is intentionally not part of the stored payload,
+    so run IDs and replay remain deterministic for the same source result.
+    """
+
+    def cards_by_id(payload: Mapping[str, Any] | None) -> dict[str, Any]:
+        if not isinstance(payload, Mapping):
+            return {}
+        cards = payload.get("recommended")
+        if not isinstance(cards, list):
+            return {}
+        result: dict[str, Any] = {}
+        for card in cards:
+            if not isinstance(card, Mapping):
+                continue
+            listing_id = card.get("listing_id")
+            if listing_id in (None, ""):
+                continue
+            result[str(listing_id)] = _watch_stable_value(dict(card))
+        return result
+
+    previous_cards = cards_by_id(previous_payload)
+    current_cards = cards_by_id(current_payload)
+    previous_ids = set(previous_cards)
+    current_ids = set(current_cards)
+    changed = sorted(
+        listing_id
+        for listing_id in previous_ids & current_ids
+        if previous_cards[listing_id] != current_cards[listing_id]
+    )
+    previous_status = previous_payload.get("status") if isinstance(previous_payload, Mapping) else None
+    current_status = current_payload.get("status") if isinstance(current_payload, Mapping) else None
+    return {
+        "has_previous": previous_payload is not None,
+        "status_changed": previous_payload is not None and previous_status != current_status,
+        "added_listing_ids": sorted(current_ids - previous_ids),
+        "removed_listing_ids": sorted(previous_ids - current_ids),
+        "changed_listing_ids": changed,
+    }
+
+
 class SelectorStore:
     """Small SQLite store for runs, result cards and read-only watch specs."""
 
@@ -332,6 +379,7 @@ class SelectorStore:
                 raise ValueError(f"watch changed during refresh: {watch_id}")
 
             previous_run_id = current["last_run_id"]
+            previous_payload = None
             if previous_run_id:
                 previous = conn.execute(
                     "SELECT payload_json FROM runs WHERE run_id = ?", (previous_run_id,)
@@ -346,6 +394,7 @@ class SelectorStore:
                         "watch_id": watch_id,
                         "run_id": previous_run_id,
                         "changed": False,
+                        "change_summary": watch_change_summary(previous_payload, payload),
                         "payload": payload,
                     }
 
@@ -354,5 +403,11 @@ class SelectorStore:
                 "UPDATE watches SET last_run_id = ?, last_refreshed_at = ? WHERE watch_id = ?",
                 (run_id, _now(), watch_id),
             )
-        return {"watch_id": watch_id, "run_id": run_id, "changed": inserted, "payload": payload}
+        return {
+            "watch_id": watch_id,
+            "run_id": run_id,
+            "changed": inserted,
+            "change_summary": watch_change_summary(previous_payload, payload),
+            "payload": payload,
+        }
 

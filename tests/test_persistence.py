@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from muse_selector.persistence import SelectorStore, watch_content_fingerprint
+from muse_selector.persistence import SelectorStore, watch_change_summary, watch_content_fingerprint
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -155,6 +155,32 @@ class PersistenceTests(unittest.TestCase):
         self.assertEqual(watch_content_fingerprint(base), watch_content_fingerprint(later))
         self.assertNotEqual(watch_content_fingerprint(base), watch_content_fingerprint(changed))
 
+    def test_watch_change_summary_tracks_listing_and_status_changes(self):
+        previous = {
+            "status": "complete",
+            "recommended": [
+                {"listing_id": "same", "title": "same", "source_observed_at": "2026-10-24T00:00:00Z"},
+                {"listing_id": "removed", "title": "removed"},
+            ],
+        }
+        current = {
+            "status": "source_unavailable",
+            "recommended": [
+                {"listing_id": "same", "title": "updated", "source_observed_at": "2026-10-24T00:05:00Z"},
+                {"listing_id": "added", "title": "added"},
+            ],
+        }
+        self.assertEqual(
+            watch_change_summary(previous, current),
+            {
+                "has_previous": True,
+                "status_changed": True,
+                "added_listing_ids": ["added"],
+                "removed_listing_ids": ["removed"],
+                "changed_listing_ids": ["same"],
+            },
+        )
+
     def test_run_is_idempotent_and_cards_are_queryable(self):
         with tempfile.TemporaryDirectory() as directory:
             store = SelectorStore(Path(directory) / "selector.sqlite3")
@@ -162,7 +188,19 @@ class PersistenceTests(unittest.TestCase):
             first = store.refresh_watch(watch_id)
             second = store.refresh_watch(watch_id)
             self.assertTrue(first["changed"])
+            self.assertEqual(first["change_summary"]["has_previous"], False)
+            self.assertEqual(len(first["change_summary"]["added_listing_ids"]), 1)
             self.assertFalse(second["changed"])
+            self.assertEqual(
+                second["change_summary"],
+                {
+                    "has_previous": True,
+                    "status_changed": False,
+                    "added_listing_ids": [],
+                    "removed_listing_ids": [],
+                    "changed_listing_ids": [],
+                },
+            )
             self.assertEqual(first["run_id"], second["run_id"])
             self.assertTrue(store.get_run(first["run_id"])["read_only"])
             self.assertEqual(len(store.list_cards(first["run_id"])), 1)
