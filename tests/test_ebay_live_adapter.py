@@ -144,6 +144,29 @@ class _TransientStatusOpener:
         return _Response({"itemSummaries": []})
 
 
+class _RetryAfterHttpErrorOpener(_TransientStatusOpener):
+    def __init__(self, retry_after):
+        super().__init__({"POST": 1})
+        self.retry_after = retry_after
+
+    def open(self, request, timeout=None):
+        method = request.get_method()
+        self.requests.append((method, request.full_url, dict(request.headers)))
+        remaining = self.failures_by_method.get(method, 0)
+        if remaining:
+            self.failures_by_method[method] = remaining - 1
+            raise HTTPError(
+                request.full_url,
+                429,
+                "rate limited",
+                hdrs={"Retry-After": self.retry_after},
+                fp=io.BytesIO(b'{"error":"temporary"}'),
+            )
+        if request.full_url.endswith("/identity/v1/oauth2/token"):
+            return _Response({"access_token": "test-token", "expires_in": 7200})
+        return _Response({"itemSummaries": []})
+
+
 class EbayLiveAdapterTests(unittest.TestCase):
     def test_default_redirect_handler_does_not_replay_credentials(self):
         self.assertIsNone(_NoRedirectHandler().redirect_request(None, None, 302, "found", {}, "https://evil.example"))
@@ -358,6 +381,19 @@ class EbayLiveAdapterTests(unittest.TestCase):
             connector.search({"query": "mini pc"})
         self.assertEqual([method for method, _, _ in opener.requests], ["POST", "POST", "GET"])
         sleep.assert_called_once_with(0.01)
+
+    def test_retry_after_header_overrides_backoff_and_is_bounded(self):
+        opener = _RetryAfterHttpErrorOpener("60")
+        connector = EbayBrowseConnector(
+            config=EbayConnectorConfig(max_retries=1, retry_backoff_seconds=0.01),
+            client_id="id",
+            client_secret="secret",
+            opener=opener,
+        )
+        with patch("muse_selector.connectors.ebay.time.sleep") as sleep:
+            connector.search({"query": "mini pc"})
+        self.assertEqual([method for method, _, _ in opener.requests], ["POST", "POST", "GET"])
+        sleep.assert_called_once_with(30.0)
 
     def test_retryable_browse_status_is_retried_without_retrying_non_transient_errors(self):
         opener = _TransientStatusOpener({"GET": 1})

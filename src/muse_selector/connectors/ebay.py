@@ -18,6 +18,7 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -113,6 +114,7 @@ class EbayBrowseConnector:
     source_id = "ebay.browse.hk.v1"
     _RESPONSE_METADATA_FIELDS = ("href", "next", "prev", "total", "limit", "offset")
     _RETRYABLE_HTTP_STATUSES = frozenset({429, 500, 502, 503, 504})
+    _MAX_RETRY_AFTER_SECONDS = 30.0
 
     def __init__(
         self,
@@ -225,10 +227,37 @@ class EbayBrowseConnector:
                 text = text.replace(candidate, "[redacted]")
         return text
 
-    def _retry_delay(self, attempt: int) -> None:
+    @classmethod
+    def _retry_after_seconds(cls, headers: Any) -> float | None:
+        """Parse a bounded Retry-After value from an official response."""
+
+        if headers is None:
+            return None
+        getter = getattr(headers, "get", None)
+        raw = getter("Retry-After") if callable(getter) else None
+        if raw in (None, ""):
+            return None
+        text = str(raw).strip()
+        try:
+            delay = float(text)
+        except (TypeError, ValueError):
+            try:
+                retry_at = parsedate_to_datetime(text)
+                if retry_at.tzinfo is None:
+                    retry_at = retry_at.replace(tzinfo=timezone.utc)
+                delay = (retry_at - datetime.now(timezone.utc)).total_seconds()
+            except (TypeError, ValueError, OverflowError):
+                return None
+        if not math.isfinite(delay) or delay < 0:
+            return None
+        return min(delay, cls._MAX_RETRY_AFTER_SECONDS)
+
+    def _retry_delay(self, attempt: int, headers: Any = None) -> None:
         """Back off between bounded retries without retrying arbitrary errors."""
 
-        delay = float(self.config.retry_backoff_seconds) * (2**attempt)
+        delay = self._retry_after_seconds(headers)
+        if delay is None:
+            delay = float(self.config.retry_backoff_seconds) * (2**attempt)
         if delay > 0:
             time.sleep(delay)
 
@@ -243,7 +272,7 @@ class EbayBrowseConnector:
             except urllib.error.HTTPError as exc:
                 detail = exc.read().decode("utf-8", errors="replace")[:500]
                 if exc.code in self._RETRYABLE_HTTP_STATUSES and attempt < self.config.max_retries:
-                    self._retry_delay(attempt)
+                    self._retry_delay(attempt, getattr(exc, "headers", None) or getattr(exc, "hdrs", None))
                     continue
                 raise ConnectorUnavailable(
                     self._redact_error(f"eBay {context} HTTP {exc.code}: {detail}", *sensitive)
@@ -251,7 +280,7 @@ class EbayBrowseConnector:
             except (urllib.error.URLError, TimeoutError) as exc:
                 raise ConnectorUnavailable(self._redact_error(f"eBay {context} unavailable: {exc}", *sensitive)) from exc
             if status in self._RETRYABLE_HTTP_STATUSES and attempt < self.config.max_retries:
-                self._retry_delay(attempt)
+                self._retry_delay(attempt, getattr(response, "headers", None))
                 continue
             return status, body
         raise ConnectorUnavailable(f"eBay {context} retry loop exhausted")  # pragma: no cover
