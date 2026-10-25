@@ -205,6 +205,7 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("打开原平台", report)
         self.assertIn("来源标识：ebay.browse.hk.v1", report)
         self.assertIn("来源：ebay.browse.hk.v1", report)
+        self.assertIn(r"来源能力：official\_api", report)
         self.assertIn("只读状态：true", report)
         self.assertIn("来源观测时间", report)
         self.assertIn("保修：unknown", report)

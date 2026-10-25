@@ -270,7 +270,8 @@ def render_html(payload: dict[str, Any], query: str) -> str:
         ) or "<li>无</li>"
         body = (
             f"<section class='summary'><p>地区/币种：{_text(spec.get('region'))} / {_text(spec.get('currency'))}</p>"
-            f"<p>预算上限：{_text(spec.get('budget_max') or '未指定')}</p></section>"
+            f"<p>预算上限：{_text(spec.get('budget_max') or '未指定')}</p>"
+            f"<p>来源能力：{_text((payload.get('source_capability') or {}).get('access_mode') or 'unknown')}</p></section>"
             f"{_source_metadata_markup(payload)}"
             "<h2>推荐结果</h2>"
             f"<div class='cards'>{''.join(cards) or '<p>没有满足全部硬约束的结果。</p>'}</div>"

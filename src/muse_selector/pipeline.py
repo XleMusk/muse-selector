@@ -14,6 +14,7 @@ from .query_parser import PolicyBlockedError, has_explicit_unbounded_budget, par
 from .ports import SourceConnector
 from .result_card import build_card
 from .ranking import SOURCE_ORDER_PROFILE
+from .source_capabilities import source_capability_registry
 
 
 # Compatibility aliases for callers that imported the former private helpers.
@@ -29,6 +30,11 @@ _ALLOWED_SOURCE_HOSTS = frozenset(
         "www.ebay.com",
     }
 )
+
+
+def _source_capability(source_id: str) -> dict[str, Any] | None:
+    capability = source_capability_registry().get(source_id)
+    return capability.to_dict() if capability is not None else None
 
 
 def _allowed_source_url(value: str) -> bool:
@@ -225,6 +231,7 @@ def run_search(
             "dropped": [],
             "source": source_id,
             "source_metadata": source_metadata,
+            "source_capability": _source_capability(source_id),
             "read_only": True,
         }
     source_metadata = connector.source_metadata
@@ -310,6 +317,7 @@ def run_search(
         "dropped": dropped,
         "source": source_id,
         "source_metadata": source_metadata,
+        "source_capability": _source_capability(source_id),
         "read_only": True,
     }
 

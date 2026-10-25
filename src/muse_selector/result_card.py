@@ -151,6 +151,7 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
         f"地区/币种：{spec['region']} / {spec['currency']}",
         f"预算上限：{spec.get('budget_max') or '未指定'}",
         f"来源：{_markdown_untrusted(payload.get('source') or 'unknown')}",
+        f"来源能力：{_markdown_untrusted((payload.get('source_capability') or {}).get('access_mode') or 'unknown')}",
         "只读状态：true",
         "",
         "## 推荐结果",
