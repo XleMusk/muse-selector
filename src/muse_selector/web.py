@@ -345,7 +345,20 @@ def make_handler(
                 }
                 run_id = watch.get("last_run_id")
                 if run_id:
-                    result["payload"] = store.replay_run(str(run_id))
+                    try:
+                        result["payload"] = store.replay_run(str(run_id))
+                    except KeyError as exc:
+                        self._send_json(
+                            409,
+                            {
+                                "ok": False,
+                                "status": "watch_unavailable",
+                                "message": str(exc.args[0]) if exc.args else str(exc),
+                                "watch_id": watch_id,
+                                "read_only": True,
+                            },
+                        )
+                        return
                 self._send_json(200, result)
                 return
             if parsed.path == "/api/watch/changes":

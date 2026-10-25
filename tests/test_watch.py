@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from muse_selector.persistence import SelectorStore
 from muse_selector.watch import default_watch_id, main
 
 
@@ -175,6 +176,26 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(code, 2)
             payload = json.loads(output.getvalue())
             self.assertEqual(payload["payload"]["source_metadata"]["environment"], "sandbox")
+
+    def test_cli_status_reports_missing_checkpoint_without_traceback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / "watch.sqlite3"
+            store = SelectorStore(db)
+            watch_id = store.add_watch("香港预算 HKD 7000 以内的迷你主机", FIXTURE, watch_id="watch_missing_run")
+            with store._connection() as conn:
+                conn.execute("UPDATE watches SET last_run_id = ? WHERE watch_id = ?", ("missing-run", watch_id))
+            output = io.StringIO()
+            with patch.object(
+                sys,
+                "argv",
+                ["muse-watch", "--db", str(db), "--action", "status", "--watch-id", watch_id],
+            ), contextlib.redirect_stdout(output):
+                code = main()
+            payload = json.loads(output.getvalue())
+        self.assertEqual(code, 2)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["status"], "watch_unavailable")
+        self.assertEqual(payload["message"], "unknown run_id: missing-run")
 
 
 if __name__ == "__main__":

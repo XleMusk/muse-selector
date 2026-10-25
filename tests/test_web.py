@@ -384,6 +384,36 @@ class WebTests(unittest.TestCase):
                 server.server_close()
                 thread.join(timeout=2)
 
+    def test_watch_endpoint_reports_missing_checkpoint_without_traceback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            watch_id = store.add_watch(
+                "香港预算 HKD 7000 以内的迷你主机",
+                FIXTURE,
+                watch_id="watch_missing_run_web",
+            )
+            with store._connection() as conn:
+                conn.execute("UPDATE watches SET last_run_id = ? WHERE watch_id = ?", ("missing-run", watch_id))
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE, store))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with self.assertRaises(HTTPError) as error:
+                    urlopen(
+                        f"http://127.0.0.1:{server.server_port}/api/watch?watch_id={watch_id}",
+                        timeout=2,
+                    )
+                self.assertEqual(error.exception.code, 409)
+                payload = json.loads(error.exception.read().decode("utf-8"))
+                self.assertFalse(payload["ok"])
+                self.assertEqual(payload["status"], "watch_unavailable")
+                self.assertEqual(payload["message"], "unknown run_id: missing-run")
+                self.assertEqual(payload["schema_version"], RESULT_SCHEMA_VERSION)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
     def test_local_server_json_search_endpoint_reuses_read_only_pipeline(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
         thread = threading.Thread(target=server.serve_forever, daemon=True)

@@ -162,7 +162,10 @@ def main() -> int:
                 "read_only": True,
             }
             if watch.get("last_run_id"):
-                result["payload"] = store.replay_run(str(watch["last_run_id"]))
+                try:
+                    result["payload"] = store.replay_run(str(watch["last_run_id"]))
+                except KeyError as exc:
+                    return _print_error("status", "watch_unavailable", _exception_message(exc))
         else:
             if (
                 args.query is None
