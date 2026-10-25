@@ -9,6 +9,22 @@
 
 因此，国内主线的第一步是获得官方搜索能力或合作方授权；系统不会使用 Cookie、私有接口、逆向签名或网页批量抓取来填补这个缺口。详见 [scope_decision.md](scope_decision.md) 和 [acceptance_matrix.md](acceptance_matrix.md)。
 
+### 转转官方 MCP 估价辅助
+
+转转官方 MCP 已接入为独立的只读辅助连接器。它通过官方 Streamable HTTP 网关调用 `recycle_valuation` 和 `open_recycle_entry`，用于识别商品、返回人民币回收区间或生成用户自行打开的回收入口；它不提供通用挂牌搜索，也不会代用户下单。
+
+先在[转转开放平台 MCP 控制台](https://open.zhuanzhuan.com/mcp)完成手机号验证并取得 Token，再在 PowerShell 中执行一次性 smoke。Token 只从当前进程环境读取，不会写入结果或仓库：
+
+```powershell
+$env:ZHUANZHUAN_MCP_TOKEN = "<official-mcp-token>"
+$env:PYTHONPATH = "D:\\muse\\src"
+muse-zhuanzhuan-smoke --query "ThinkPad X1 Carbon，16GB，电池健康良好，成色良好"
+```
+
+追加 `--image-url` 可传入公开图片地址，最多 35 个；需要入口时可追加 `--open-entry`。没有 Token、Token 过期、权限不足或网关不可用时，命令返回 `source_unavailable` 和退出码 `2`，不会回退到网页抓取或 eBay。
+
+官方字段契约和能力边界见[回收估价文档](https://open.zhuanzhuan.com/docs/zai-transfer-mcp/recycle-valuation)、[回收入口文档](https://open.zhuanzhuan.com/docs/zai-transfer-mcp/open-recycle-entry)以及[转转 MCP 总览](https://open.zhuanzhuan.com/mcp)。
+
 ## 直接运行
 
 在 PowerShell 中从 `D:\muse` 执行：
@@ -199,6 +215,7 @@ $env:MUSE_SOURCE_EBAY_BROWSE_HK_DISABLED = "1"
 - `src/muse_selector/contracts.py`：`SearchSpec`、`Listing`、`Product`、`Evidence`、`PolicyRecord`。
 - `src/muse_selector/query_parser.py`：只解析用户明确写出的预算和硬件规格。
 - `src/muse_selector/connectors/ebay.py`：fixture/官方 Browse API 只读连接器。
+- `src/muse_selector/connectors/zhuanzhuan.py`：转转官方 MCP 估价/回收入口只读连接器。
 - `src/muse_selector/pipeline.py`：解析、来源查询、规范化、硬过滤和结果卡。
 - `src/muse_selector/result_card.py`：JSON/Markdown 结果卡。
 - `tests/fixtures/search_queries_v1.json`：20 条可解析的首版 SearchSpec 样例。

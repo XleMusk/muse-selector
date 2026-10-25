@@ -21,7 +21,8 @@
 | 账号登录、购买、转移、代打、支付和平台控制绕过 | `src/muse_selector/query_parser.py`、`scope_decision.md` | 已排除并阻断 |
 | GitHub 主线自动验证 | `.github/workflows/ci.yml` | 最新 CI 通过 |
 | CN/CNY 国内市场 SearchSpec 与来源路由 | `src/muse_selector/contracts.py`、`src/muse_selector/query_parser.py`、`src/muse_selector/pipeline.py`、`tests/test_query_parser.py`、`tests/test_pipeline.py` | 契约和 fail-closed 路由已通过；官方挂牌搜索连接器待授权 |
-| 闲鱼/转转官方能力登记 | `data/source_registry.yaml`、`scope_decision.md` | 闲鱼 link-only/pending；转转官方 MCP 仅估价/回收入口 |
+| 转转官方 MCP 估价/回收入口适配 | `src/muse_selector/connectors/zhuanzhuan.py`、`tests/test_zhuanzhuan_connector.py`、`src/muse_selector/zhuanzhuan_smoke.py` | 官方 Streamable HTTP 工具调用、字段归一化、Token 缺失/权限错误 fail-closed 已通过；不作为挂牌搜索来源 |
+| 闲鱼/转转官方能力登记 | `data/source_registry.yaml`、`scope_decision.md` | 闲鱼 link-only/pending；转转官方 MCP 估价/回收入口适配已完成 |
 
 ## 当前外部验收门
 
@@ -35,4 +36,4 @@ muse-live-smoke --query "香港 RTX 4070 显卡，预算 HKD 9000"
 
 没有凭据或生产访问尚未开通时，预期结果是 `source_unavailable`、`read_only=true`、退出码 `2`。在生产批准、凭据和真实响应都验证前，不把 fixture 或模拟 opener 宣称为实时市场成功。
 
-中国大陆挂牌搜索还需要闲鱼或其他国内平台提供明确的官方搜索权限/合作方接口。转转当前官方能力是估价和回收入口，不能作为挂牌搜索验收门；取得 Token 后可单独验证估价辅助链路。
+中国大陆挂牌搜索还需要闲鱼或其他国内平台提供明确的官方搜索权限/合作方接口。转转当前官方能力仍是估价和回收入口，不能作为挂牌搜索验收门；取得 Token 后可运行 `muse-zhuanzhuan-smoke` 验证估价辅助链路。

@@ -12,6 +12,7 @@ requires-python = ">=3.10"
 muse-selector = "muse_selector.cli:main"
 muse-watch = "muse_selector.watch:main"
 muse-live-smoke = "muse_selector.smoke:main"
+muse-zhuanzhuan-smoke = "muse_selector.zhuanzhuan_smoke:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
