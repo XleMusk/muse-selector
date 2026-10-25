@@ -232,6 +232,9 @@ def render_html(payload: dict[str, Any], query: str) -> str:
             evidence = "".join(
                 f"<li><code>{_text(item.get('field'))}</code> · {_text(item.get('status'))} · "
                 f"观测时间：{_text(item.get('observed_at') or 'unknown')} · "
+                f"提取：{_text(item.get('extraction_method') or 'unknown')} · "
+                f"原始字段：{_text(item.get('raw_field') or 'unknown')} · "
+                f"标准化：{_text(item.get('normalization_rule') or 'unknown')} · "
                 f"证据：{_evidence_excerpt(item)} · {_text(item.get('source_url'))}</li>"
                 for item in card.get("evidence", [])
             ) or "<li>unknown</li>"

@@ -180,7 +180,10 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
             f"- 证据字段：{_markdown_untrusted(', '.join(item['field'] for item in card['evidence']) or 'unknown')}",
             f"- 证据标识：{_markdown_untrusted(', '.join(card.get('evidence_ids') or ()) or 'unknown')}",
             *[
-                f"- 证据片段（{_markdown_untrusted(item.get('field') or 'unknown')}）：{_evidence_excerpt(item)}"
+                f"- 证据片段（{_markdown_untrusted(item.get('field') or 'unknown')}）：{_evidence_excerpt(item)}；"
+                f"提取：{_markdown_untrusted(item.get('extraction_method') or 'unknown')}；"
+                f"原始字段：{_markdown_untrusted(item.get('raw_field') or 'unknown')}；"
+                f"标准化：{_markdown_untrusted(item.get('normalization_rule') or 'unknown')}"
                 for item in card.get('evidence', [])
             ],
             "",
