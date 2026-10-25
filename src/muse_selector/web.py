@@ -62,6 +62,25 @@ def _safe_manual_href(value: Any) -> str:
     return candidate
 
 
+def _source_metadata_markup(payload: dict[str, Any]) -> str:
+    """Render bounded source response metadata without trusting source text."""
+
+    metadata = payload.get("source_metadata")
+    if not isinstance(metadata, dict) or not metadata:
+        return ""
+    # Keep this as escaped JSON so new connector metadata becomes visible
+    # without needing a template change, while preserving a safe text-only UI.
+    serialized = json.dumps(metadata, ensure_ascii=False, sort_keys=True, indent=2)
+    if len(serialized) > 8000:
+        serialized = serialized[:7997] + "..."
+    source = payload.get("source") or "unknown"
+    return (
+        "<details class='source-metadata'><summary>来源元数据</summary>"
+        f"<p>来源：<code>{_text(source)}</code></p>"
+        f"<pre>{_text(serialized)}</pre></details>"
+    )
+
+
 def _validate_bind_host(host: str) -> str:
     """Keep the local result page on loopback to prevent cross-tenant reads."""
 
@@ -197,6 +216,7 @@ def render_html(payload: dict[str, Any], query: str) -> str:
         body = (
             f"<section class='summary'><p>地区/币种：{_text(spec.get('region'))} / {_text(spec.get('currency'))}</p>"
             f"<p>预算上限：{_text(spec.get('budget_max') or '未指定')}</p></section>"
+            f"{_source_metadata_markup(payload)}"
             "<h2>推荐结果</h2>"
             f"<div class='cards'>{''.join(cards) or '<p>没有满足全部硬约束的结果。</p>'}</div>"
             f"<details><summary>被过滤结果（{len(payload.get('rejected', []))}）</summary><ul>{rejected}</ul></details>"
@@ -205,7 +225,7 @@ def render_html(payload: dict[str, Any], query: str) -> str:
     return f"""<!doctype html><html lang='zh-Hans'><head><meta charset='utf-8'>
 <meta name='viewport' content='width=device-width, initial-scale=1'>
 <title>Muse Selector · 香港硬件只读筛选</title>
-<style>body{{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:1100px;margin:0 auto;padding:24px;background:#f6f7f9;color:#1f2937}}h1{{margin-bottom:4px}}.muted{{color:#64748b;font-size:.9rem}}form{{display:flex;gap:8px;margin:20px 0}}input{{flex:1;padding:11px;border:1px solid #cbd5e1;border-radius:8px;font-size:1rem}}button{{padding:11px 18px;border:0;border-radius:8px;background:#2563eb;color:white;cursor:pointer}}.cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}}.card,.summary,.notice,details{{background:white;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin:12px 0}}.card h2{{font-size:1.05rem;margin:0 0 8px}}.price{{font-weight:700;font-size:1.2rem;color:#0f766e}}code{{word-break:break-word}}a{{color:#1d4ed8}}.danger{{border-color:#fca5a5;background:#fff1f2}}ul{{padding-left:20px}}</style></head><body>
+<style>body{{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:1100px;margin:0 auto;padding:24px;background:#f6f7f9;color:#1f2937}}h1{{margin-bottom:4px}}.muted{{color:#64748b;font-size:.9rem}}form{{display:flex;gap:8px;margin:20px 0}}input{{flex:1;padding:11px;border:1px solid #cbd5e1;border-radius:8px;font-size:1rem}}button{{padding:11px 18px;border:0;border-radius:8px;background:#2563eb;color:white;cursor:pointer}}.cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}}.card,.summary,.notice,details{{background:white;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin:12px 0}}.card h2{{font-size:1.05rem;margin:0 0 8px}}.price{{font-weight:700;font-size:1.2rem;color:#0f766e}}code{{word-break:break-word}}pre{{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0 0}}a{{color:#1d4ed8}}.danger{{border-color:#fca5a5;background:#fff1f2}}ul{{padding-left:20px}}</style></head><body>
 <h1>Muse Selector</h1><p class='muted'>香港电脑/硬件 · eBay HK · 只读结果页</p>
 <form method='get' action='/'><input name='q' value='{_text(query)}' aria-label='查询'><button type='submit'>筛选</button></form>
 <p class='muted'>来源数据、证据时间和风险状态均可展开查看；本页面没有登录、购买或写操作能力。</p>

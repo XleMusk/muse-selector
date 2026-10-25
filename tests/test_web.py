@@ -79,6 +79,27 @@ class WebTests(unittest.TestCase):
         self.assertIn("观测时间：2026-10-24T04:00:00Z", page)
         self.assertIn("证据：4999.00", page)
 
+    def test_render_shows_escaped_source_metadata(self):
+        payload = {
+            "ok": True,
+            "source": "ebay.browse.hk.v1",
+            "source_metadata": {
+                "href": "https://api.ebay.com/buy/browse/v1/item_summary/search?q=mini%20pc",
+                "total": 5,
+                "next": None,
+                "untrusted": "</pre><script>alert(1)</script>",
+            },
+            "search_spec": {"region": "HK", "currency": "HKD", "budget_max": "7000"},
+            "recommended": [],
+            "rejected": [],
+            "dropped": [],
+        }
+        page = render_html(payload, "mini pc")
+        self.assertIn("来源元数据", page)
+        self.assertIn("https://api.ebay.com/buy/browse/v1/item_summary/search", page)
+        self.assertIn("&quot;total&quot;: 5", page)
+        self.assertNotIn("<script>alert(1)</script>", page)
+
     def test_render_replaces_untrusted_href(self):
         payload = {
             "ok": True,
