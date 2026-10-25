@@ -148,6 +148,8 @@ python -m muse_selector --query "香港 RTX 4070 显卡，预算 HKD 9000" --for
 muse-live-smoke --query "香港 RTX 4070 显卡，预算 HKD 9000"
 ```
 
+成功时 smoke 还会输出 eBay 返回的来源页元数据（`href`、`total`、`limit`、`offset` 和分页链接），用于确认真实响应页已被抓取；它不会自动跟随 `next`。
+
 如需立即停用实时 eBay 来源，可设置来源注册表中的 kill switch；它会在 OAuth 请求之前 fail-closed，fixture 离线模式不受影响：
 
 ```powershell

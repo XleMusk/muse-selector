@@ -10,6 +10,29 @@ from muse_selector.smoke import main, summarize
 
 
 class SmokeTests(unittest.TestCase):
+    def test_summary_preserves_bounded_source_page_metadata(self):
+        summary = summarize({
+            "ok": True,
+            "status": "complete",
+            "source": "ebay.browse.hk.v1",
+            "read_only": True,
+            "source_metadata": {
+                "href": "https://api.ebay.com/buy/browse/v1/item_summary/search?q=mini%20pc",
+                "next": "https://api.ebay.com/buy/browse/v1/item_summary/search?offset=20",
+                "prev": None,
+                "total": 42,
+                "limit": 20,
+                "offset": 0,
+                "ignored": "drop me",
+            },
+            "recommended": [],
+            "rejected": [],
+            "dropped": [],
+        })
+        self.assertEqual(summary["source_metadata"]["total"], 42)
+        self.assertEqual(summary["source_metadata"]["limit"], 20)
+        self.assertNotIn("ignored", summary["source_metadata"])
+
     def test_summary_contains_no_credentials(self):
         summary = summarize({
             "ok": True,

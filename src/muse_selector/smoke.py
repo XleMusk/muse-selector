@@ -10,6 +10,24 @@ from typing import Any, Mapping
 from .pipeline import run_search
 
 
+def _safe_source_metadata(value: Any) -> dict[str, Any] | None:
+    """Keep only bounded Browse page metadata in the credential-free report."""
+
+    if not isinstance(value, Mapping):
+        return None
+    result: dict[str, Any] = {}
+    for field in ("href", "next", "prev"):
+        item = value.get(field)
+        if isinstance(item, str) and item:
+            result[field] = item
+        else:
+            result[field] = None
+    for field in ("total", "limit", "offset"):
+        item = value.get(field)
+        result[field] = item if isinstance(item, int) and not isinstance(item, bool) else None
+    return result
+
+
 def summarize(payload: Mapping[str, Any]) -> dict[str, Any]:
     """Return a credential-free live smoke summary."""
 
@@ -21,6 +39,7 @@ def summarize(payload: Mapping[str, Any]) -> dict[str, Any]:
         "recommended_count": len(payload.get("recommended") or []),
         "rejected_count": len(payload.get("rejected") or []),
         "dropped_count": len(payload.get("dropped") or []),
+        "source_metadata": _safe_source_metadata(payload.get("source_metadata")),
     }
     credential_count = sum(bool(os.getenv(name)) for name in ("EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET"))
     summary["credential_state"] = {0: "missing", 1: "partial", 2: "present"}[credential_count]
