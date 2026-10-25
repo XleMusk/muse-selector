@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import threading
 import unittest
 from http.server import ThreadingHTTPServer
@@ -7,7 +8,7 @@ from pathlib import Path
 from urllib.request import urlopen
 from unittest.mock import patch
 
-from muse_selector.web import capability_snapshot, make_handler, render_html, serve
+from muse_selector.web import capability_snapshot, main, make_handler, render_html, serve
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +16,14 @@ FIXTURE = ROOT / "tests" / "fixtures" / "ebay_hk_sample.json"
 
 
 class WebTests(unittest.TestCase):
+    def test_cli_environment_is_temporary_and_restored(self):
+        with patch.dict(os.environ, {"EBAY_ENVIRONMENT": "production"}, clear=False):
+            with patch("muse_selector.web.serve", side_effect=KeyboardInterrupt):
+                with patch.object(sys, "argv", ["muse-selector-web", "--environment", "sandbox"]):
+                    with self.assertRaises(KeyboardInterrupt):
+                        main()
+            self.assertEqual(os.environ["EBAY_ENVIRONMENT"], "production")
+
     def test_render_escapes_query_and_shows_read_only_fields(self):
         payload = {"ok": True, "search_spec": {"region": "HK", "currency": "HKD", "budget_max": "7000"}, "recommended": [], "rejected": [], "dropped": []}
         page = render_html(payload, "<script>alert(1)</script>")

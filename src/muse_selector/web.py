@@ -274,8 +274,18 @@ def main() -> int:
     parser.add_argument("--fixture", default=None, help="offline fixture; omit to use live read-only API")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--environment", choices=("sandbox", "production"), default=None)
     args = parser.parse_args()
-    serve(Path(args.fixture) if args.fixture else None, args.host, args.port)
+    previous_environment = os.environ.get("EBAY_ENVIRONMENT")
+    try:
+        if args.environment is not None:
+            os.environ["EBAY_ENVIRONMENT"] = args.environment
+        serve(Path(args.fixture) if args.fixture else None, args.host, args.port)
+    finally:
+        if previous_environment is None:
+            os.environ.pop("EBAY_ENVIRONMENT", None)
+        else:
+            os.environ["EBAY_ENVIRONMENT"] = previous_environment
     return 0
 
 

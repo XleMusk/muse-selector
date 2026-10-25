@@ -78,6 +78,14 @@ python -m muse_selector.web `
   --port 8765
 ```
 
+实时只读结果页可以显式选择 eBay 环境；进程退出后不会修改当前 PowerShell 会话的 `EBAY_ENVIRONMENT`：
+
+```powershell
+python -m muse_selector.web `
+  --environment sandbox `
+  --port 8765
+```
+
 然后打开 `http://127.0.0.1:8765/`。省略 `--fixture` 会进入实时只读路径；没有 eBay 官方凭据时页面显示 `source_unavailable`，不会偷偷回退到 fixture。
 结果页只绑定 `127.0.0.1` 或 `::1`，不会监听局域网地址，避免其他租户读取本地结果。
 同一个本地服务还提供结构化只读端点，便于前端或桌面壳直接消费结果：
