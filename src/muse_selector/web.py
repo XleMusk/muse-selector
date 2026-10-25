@@ -17,7 +17,8 @@ from .connectors.ebay import (
     credential_state as ebay_credential_state,
 )
 from .contracts import RESULT_SCHEMA_VERSION
-from .pipeline import _allowed_source_url, run_search
+from .pipeline import run_search
+from .url_policy import is_allowed_market_url
 from .persistence import SelectorStore
 
 
@@ -37,7 +38,7 @@ def _evidence_excerpt(item: dict[str, Any]) -> str:
 
 def _safe_href(value: Any) -> str:
     candidate = str(value or "")
-    return candidate if _allowed_source_url(candidate) else "#"
+    return candidate if is_allowed_market_url(candidate) else "#"
 
 
 def _safe_manual_href(value: Any) -> str:

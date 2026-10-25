@@ -7,8 +7,7 @@ from decimal import Decimal
 import re
 from typing import Any, Iterable, Mapping
 
-from .contracts import Evidence, Listing, SearchSpec
-from .filtering import FilterDecision
+from .contracts import Evidence, Listing
 
 
 @dataclass(frozen=True)

@@ -120,7 +120,7 @@ class ReadOnlyBrowserBroker:
         try:
             tree = reader(safe)
             clean_tree, redacted_count = _sanitize(tree)
-        except Exception:
+        except (OSError, RuntimeError, TypeError, ValueError):
             return {
                 "schema_version": BROWSER_SCHEMA_VERSION,
                 "ok": False,

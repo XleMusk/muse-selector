@@ -6,12 +6,13 @@ an absent field remains ``None``/``unknown`` instead of being guessed by a model
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field as dataclass_field
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 import math
 from typing import Any, Mapping
-from urllib.parse import urlparse
+
+from .url_policy import is_absolute_http_url
 
 
 # Nested domain objects retain the historical numeric version.  Result and
@@ -37,8 +38,7 @@ def _now_iso() -> str:
 def _http_url(value: str, name: str = "url") -> str:
     if not isinstance(value, str) or not value:
         raise ValueError(f"{name} must be a non-empty string")
-    parsed = urlparse(value)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+    if not is_absolute_http_url(value):
         raise ValueError(f"{name} must be an absolute http(s) URL")
     return value
 
@@ -80,8 +80,8 @@ class SearchSpec:
     currency: str = "HKD"
     budget_min: Decimal | None = None
     budget_max: Decimal | None = None
-    required_specs: Mapping[str, Any] = field(default_factory=dict)
-    preferred_specs: Mapping[str, Any] = field(default_factory=dict)
+    required_specs: Mapping[str, Any] = dataclass_field(default_factory=dict)
+    preferred_specs: Mapping[str, Any] = dataclass_field(default_factory=dict)
     condition: str = "new"
     stock_required: bool = True
     max_delivery_days: int | None = None
@@ -140,7 +140,7 @@ class Evidence:
     source_url: str
     field: str
     value: Any
-    observed_at: str = field(default_factory=_now_iso)
+    observed_at: str = dataclass_field(default_factory=_now_iso)
     quote: str | None = None
     status: str = "confirmed"
     confidence: float = 1.0
@@ -165,7 +165,7 @@ class Product:
     model: str | None = None
     mpn: str | None = None
     gtin: str | None = None
-    attributes: Mapping[str, Any] = field(default_factory=dict)
+    attributes: Mapping[str, Any] = dataclass_field(default_factory=dict)
     schema_version: str = SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -190,10 +190,10 @@ class Listing:
     tax: Decimal | None = None
     stock_status: str = "unknown"
     condition: str = "unknown"
-    specs: Mapping[str, Any] = field(default_factory=dict)
+    specs: Mapping[str, Any] = dataclass_field(default_factory=dict)
     product_id: str | None = None
     evidence_ids: tuple[str, ...] = ()
-    source_observed_at: str = field(default_factory=_now_iso)
+    source_observed_at: str = dataclass_field(default_factory=_now_iso)
     risk_flags: tuple[str, ...] = ()
     evidence_coverage: float = 0.0
     schema_version: str = SCHEMA_VERSION
@@ -240,7 +240,8 @@ class Listing:
             shipping = raw.get("shipping_cost")
             tax = raw.get("tax")
             currency = raw.get("currency", "HKD")
-        source = raw.get("source") if isinstance(raw.get("source"), Mapping) else {}
+        source_raw = raw.get("source")
+        source: Mapping[str, Any] = source_raw if isinstance(source_raw, Mapping) else {}
         source_id = raw.get("source_id", source.get("source_id", "unknown_source"))
         url = raw.get("url", source.get("url"))
         observed = raw.get("source_observed_at", source.get("observed_at", _now_iso()))
@@ -252,7 +253,8 @@ class Listing:
         flags = list(raw.get("risk_flags", ()))
         if risk in {"HIGH", "MEDIUM", "BLOCKED"}:
             flags.append(f"risk:{risk.lower()}")
-        field_status = raw.get("field_status", {})
+        field_status_raw = raw.get("field_status", {})
+        field_status = field_status_raw if isinstance(field_status_raw, Mapping) else {}
         if any(str(v).lower() in {"stale", "conflict"} for v in field_status.values()):
             flags.append("evidence_conflict_or_stale")
         evidence_ids = []
@@ -266,6 +268,8 @@ class Listing:
         coverage = raw.get("evidence_coverage")
         if coverage is None:
             coverage = len(confirmed_fields) / len(KEY_EVIDENCE_FIELDS)
+        shipping_value = _decimal(shipping, "shipping_cost")
+        tax_value = _decimal(tax, "tax")
         return cls(
             listing_id=str(raw.get("listing_id", "")),
             source_id=str(source_id),
@@ -274,8 +278,8 @@ class Listing:
             region=str(raw.get("region", "HK")),
             currency=str(currency),
             price=amount,
-            shipping_cost=shipping,
-            tax=tax,
+            shipping_cost=shipping_value,
+            tax=tax_value,
             stock_status=stock_map.get(str(stock).upper(), str(stock).lower()),
             condition=condition_map.get(str(condition).upper(), str(condition).lower()),
             specs=_copy_map(raw.get("specs")),
@@ -335,7 +339,7 @@ class PolicyRecord:
     allowed_fields: tuple[str, ...] = ()
     default_policy: str = "allow_read_only"
     write_actions: tuple[str, ...] = ()
-    reviewed_at: str = field(default_factory=_now_iso)
+    reviewed_at: str = dataclass_field(default_factory=_now_iso)
     schema_version: str = SCHEMA_VERSION
 
     def __post_init__(self) -> None:

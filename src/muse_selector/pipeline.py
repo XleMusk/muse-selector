@@ -2,22 +2,11 @@
 
 from __future__ import annotations
 
-import math
-import re
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping
-from urllib.parse import urlparse
+from typing import Any
 
 from .connectors.ebay import ConnectorUnavailable, EbayBrowseConnector
-from .contracts import (
-    ALLOWED_SOURCE_IDS,
-    ALLOWED_STATUSES,
-    KEY_EVIDENCE_FIELDS,
-    RESULT_SCHEMA_VERSION,
-    Evidence,
-    Listing,
-)
+from .contracts import RESULT_SCHEMA_VERSION, Evidence, Listing
 from .compatibility import build_compatibility_matrix
 from .filtering import filter_listings
 from .link_only import build_link_only_plan
@@ -25,76 +14,25 @@ from .query_parser import PolicyBlockedError, has_explicit_unbounded_budget, par
 from .result_card import build_card
 
 
-_RAM_TITLE = re.compile(r"(\d+)\s*GB\s*(?:RAM|内存|(?=\s+\d+(?:GB|TB)\s*(?:NVMe|SSD)))", re.I)
-_STORAGE_TITLE = re.compile(r"(\d+(?:\.\d+)?)\s*(GB|TB)\s*(?:NVMe|SSD|存储)", re.I)
-# Only infer VRAM when the title labels it explicitly.  A broad ``RTX ... GB``
-# pattern misread system RAM (for example ``RTX 4090 64GB RAM``) as VRAM.
-_VRAM_TITLE = re.compile(r"\b(?:RTX|GTX)\s*\d+\D+(\d+)\s*GB\s*(?:VRAM|显存)\b", re.I)
-_ALLOWED_SOURCE_HOSTS = {"ebay.com.hk", "www.ebay.com.hk", "ebay.com", "www.ebay.com"}
-_MIN_EVIDENCE_COVERAGE = 0.95
+# Compatibility aliases for callers that imported the former private helpers.
+from .source_normalizer import extract_specs as _extract_specs  # noqa: F401
+from .source_normalizer import normalize_source_row as _to_listing
+from .url_policy import is_allowed_market_url
+
+_ALLOWED_SOURCE_HOSTS = frozenset(
+    {
+        "ebay.com.hk",
+        "www.ebay.com.hk",
+        "ebay.com",
+        "www.ebay.com",
+    }
+)
 
 
 def _allowed_source_url(value: str) -> bool:
-    if not isinstance(value, str) or not value or any(ord(char) < 0x20 or ord(char) == 0x7f for char in value):
-        return False
-    try:
-        parsed = urlparse(value)
-        port = parsed.port
-    except ValueError:
-        return False
-    return (
-        parsed.scheme == "https"
-        and (parsed.hostname or "").lower() in _ALLOWED_SOURCE_HOSTS
-        and parsed.username is None
-        and parsed.password is None
-        and port in (None, 443)
-    )
+    """Backward-compatible name for the shared market URL policy."""
 
-
-def _extract_specs(title: str) -> dict[str, Any]:
-    specs: dict[str, Any] = {}
-    ram = _RAM_TITLE.search(title)
-    if ram:
-        specs["ram_gb"] = int(ram.group(1))
-    storage = _STORAGE_TITLE.search(title)
-    if storage:
-        specs["storage_gb"] = int(float(storage.group(1)) * (1024 if storage.group(2).upper() == "TB" else 1))
-    vram = _VRAM_TITLE.search(title)
-    if vram:
-        specs["vram_gb"] = int(vram.group(1))
-    if re.search(r"USB\s*4", title, re.I):
-        specs["usb4"] = True
-    return specs
-
-
-def _extract_delivery_max_days(shipping: Any, observed_at: str | None) -> int | None:
-    """Derive a conservative delivery bound from eBay's dated options."""
-
-    if not isinstance(shipping, list) or not observed_at or observed_at == "unknown":
-        return None
-    try:
-        observed = datetime.fromisoformat(str(observed_at).replace("Z", "+00:00"))
-        if observed.tzinfo is None:
-            observed = observed.replace(tzinfo=timezone.utc)
-    except (TypeError, ValueError):
-        return None
-    candidates: list[int] = []
-    for option in shipping:
-        if not isinstance(option, Mapping):
-            continue
-        raw_date = option.get("maxEstimatedDeliveryDate") or option.get("max_estimated_delivery_date")
-        if not isinstance(raw_date, str) or not raw_date:
-            continue
-        try:
-            delivery = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
-            if delivery.tzinfo is None:
-                delivery = delivery.replace(tzinfo=timezone.utc)
-        except ValueError:
-            continue
-        delta_days = math.ceil((delivery - observed).total_seconds() / 86400)
-        if delta_days >= 0:
-            candidates.append(delta_days)
-    return min(candidates) if candidates else None
+    return is_allowed_market_url(value, hosts=_ALLOWED_SOURCE_HOSTS)
 
 
 def _query_matches_title(query: str, title: str) -> bool:
@@ -136,108 +74,6 @@ def _fit_explanation(spec: Any, listing: Listing) -> tuple[float, dict[str, Any]
         "availability": listing.stock_status,
         "policy": "source_order_preserved",
     }
-
-
-def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], str | None]:
-    if not row.get("listing_id"):
-        return None, [], "missing_listing_id"
-    if row.get("source_id") not in ALLOWED_SOURCE_IDS:
-        return None, [], "untrusted_source_id"
-    if not row.get("title"):
-        return None, [], "missing_title"
-    url = row.get("url")
-    if not url:
-        return None, [], "missing_source_url"
-    if not _allowed_source_url(str(url)):
-        return None, [], "untrusted_source_url"
-    price = row.get("price") or {}
-    if str(price.get("currency") or "HKD") != "HKD":
-        return None, [], "currency_mismatch"
-    shipping = row.get("shipping_options")
-    shipping_values: list[Any] = []
-    if isinstance(shipping, list):
-        for option in shipping:
-            if not isinstance(option, dict):
-                continue
-            cost = option.get("shippingCost")
-            if not isinstance(cost, dict) or cost.get("value") is None:
-                continue
-            if str(cost.get("currency") or "HKD") != "HKD":
-                continue
-            shipping_values.append(cost["value"])
-    unique_shipping_values = {str(value) for value in shipping_values}
-    shipping_value = shipping_values[0] if len(unique_shipping_values) == 1 else None
-    feedback = (row.get("seller") or {}).get("feedback_percentage")
-    flags: list[str] = []
-    try:
-        if feedback is not None and float(feedback) < 90:
-            flags.append("seller_feedback_low")
-    except (TypeError, ValueError):
-        flags.append("seller_feedback_unknown")
-    if row.get("availability") == "unknown":
-        flags.append("availability_unknown")
-    if price.get("value") is None:
-        flags.append("price_unknown")
-    if not shipping_values:
-        flags.append("shipping_unknown")
-    elif len(unique_shipping_values) > 1:
-        flags.append("shipping_ambiguous")
-    evidence: list[Evidence] = []
-    evidence_attribution_issue = False
-    for index, item in enumerate(row.get("evidence") or []):
-        if not item.get("source_url") or not _allowed_source_url(str(item["source_url"])):
-            continue
-        evidence_source_id = str(item.get("source_id") or row.get("source_id") or "")
-        if evidence_source_id != str(row.get("source_id") or "") or str(item["source_url"]) != str(url):
-            evidence_attribution_issue = True
-            continue
-        value = item.get("value")
-        status = str(item.get("status") or "unknown")
-        if status not in ALLOWED_STATUSES or (status == "confirmed" and value in (None, "", [], {})):
-            status = "unknown"
-        evidence.append(Evidence(
-            evidence_id=f"{row['listing_id']}:ev:{index}",
-            source_id=str(item.get("source_id") or row.get("source_id")),
-            source_url=str(item["source_url"]),
-            field=str(item.get("field") or "unknown"),
-            value=value,
-            observed_at=str(item.get("observed_at") or "unknown"),
-            status=status,
-            confidence=1.0 if status == "confirmed" else 0.5,
-        ))
-    if any(item.status in {"stale", "conflict"} for item in evidence):
-        flags.append("evidence_conflict_or_stale")
-    if evidence_attribution_issue:
-        flags.append("evidence_source_mismatch")
-    observed_at = str(row.get("source_observed_at") or "unknown")
-    delivery_max_days = _extract_delivery_max_days(shipping, observed_at)
-    confirmed_fields = {item.field for item in evidence if item.status == "confirmed" and item.field in KEY_EVIDENCE_FIELDS}
-    evidence_coverage = round(len(confirmed_fields) / len(KEY_EVIDENCE_FIELDS), 4)
-    if evidence_coverage < _MIN_EVIDENCE_COVERAGE:
-        flags.append("evidence_coverage_low")
-    listing = Listing(
-        listing_id=str(row["listing_id"]),
-        source_id=str(row["source_id"]),
-        title=str(row.get("title") or "unknown"),
-        url=str(url),
-        region="HK",
-        currency=str(price.get("currency") or "HKD"),
-        price=price.get("value"),
-        shipping_cost=shipping_value,
-        stock_status={"IN_STOCK": "in_stock", "OUT_OF_STOCK": "out_of_stock"}.get(str(row.get("availability")), "unknown"),
-        condition={"New": "new", "Used": "used", "Refurbished": "refurbished"}.get(str(row.get("condition")), "unknown"),
-        specs={
-            **_extract_specs(str(row.get("title") or "")),
-            **(dict(row.get("specs")) if isinstance(row.get("specs"), Mapping) else {}),
-            **({"delivery_max_days": delivery_max_days} if delivery_max_days is not None else {}),
-        },
-        product_id=str(row.get("product_id")) if row.get("product_id") not in (None, "") else None,
-        evidence_ids=tuple(item.evidence_id for item in evidence),
-        source_observed_at=observed_at,
-        risk_flags=tuple(flags),
-        evidence_coverage=evidence_coverage,
-    )
-    return listing, evidence, None
 
 
 def run_search(

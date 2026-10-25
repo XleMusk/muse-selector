@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any, Iterable
 
 from .contracts import Listing, SearchSpec
@@ -26,7 +26,7 @@ def _matches(required: Any, actual: Any) -> bool:
     if isinstance(required, (int, float, Decimal)):
         try:
             return Decimal(str(actual)) >= Decimal(str(required))
-        except Exception:
+        except (InvalidOperation, TypeError, ValueError):
             return False
     return str(required).strip().lower() == str(actual).strip().lower()
 
@@ -59,7 +59,7 @@ def filter_listings(spec: SearchSpec, listings: Iterable[Listing]) -> tuple[list
                 try:
                     if Decimal(str(delivery_days)) > Decimal(str(spec.max_delivery_days)):
                         reasons.append("delivery_too_slow")
-                except Exception:
+                except (InvalidOperation, TypeError, ValueError):
                     reasons.append("delivery_unknown")
         for key, required in spec.required_specs.items():
             if key not in listing.specs or not _matches(required, listing.specs.get(key)):

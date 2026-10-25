@@ -21,6 +21,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Check engineering rules
+        run: |
+          python -m pip install --disable-pip-version-check ruff mypy
+          ruff check src/muse_selector
+          mypy
       - name: Verify installable CLI
         run: |
           python -m pip install --no-deps -e .
