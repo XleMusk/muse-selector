@@ -1,0 +1,60 @@
+{
+  "cases": [
+    {
+      "details": {
+        "expected": "ConnectorUnavailable"
+      },
+      "name": "oauth_http_error",
+      "ok": true
+    },
+    {
+      "details": {
+        "expected": "one retry",
+        "sleep_seconds": 30.0
+      },
+      "name": "oauth_retry_after_cap",
+      "ok": true
+    },
+    {
+      "details": {
+        "expected": "ConnectorUnavailable"
+      },
+      "name": "malformed_browse_response",
+      "ok": true
+    },
+    {
+      "details": {
+        "redacted": true
+      },
+      "name": "token_redaction",
+      "ok": true
+    },
+    {
+      "details": {
+        "expected": "missing checkpoint detected"
+      },
+      "name": "corrupt_checkpoint",
+      "ok": true
+    },
+    {
+      "details": {
+        "first_events": 2,
+        "stored_events": 2
+      },
+      "name": "duplicate_refresh_events",
+      "ok": true
+    },
+    {
+      "details": {
+        "ssrf_status": "policy_blocked",
+        "untrusted_text": true
+      },
+      "name": "ssrf_and_untrusted_text",
+      "ok": true
+    }
+  ],
+  "failed_cases": [],
+  "ok": true,
+  "read_only": true,
+  "schema_version": "muse.selector.faults.v1"
+}
