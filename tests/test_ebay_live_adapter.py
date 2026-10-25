@@ -202,6 +202,9 @@ class EbayLiveAdapterTests(unittest.TestCase):
         self.assertNotEqual(rows[0]["source_observed_at"], "2026-10-20T00:00:00.000Z")
         self.assertEqual(rows[0]["specs"], {"ram_gb": 32, "storage_gb": 1024, "vram_gb": 12, "usb4": True, "pd_watt": 100, "display_4k_count": 2})
         self.assertTrue(any(item["field"] == "specs" for item in rows[0]["evidence"]))
+        specs_evidence = next(item for item in rows[0]["evidence"] if item["field"] == "specs")
+        self.assertEqual(specs_evidence["raw_field"], "localizedAspects")
+        self.assertEqual(specs_evidence["normalization_rule"], "normalize_localized_aspects")
         self.assertEqual([method for method, _, _ in opener.requests], ["POST", "GET"])
         self.assertEqual(opener.requests[1][2].get("X-ebay-c-marketplace-id"), "EBAY_HK")
         self.assertEqual(

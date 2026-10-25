@@ -604,6 +604,21 @@ class EbayBrowseConnector:
         identity = {key: specs[key] for key in ("brand", "model", "mpn", "gtin", "epid") if key in specs}
         if identity:
             evidence_fields["identity"] = identity
+        raw_fields = {
+            "title": "title",
+            "url": "itemWebUrl",
+            "price": "price",
+            "condition": "condition",
+            "seller": "seller",
+            "shippingOptions": "shippingOptions",
+            "specs": "localizedAspects",
+            "itemEndDate": "itemEndDate",
+            "identity": "identity_fields",
+        }
+        normalization_rules = {
+            "specs": "normalize_localized_aspects",
+            "identity": "normalize_identity_fields",
+        }
         evidence = [
             {
                 "field": field,
@@ -611,6 +626,9 @@ class EbayBrowseConnector:
                 "source_id": self.source_id,
                 "source_url": item.get("itemWebUrl"),
                 "observed_at": observed_at,
+                "extraction_method": "source_json",
+                "raw_field": raw_fields.get(field, field),
+                "normalization_rule": normalization_rules.get(field, "source_field"),
                 "status": "confirmed" if value not in (None, "", [], {}) else "unknown",
             }
             for field, value in evidence_fields.items()
