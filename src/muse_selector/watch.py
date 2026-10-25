@@ -36,6 +36,12 @@ def _print_error(action: str, status: str, message: str) -> int:
     return 2
 
 
+def _exception_message(exc: BaseException) -> str:
+    """Return a clean single-value message for structured CLI errors."""
+
+    return str(exc.args[0]) if exc.args else str(exc)
+
+
 def default_watch_id(
     query: str,
     fixture: str | Path | None = None,
@@ -115,7 +121,7 @@ def main() -> int:
                     include_payload=args.include_payload,
                 )
             except KeyError as exc:
-                return _print_error("changes", "watch_not_found", str(exc))
+                return _print_error("changes", "watch_not_found", _exception_message(exc))
             result = {
                 "action": "changes",
                 "watch_id": args.watch_id,
@@ -130,21 +136,21 @@ def main() -> int:
             try:
                 store.pause_watch(args.watch_id)
             except KeyError as exc:
-                return _print_error("pause", "watch_not_found", str(exc))
+                return _print_error("pause", "watch_not_found", _exception_message(exc))
             result = {"action": "pause", "watch": store.get_watch(args.watch_id)}
         elif args.action == "resume":
             try:
                 store.resume_watch(args.watch_id)
             except KeyError as exc:
-                return _print_error("resume", "watch_not_found", str(exc))
+                return _print_error("resume", "watch_not_found", _exception_message(exc))
             result = {"action": "resume", "watch": store.get_watch(args.watch_id)}
         elif args.action == "replay":
             try:
                 payload = store.replay_watch(args.watch_id)
             except KeyError as exc:
-                return _print_error("replay", "watch_not_found", str(exc))
+                return _print_error("replay", "watch_not_found", _exception_message(exc))
             except ValueError as exc:
-                return _print_error("replay", "watch_unavailable", str(exc))
+                return _print_error("replay", "watch_unavailable", _exception_message(exc))
             result = {"action": "replay", "watch_id": args.watch_id, "payload": payload}
         elif args.action == "status":
             watch = store.get_watch(args.watch_id)
@@ -180,9 +186,9 @@ def main() -> int:
             try:
                 updated_watch = store.update_watch(args.watch_id, **kwargs)
             except KeyError as exc:
-                return _print_error("update", "watch_not_found", str(exc))
+                return _print_error("update", "watch_not_found", _exception_message(exc))
             except ValueError as exc:
-                return _print_error("update", "invalid_watch", str(exc))
+                return _print_error("update", "invalid_watch", _exception_message(exc))
             result = {"action": "update", "watch": updated_watch}
         _print_result(result)
         return 0
