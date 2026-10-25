@@ -393,13 +393,22 @@ def make_handler(
                 )
                 return
             if parsed.path == "/api/search":
-                query = parse_qs(parsed.query).get("q", [""])[0]
-                raw_limit = parse_qs(parsed.query).get("limit", ["10"])[0]
+                params = parse_qs(parsed.query)
+                query = params.get("q", [""])[0]
+                raw_limit = params.get("limit", ["10"])[0]
+                raw_offset = params.get("offset", ["0"])[0]
                 try:
                     limit = int(raw_limit)
                 except (TypeError, ValueError):
                     limit = 0
-                payload = run_search(query, fixture, limit=limit)
+                try:
+                    offset: int | str = int(raw_offset)
+                except (TypeError, ValueError):
+                    # Preserve malformed input so run_search returns its
+                    # structured invalid_query response instead of silently
+                    # changing the requested page to offset zero.
+                    offset = raw_offset
+                payload = run_search(query, fixture, limit=limit, offset=offset)
                 self._send_json(200, payload)
                 return
             if parsed.path != "/":

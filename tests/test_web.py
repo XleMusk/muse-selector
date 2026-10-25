@@ -384,6 +384,48 @@ class WebTests(unittest.TestCase):
             server.server_close()
             thread.join(timeout=2)
 
+    def test_json_search_endpoint_forwards_offset_to_pipeline(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch(
+                "muse_selector.web.run_search",
+                return_value={"ok": True, "read_only": True, "recommended": []},
+            ) as search:
+                url = f"http://127.0.0.1:{server.server_port}/api/search?q=mini%20pc&limit=1&offset=40"
+                with urlopen(url, timeout=2) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+            self.assertTrue(payload["ok"])
+            search.assert_called_once_with("mini pc", str(FIXTURE), limit=1, offset=40)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
+    def test_json_search_endpoint_reports_invalid_offset_without_silent_zero(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            for raw_offset in ("nope", "-1"):
+                url = (
+                    f"http://127.0.0.1:{server.server_port}/api/search"
+                    "?q=%E9%A6%99%E6%B8%AF%E9%A2%84%E7%AE%97%20HKD%207000%20%E4%BB%A5%E5%86%85%E7%9A%84%E8%BF%B7%E4%BD%A0%E4%B8%BB%E6%9C%BA"
+                    f"&offset={raw_offset}"
+                )
+                with urlopen(url, timeout=2) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                self.assertFalse(payload["ok"])
+                self.assertEqual(payload["status"], "invalid_query")
+                self.assertIn("offset must be a non-negative integer", payload["message"])
+                self.assertEqual(payload["schema_version"], RESULT_SCHEMA_VERSION)
+                self.assertTrue(payload["read_only"])
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
     def test_json_search_endpoint_reports_invalid_limit_without_side_effects(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
         thread = threading.Thread(target=server.serve_forever, daemon=True)

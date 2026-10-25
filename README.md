@@ -124,7 +124,12 @@ Invoke-RestMethod `
   "http://127.0.0.1:8765/api/search?q=香港预算%20HKD%207000%20以内的迷你主机&limit=5"
 ```
 
-端点复用相同的 SearchSpec、来源证据和过滤逻辑，只返回 JSON，不提供登录、购买或写操作；`limit` 非法时返回 `invalid_query`。
+端点复用相同的 SearchSpec、来源证据和过滤逻辑，只返回 JSON，不提供登录、购买或写操作；`limit` 非法时返回 `invalid_query`。可用非负整数 `offset` 读取指定的单个来源页（不会自动跟随 `next`），非法 `offset` 同样返回结构化 `invalid_query`，不会静默改成第 0 页：
+
+```powershell
+Invoke-RestMethod `
+  "http://127.0.0.1:8765/api/search?q=香港预算%20HKD%207000%20以内的迷你主机&limit=5&offset=40"
+```
 
 本地服务还提供不联网的来源能力状态端点，用于判断 eBay 环境和凭据是否已经配置，以及国内来源是否仍处于人工入口模式：
 
