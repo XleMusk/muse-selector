@@ -19,7 +19,10 @@ ALLOWED_STATUSES = {"confirmed", "unknown", "conflict", "stale"}
 ALLOWED_STOCK = {"in_stock", "out_of_stock", "preorder", "unknown"}
 ALLOWED_CONDITION = {"new", "used", "refurbished", "unknown"}
 KEY_EVIDENCE_FIELDS = ("title", "url", "price", "condition", "seller", "shippingOptions")
-ALLOWED_SOURCE_IDS = {"ebay.browse.hk.v1"}
+ALLOWED_REGIONS = {"HK", "CN"}
+REGION_CURRENCY = {"HK": "HKD", "CN": "CNY"}
+DOMESTIC_SOURCE_IDS = {"zhuanzhuan.recommerce.mcp.v1", "xianyu.partner.v1"}
+ALLOWED_SOURCE_IDS = {"ebay.browse.hk.v1", *DOMESTIC_SOURCE_IDS}
 
 
 def _now_iso() -> str:
@@ -64,7 +67,7 @@ def _copy_map(value: Mapping[str, Any] | None) -> dict[str, Any]:
 
 @dataclass(frozen=True)
 class SearchSpec:
-    """Normalized user intent for a read-only Hong Kong product search."""
+    """Normalized user intent for a read-only market product search."""
 
     query: str
     category: str = "computers_hardware"
@@ -87,10 +90,10 @@ class SearchSpec:
             raise ValueError("query must be non-empty")
         if self.category != "computers_hardware":
             raise ValueError("MVP category must be computers_hardware")
-        if self.region != "HK":
-            raise ValueError("MVP region must be HK")
-        if self.currency != "HKD":
-            raise ValueError("MVP currency must be HKD")
+        if self.region not in ALLOWED_REGIONS:
+            raise ValueError(f"region must be one of {sorted(ALLOWED_REGIONS)}")
+        if self.currency != REGION_CURRENCY[self.region]:
+            raise ValueError(f"currency must be {REGION_CURRENCY[self.region]} for region {self.region}")
         if self.condition not in ALLOWED_CONDITION:
             raise ValueError(f"condition must be one of {sorted(ALLOWED_CONDITION)}")
         min_value = _decimal(self.budget_min, "budget_min")
@@ -194,10 +197,10 @@ class Listing:
         if not self.listing_id or not self.source_id or not self.title:
             raise ValueError("listing_id, source_id and title are required")
         _http_url(self.url)
-        if self.region != "HK":
-            raise ValueError("MVP listing region must be HK")
-        if self.currency != "HKD":
-            raise ValueError("MVP listing currency must be HKD")
+        if self.region not in ALLOWED_REGIONS:
+            raise ValueError(f"listing region must be one of {sorted(ALLOWED_REGIONS)}")
+        if self.currency != REGION_CURRENCY[self.region]:
+            raise ValueError(f"listing currency must be {REGION_CURRENCY[self.region]} for region {self.region}")
         if self.stock_status not in ALLOWED_STOCK:
             raise ValueError(f"stock_status must be one of {sorted(ALLOWED_STOCK)}")
         if self.condition not in ALLOWED_CONDITION:

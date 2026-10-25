@@ -15,6 +15,8 @@ class ContractTests(unittest.TestCase):
         self.assertIn("read_only: true", text)
         self.assertIn("writes_enabled: false", text)
         self.assertIn("localizedAspects", text)
+        self.assertIn("xianyu.partner.v1", text)
+        self.assertIn("zhuanzhuan.recommerce.mcp.v1", text)
 
     def test_search_spec_normalizes_money(self):
         spec = SearchSpec.from_dict({"query": "USB4 laptop", "budget_max": "12000", "required_specs": {"ram_gb": 32}})
@@ -24,6 +26,30 @@ class ContractTests(unittest.TestCase):
     def test_search_spec_rejects_unregistered_sources(self):
         with self.assertRaisesRegex(ValueError, "unsupported source"):
             SearchSpec.from_dict({"query": "laptop", "sources": ["untrusted.example.v1"]})
+
+    def test_search_spec_accepts_cn_cny_domestic_profile(self):
+        spec = SearchSpec.from_dict({
+            "query": "国内二手显卡",
+            "region": "CN",
+            "currency": "CNY",
+            "sources": ["xianyu.partner.v1", "zhuanzhuan.recommerce.mcp.v1"],
+        })
+        self.assertEqual(spec.region, "CN")
+        self.assertEqual(spec.currency, "CNY")
+
+    def test_listing_accepts_cn_cny_contract(self):
+        listing = Listing(
+            listing_id="domestic:1",
+            source_id="zhuanzhuan.recommerce.mcp.v1",
+            title="二手显卡",
+            url="https://www.zhuanzhuan.com/item/1",
+            region="CN",
+            currency="CNY",
+            price=3000,
+            stock_status="unknown",
+            condition="used",
+        )
+        self.assertEqual(listing.currency, "CNY")
 
     def test_listing_landed_cost_and_filter(self):
         spec = SearchSpec(query="laptop", budget_max=12000, required_specs={"ram_gb": 32})

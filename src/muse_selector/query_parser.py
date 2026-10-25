@@ -1,4 +1,4 @@
-"""Deterministic parser for the Hong Kong computers/hardware MVP.
+"""Deterministic parser for market-specific computers/hardware queries.
 
 The parser only extracts fields that are explicit in the user's text. It never
 uses a model to invent a budget, region, compatibility fact, or stock state.
@@ -30,6 +30,15 @@ _MONEY_RANGE_RE = re.compile(
 )
 _MONEY_RE = re.compile(rf"(?:HKD|HK\$|港币|港元|预算)\s*[:：]?\s*(?:不超过|以内|上限|最多)?\s*({_MONEY_NUMBER})\s*(万)?", re.I)
 _MONEY_SUFFIX_RE = re.compile(rf"(?P<amount>{_MONEY_NUMBER})\s*(?:HKD|港币|港元)\b", re.I)
+_CNY_MONEY_RANGE_RE = re.compile(
+    rf"(?:"
+    rf"(?:CNY|人民币|预算)\s*[:：]?\s*(?P<low1>{_MONEY_NUMBER})\s*(?:-|–|—|~|～|至|到)\s*(?P<high1>{_MONEY_NUMBER})"
+    rf"|(?P<low2>{_MONEY_NUMBER})\s*(?:-|–|—|~|～|至|到)\s*(?P<high2>{_MONEY_NUMBER})\s*(?:CNY|人民币|元|￥|¥)"
+    rf")",
+    re.I,
+)
+_CNY_MONEY_RE = re.compile(rf"(?:CNY|人民币|预算)\s*[:：]?\s*(?:不超过|以内|上限|最多)?\s*({_MONEY_NUMBER})\s*(万)?", re.I)
+_CNY_MONEY_SUFFIX_RE = re.compile(rf"(?P<amount>{_MONEY_NUMBER})\s*(?:CNY|人民币|元|￥|¥)", re.I)
 _GB_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(GB|TB)\s*(?:内存|RAM|显存|VRAM|SSD|存储|硬盘)?", re.I)
 _DELIVERY_DAYS_RE = re.compile(
     r"(?:配送|送达|到货|delivery)\s*(?:在|于|within)?\s*(?P<days>\d+)\s*(?:天|日|days?)\s*(?:内|以内)?|"
@@ -96,11 +105,16 @@ def _money_amount(value: str, wan: str | None = None) -> Decimal:
 
 
 def parse_query(text: str) -> SearchSpec:
-    """Parse explicit Hong Kong hardware requirements into ``SearchSpec``."""
+    """Parse explicit market and hardware requirements into ``SearchSpec``."""
 
     if not isinstance(text, str) or not text.strip():
         raise ValueError("query must be non-empty")
     lowered = text.lower()
+    explicit_domestic = any(token in lowered for token in ("中国大陆", "中国内地", "大陆", "国内", "人民币", "cny", "￥", "¥"))
+    explicit_hk = any(token in lowered for token in ("香港", "港币", "港元", "hkd", "hk$"))
+    domestic = explicit_domestic or (
+        bool(re.search(r"\d[\d,]*(?:\.\d+)?\s*元", text)) and not explicit_hk
+    )
     if any(token in lowered for token in _ACCOUNT_POLICY_TOKENS):
         raise PolicyBlockedError("游戏账号登录、购买、转移和代打不在第一版范围内")
     if any(token in lowered for token in ("169.254.169.254", "127.0.0.1", "localhost", "metadata/latest")):
@@ -130,18 +144,18 @@ def parse_query(text: str) -> SearchSpec:
 
     budget_min: Decimal | None = None
     budget_max: Decimal | None = None
-    money_range = _MONEY_RANGE_RE.search(text)
+    money_range = (_CNY_MONEY_RANGE_RE if domestic else _MONEY_RANGE_RE).search(text)
     if money_range:
         low = money_range.group("low1") or money_range.group("low2")
         high = money_range.group("high1") or money_range.group("high2")
         budget_min = _money_amount(low)
         budget_max = _money_amount(high)
     else:
-        money = _MONEY_RE.search(text)
+        money = (_CNY_MONEY_RE if domestic else _MONEY_RE).search(text)
         if money:
             budget_max = _money_amount(money.group(1), money.group(2))
         else:
-            money_suffix = _MONEY_SUFFIX_RE.search(text)
+            money_suffix = (_CNY_MONEY_SUFFIX_RE if domestic else _MONEY_SUFFIX_RE).search(text)
             if money_suffix:
                 budget_max = _money_amount(money_suffix.group("amount"))
 
@@ -151,14 +165,14 @@ def parse_query(text: str) -> SearchSpec:
     return SearchSpec(
         query=text.strip(),
         category=category,
-        region="HK",
-        currency="HKD",
+        region="CN" if domestic else "HK",
+        currency="CNY" if domestic else "HKD",
         budget_min=budget_min,
         budget_max=budget_max,
         required_specs=required,
         condition="unknown" if any(token in lowered for token in ("二手", "不限成色")) else "new",
         max_delivery_days=max_delivery_days,
-        sources=("ebay.browse.hk.v1",),
+        sources=("xianyu.partner.v1", "zhuanzhuan.recommerce.mcp.v1") if domestic else ("ebay.browse.hk.v1",),
     )
 
 

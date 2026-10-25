@@ -273,16 +273,35 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
         }
     limit = min(limit, 200)
     if spec.budget_max is None and not has_explicit_unbounded_budget(query):
+        budget_name = "max_total_cny" if spec.currency == "CNY" else "max_total_hkd"
+        currency_hint = "CNY" if spec.currency == "CNY" else "HKD"
         return {
             "ok": False,
             "status": "needs_clarification",
-            "message": "请补充配送地区和 HKD 预算上限；如无预算限制，请明确写“价格不限”。",
-            "ask": ["location", "max_total_hkd"],
+            "message": f"请补充配送地区和 {currency_hint} 预算上限；如无预算限制，请明确写“价格不限”。",
+            "ask": ["location", budget_name],
             "search_spec": spec.to_dict(),
             "recommended": [],
             "rejected": [],
             "dropped": [],
             "source": "policy.guard",
+            "read_only": True,
+        }
+    if spec.region == "CN":
+        # Domestic second-hand sources are registered by capability, but the
+        # public official APIs currently expose no general arbitrary-listing
+        # search connector.  Fail closed instead of routing a mainland query
+        # into the HK eBay connector or using an unofficial scraper.
+        return {
+            "ok": False,
+            "status": "source_unavailable",
+            "message": "中国大陆二手挂牌搜索连接器尚未获得官方授权；闲鱼当前为 link_only，转转当前仅提供官方估价/回收入口。",
+            "search_spec": spec.to_dict(),
+            "recommended": [],
+            "rejected": [],
+            "dropped": [],
+            "source": "domestic.secondhand.pending",
+            "source_metadata": None,
             "read_only": True,
         }
     try:

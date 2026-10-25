@@ -1,6 +1,12 @@
-# Muse Selector v1 范围决策
+# Muse Selector 范围决策
 
-状态：冻结，面向香港电脑/硬件只读筛选。
+状态：香港 eBay v1 基线已冻结；当前产品优先级迁移到中国大陆电脑/硬件二手市场。
+
+## 当前主线优先级
+
+- 中国大陆（`CN`）和人民币（`CNY`）是后续产品主线。
+- 香港（`HK`）和港币（`HKD`）的 eBay Browse 连接器保留为已验证的只读基线，不因国内迁移而删除。
+- 国内查询先完成 SearchSpec、来源能力注册和 fail-closed 路由；在获得官方挂牌搜索授权前，不把闲鱼或转转网页、Cookie 会话或私有接口当成搜索来源。
 
 ## 已冻结范围
 
@@ -15,6 +21,7 @@
 
 - 游戏账号登录、接收密码/Cookie/验证码、购买、转移、代打和支付。
 - eBay 购物车、出价、订单、消息、收藏或任何其他写接口。
+- 闲鱼和转转的非官方批量抓取、Cookie 复用、私有接口逆向和绕过风控。
 - 绕过登录、验证码、DRM、反爬、速率限制或平台访问控制。
 - 未登记来源、非香港配送条件、SSRF/内网地址和未经证据支持的价格或规格推断。
 
@@ -26,6 +33,12 @@
 - eBay 返回的最佳匹配顺序保留在结果卡中；客户端不按价格重新排序。匹配分仅用于解释，不扩大来源权限。
 - 观察任务只写本地 SQLite；run、结果卡和 watch checkpoint 在同一事务中提交，失败时整体回滚。
 - 来源注册表的 `source_ebay_browse_hk` kill switch 在实时 OAuth 请求前生效；启用时连接器 fail-closed，离线 fixture 仍可用于回归。
+
+## 国内来源状态
+
+- `xianyu.partner.v1`：`partner_api_pending` / `link_only`。官方[合作方文档](https://open.goofish.com/doc/development/dev/server.html)需要 AppKey、OAuth、逐项权限和部分聚石塔部署；当前没有登记任意陌生挂牌的通用搜索权限。
+- `zhuanzhuan.recommerce.mcp.v1`：官方[MCP](https://open.zhuanzhuan.com/mcp)估价辅助，能力为商品识别、回收估价和回收入口，不是挂牌搜索连接器；需要用户在官方控制台取得 Bearer Token。
+- 国内查询在挂牌搜索来源未授权前返回 `source_unavailable`，绝不回退到 eBay 或非官方抓取。
 
 ## 证据入口
 

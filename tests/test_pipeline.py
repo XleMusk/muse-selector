@@ -119,6 +119,18 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(payload["ask"], ["location", "max_total_hkd"])
         self.assertTrue(payload["read_only"])
 
+    def test_domestic_market_fails_closed_without_official_listing_search(self):
+        with patch("muse_selector.pipeline.EbayBrowseConnector") as connector_type:
+            payload = run_search("国内预算 CNY 8000 以内的二手迷你主机", FIXTURE)
+        connector_type.assert_not_called()
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["status"], "source_unavailable")
+        self.assertEqual(payload["search_spec"]["region"], "CN")
+        self.assertEqual(payload["search_spec"]["currency"], "CNY")
+        self.assertEqual(payload["source"], "domestic.secondhand.pending")
+        self.assertEqual(payload["recommended"], [])
+        self.assertTrue(payload["read_only"])
+
     def test_blank_query_returns_read_only_invalid_query_state(self):
         payload = run_search("   ")
         self.assertFalse(payload["ok"])

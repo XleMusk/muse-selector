@@ -2,6 +2,8 @@
 
 这份矩阵把目标拆成可复核的证据。fixture 和模拟 opener 只证明离线契约与实时适配逻辑，不冒充真实市场响应。
 
+当前产品优先级已迁移到中国大陆电脑/硬件二手市场；香港 eBay 是已通过的只读基线。国内来源能力按官方授权状态逐个接入。
+
 | 目标要求 | 当前证据 | 状态 |
 | --- | --- | --- |
 | 香港/HKD/电脑硬件 `SearchSpec` | `src/muse_selector/contracts.py`、`src/muse_selector/query_parser.py`、`tests/fixtures/search_queries_v1.json`、`tests/test_query_parser.py` | 已通过 |
@@ -16,10 +18,12 @@
 | 凭据泄露、SSRF、越权来源、跨租户页面、重复副作用 | 连接器/管线/Web/SQLite 测试集；本地 Web 仅 loopback | 已通过 |
 | 账号登录、购买、转移、代打、支付和平台控制绕过 | `src/muse_selector/query_parser.py`、`scope_decision.md` | 已排除并阻断 |
 | GitHub 主线自动验证 | `.github/workflows/ci.yml` | 最新 CI 通过 |
+| CN/CNY 国内市场 SearchSpec 与来源路由 | `src/muse_selector/contracts.py`、`src/muse_selector/query_parser.py`、`src/muse_selector/pipeline.py`、`tests/test_query_parser.py`、`tests/test_pipeline.py` | 契约和 fail-closed 路由已通过；官方挂牌搜索连接器待授权 |
+| 闲鱼/转转官方能力登记 | `data/source_registry.yaml`、`scope_decision.md` | 闲鱼 link-only/pending；转转官方 MCP 仅估价/回收入口 |
 
-## 当前唯一外部验收门
+## 当前外部验收门
 
-需要官方 eBay 应用凭据 `EBAY_CLIENT_ID` 和 `EBAY_CLIENT_SECRET` 才能运行真实一次性 smoke：
+香港 eBay 基线需要官方应用凭据 `EBAY_CLIENT_ID` 和 `EBAY_CLIENT_SECRET` 才能运行真实一次性 smoke：
 
 ```powershell
 $env:EBAY_CLIENT_ID = "<official-app-id>"
@@ -28,3 +32,5 @@ muse-live-smoke --query "香港 RTX 4070 显卡，预算 HKD 9000"
 ```
 
 没有凭据时，预期结果是 `source_unavailable`、`read_only=true`、退出码 `2`。在凭据注入前，不把 fixture 或模拟 opener 宣称为实时市场成功。
+
+中国大陆挂牌搜索还需要闲鱼或其他国内平台提供明确的官方搜索权限/合作方接口。转转当前官方能力是估价和回收入口，不能作为挂牌搜索验收门；取得 Token 后可单独验证估价辅助链路。

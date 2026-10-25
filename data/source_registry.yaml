@@ -24,3 +24,44 @@ sources:
       Search-only adapter. Review current eBay API License Agreement and Buy
       API requirements before production release.
 
+  - source_id: xianyu.partner.v1
+    display_name: 闲鱼官方合作方能力（待搜索权限）
+    category: computers_hardware
+    access_mode: official_partner_api
+    region: CN
+    currency: CNY
+    read_only: true
+    writes_enabled: false
+    listing_search: false
+    status: partner_api_pending
+    authentication: appkey_oauth_user_authorization
+    authorization_evidence_url: https://open.goofish.com/doc/development/dev/server.html
+    allowed_fields: [title, url, price, condition, stock, seller, specs]
+    write_actions: []
+    default_policy: link_only
+    kill_switch: source_xianyu_partner
+    notes: >-
+      Public partner documentation covers approved mini-program/partner
+      capabilities and service-provider-owned item queries. No general
+      arbitrary-listing search permission is registered for this project.
+
+  - source_id: zhuanzhuan.recommerce.mcp.v1
+    display_name: 转转官方 MCP 回收估价
+    category: computers_hardware
+    access_mode: official_mcp
+    region: CN
+    currency: CNY
+    read_only: true
+    writes_enabled: false
+    listing_search: false
+    capabilities: [recycle_valuation, open_recycle_entry]
+    authentication: bearer_token_after_phone_verification
+    authorization_evidence_url: https://open.zhuanzhuan.com/mcp
+    allowed_fields: [product, model, confidence, price_range, warnings, handoff_url]
+    write_actions: []
+    default_policy: allow_read_only
+    kill_switch: source_zhuanzhuan_recommerce_mcp
+    notes: >-
+      Official MCP is an auxiliary valuation/entry source. It does not
+      provide a general marketplace listing search endpoint.
+

@@ -52,3 +52,29 @@ class QueryParserBudgetRangeTests(unittest.TestCase):
         spec = parse_query("香港轻薄本，HK$7000")
         self.assertIsNone(spec.budget_min)
         self.assertEqual(spec.budget_max, Decimal("7000.00"))
+
+    def test_domestic_market_uses_cny_and_registered_domestic_sources(self):
+        spec = parse_query("国内预算 CNY 8000 以内的二手迷你主机，32GB 内存")
+        self.assertEqual(spec.region, "CN")
+        self.assertEqual(spec.currency, "CNY")
+        self.assertEqual(spec.budget_max, Decimal("8000.00"))
+        self.assertEqual(spec.required_specs["ram_gb"], 32)
+        self.assertEqual(spec.sources, ("xianyu.partner.v1", "zhuanzhuan.recommerce.mcp.v1"))
+
+    def test_domestic_budget_with_yuan_suffix(self):
+        spec = parse_query("中国大陆预算 5000 至 9000 元的二手显卡")
+        self.assertEqual(spec.region, "CN")
+        self.assertEqual(spec.currency, "CNY")
+        self.assertEqual(spec.budget_min, Decimal("5000.00"))
+        self.assertEqual(spec.budget_max, Decimal("9000.00"))
+
+    def test_yuan_amount_routes_to_domestic_profile(self):
+        spec = parse_query("二手显卡，预算 5000 元")
+        self.assertEqual(spec.region, "CN")
+        self.assertEqual(spec.currency, "CNY")
+        self.assertEqual(spec.budget_max, Decimal("5000.00"))
+
+    def test_explicit_hong_kong_context_keeps_hkd_profile(self):
+        spec = parse_query("香港二手显卡，预算 5000 元")
+        self.assertEqual(spec.region, "HK")
+        self.assertEqual(spec.currency, "HKD")

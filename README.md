@@ -1,7 +1,13 @@
 # Muse Selector MVP
 
-香港电脑/硬件的只读筛选原型。首个来源是 eBay Browse API 的 `EBAY_HK`
-`item_summary/search` 适配层；本地开发和回归默认使用 fixture，不联网、不接收用户凭据、没有写操作接口。
+中国大陆电脑/硬件二手市场是当前产品主线；香港 eBay 的 `EBAY_HK`
+`item_summary/search` 适配层作为已验证的只读基线保留。本地开发和回归默认使用 fixture，不联网、不接收用户凭据、没有写操作接口。
+
+## 中国大陆二手市场状态
+
+当前 CN/CNY 查询已经进入 SearchSpec 和安全路由，但会在没有官方挂牌搜索授权时返回 `source_unavailable`。闲鱼公开合作方能力需要入驻、OAuth、逐项权限申请和相应部署条件；转转公开官方 MCP 当前提供商品识别、回收估价和回收入口，不提供通用挂牌搜索。
+
+因此，国内主线的第一步是获得官方搜索能力或合作方授权；系统不会使用 Cookie、私有接口、逆向签名或网页批量抓取来填补这个缺口。详见 [scope_decision.md](scope_decision.md) 和 [acceptance_matrix.md](acceptance_matrix.md)。
 
 ## 直接运行
 
