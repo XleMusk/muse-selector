@@ -150,6 +150,8 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
         for key in ("access_mode", "status", "environment")
         if source_capability.get(key)
     ) or "unknown"
+    source_metadata = payload.get("source_metadata") if isinstance(payload.get("source_metadata"), Mapping) else {}
+    latency_ms = source_metadata.get("latency_ms")
     lines = [
         "# Muse Selector 结果卡",
         "",
@@ -163,6 +165,8 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
         "## 推荐结果",
         "",
     ]
+    if isinstance(latency_ms, (int, float)) and latency_ms >= 0:
+        lines.insert(5, f"来源请求耗时：{_markdown_untrusted(f'{float(latency_ms):.3f} ms')}")
     cards = payload.get("recommended", [])
     if not cards:
         lines.append("没有满足全部硬约束的结果。")
