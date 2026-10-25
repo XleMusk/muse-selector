@@ -95,6 +95,13 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual(created["payload"]["status"], "complete")
 
+            code, environment_only = invoke(
+                "--db", str(db), "--action", "update", "--watch-id", "watch_live_switch",
+                "--environment", "sandbox",
+            )
+            self.assertEqual(code, 0)
+            self.assertEqual(environment_only["watch"]["environment"], "sandbox")
+
             code, updated = invoke(
                 "--db", str(db), "--action", "update", "--watch-id", "watch_live_switch", "--live",
                 "--environment", "sandbox",
