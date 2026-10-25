@@ -28,7 +28,7 @@ jobs:
           muse-selector --version
           muse-doctor --version
           muse-doctor --fixture tests/fixtures/ebay_hk_sample.json > doctor.json
-          python -c "import json; p=json.load(open('doctor.json', encoding='utf-8')); assert p['ok'] is True; assert p['read_only'] is True; assert p['schema_version'] == 'muse.doctor.v1'; assert p['runtime']['package_version']; assert p['runtime']['python_version']; assert all(c['ok'] for c in p['checks'])"
+          python -c "import json; p=json.load(open('doctor.json', encoding='utf-8')); assert p['ok'] is True; assert p['read_only'] is True; assert p['schema_version'] == 'muse.doctor.v1'; assert p['runtime']['package_version']; assert p['runtime']['python_version']; assert p['ebay_target']['environment'] == 'production'; assert p['ebay_target']['api_host'] == 'api.ebay.com'; assert all(c['ok'] for c in p['checks'])"
           muse-selector --query "香港预算 HKD 7000 以内的迷你主机" --fixture tests/fixtures/ebay_hk_sample.json --format json > cli_result.json
           python -c "import json; p=json.load(open('cli_result.json', encoding='utf-8')); assert p['schema_version'] == 'muse.selector.v1'; assert p['ok'] is True; assert p['read_only'] is True; assert p['recommended']; assert all(card.get('evidence_coverage', 0) >= 0.95 for card in p['recommended'])"
           watch_db="$RUNNER_TEMP/muse-watch.sqlite3"

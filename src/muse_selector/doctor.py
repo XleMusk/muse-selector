@@ -54,11 +54,37 @@ def _runtime_info() -> dict[str, str]:
     }
 
 
+def _ebay_target(environment: str | None = None) -> dict[str, Any]:
+    """Describe the selected official eBay target without making a request.
+
+    The doctor command is intentionally offline.  Reporting the resolved host
+    here makes a sandbox/production smoke run auditable while keeping the
+    credential and network boundary unchanged.
+    """
+
+    selected = str(environment if environment is not None else os.getenv("EBAY_ENVIRONMENT", "production")).strip().lower()
+    if selected not in {"production", "sandbox"}:
+        return {
+            "environment": "invalid",
+            "api_host": None,
+            "token_path": "/identity/v1/oauth2/token",
+            "read_only": True,
+        }
+    host = "api.ebay.com" if selected == "production" else "api.sandbox.ebay.com"
+    return {
+        "environment": selected,
+        "api_host": host,
+        "token_path": "/identity/v1/oauth2/token",
+        "read_only": True,
+    }
+
+
 def run_doctor(
     fixture_path: str | Path | None = None,
     *,
     query: str = DEFAULT_QUERY,
     limit: int = 10,
+    environment: str | None = None,
 ) -> dict[str, Any]:
     """Return a deterministic local readiness report.
 
@@ -68,6 +94,12 @@ def run_doctor(
     """
 
     checks: list[dict[str, Any]] = []
+    ebay_target = _ebay_target(environment)
+    checks.append(_check(
+        "ebay_environment",
+        ebay_target["environment"] in {"production", "sandbox"},
+        str(ebay_target["environment"]),
+    ))
     version = sys.version_info
     python_ok = (version.major, version.minor) >= (3, 10)
     checks.append(_check("python", python_ok, platform.python_version()))
@@ -111,6 +143,7 @@ def run_doctor(
         "status": "healthy" if ok else "unhealthy",
         "read_only": True,
         "runtime": _runtime_info(),
+        "ebay_target": ebay_target,
         "checks": checks,
         "credential_state": _credential_state(),
     }
@@ -122,8 +155,9 @@ def main() -> int:
     parser.add_argument("--fixture", default=None, help="optional offline eBay fixture to validate")
     parser.add_argument("--query", default=DEFAULT_QUERY, help="query used for the optional fixture check")
     parser.add_argument("--limit", type=int, default=10)
+    parser.add_argument("--environment", choices=("sandbox", "production"), default=None)
     args = parser.parse_args()
-    report = run_doctor(args.fixture, query=args.query, limit=args.limit)
+    report = run_doctor(args.fixture, query=args.query, limit=args.limit, environment=args.environment)
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     return 0 if report["ok"] else 2
 

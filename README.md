@@ -45,7 +45,13 @@ muse-selector --version
 muse-doctor --fixture D:\muse\tests\fixtures\ebay_hk_sample.json
 ```
 
-doctor JSON 带有固定的 `schema_version`（当前为 `muse.doctor.v1`）和 `runtime` 段，记录实际运行的包版本、Python 版本、解释器、平台和可执行文件路径，便于 CI 或问题报告确认命令实际使用的环境。这些字段不包含凭据。也可以运行 `muse-doctor --version` 单独确认 doctor 入口版本。
+doctor JSON 带有固定的 `schema_version`（当前为 `muse.doctor.v1`）、`runtime` 段和 `ebay_target` 段。`ebay_target` 只报告当前目标环境、官方 API 主机和 OAuth 路径，不发起网络请求，也不包含凭据。拿 Sandbox keyset 做接口 smoke 前可显式指定环境：
+
+```powershell
+muse-doctor --environment sandbox --fixture D:\muse\tests\fixtures\ebay_hk_sample.json
+```
+
+省略 `--environment` 时沿用 `EBAY_ENVIRONMENT`，未设置则报告 production。也可以运行 `muse-doctor --version` 单独确认 doctor 入口版本。
 
 省略 `--fixture` 时只检查本地 Python 和包导入，适合在已安装 wheel 或脱离源码目录的环境中快速确认命令入口。fixture 不存在、格式错误或结果契约不满足时返回退出码 `2`，成功返回 `0`。
 
