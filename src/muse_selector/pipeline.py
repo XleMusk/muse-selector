@@ -323,6 +323,11 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
         rows = connector.search(connector_spec)
     except (ConnectorUnavailable, ValueError) as exc:
         source_metadata = connector.source_metadata if "connector" in locals() else None
+        if isinstance(source_metadata, dict) and "environment" not in source_metadata and "connector" in locals():
+            source_metadata = {
+                **source_metadata,
+                "environment": getattr(getattr(connector, "config", None), "environment", "unknown"),
+            }
         return {
             "ok": False,
             "status": "source_unavailable",

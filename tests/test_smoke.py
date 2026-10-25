@@ -51,7 +51,7 @@ class SmokeTests(unittest.TestCase):
 
     def test_no_credentials_is_source_unavailable(self):
         output = io.StringIO()
-        with patch.dict(os.environ, {"EBAY_CLIENT_ID": "", "EBAY_CLIENT_SECRET": ""}, clear=False):
+        with patch.dict(os.environ, {"EBAY_CLIENT_ID": "", "EBAY_CLIENT_SECRET": "", "EBAY_ENVIRONMENT": "sandbox"}, clear=False):
             with patch.object(sys, "argv", ["muse-live-smoke", "--query", "香港 RTX 4070 显卡，预算 HKD 9000"]):
                 with contextlib.redirect_stdout(output):
                     code = main()
@@ -60,6 +60,7 @@ class SmokeTests(unittest.TestCase):
         self.assertEqual(payload["status"], "source_unavailable")
         self.assertTrue(payload["read_only"])
         self.assertEqual(payload["credential_state"], "missing")
+        self.assertEqual(payload["source_metadata"]["environment"], "sandbox")
         self.assertNotIn("test-secret-value", output.getvalue())
         self.assertNotIn("test-token-value", output.getvalue())
 
