@@ -215,6 +215,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(payload["source_capability"]["access_mode"], "local_fixture")
         comparison = render_comparison(payload)
         self.assertIn("来源能力：local\\_fixture", comparison)
+        self.assertIn("观测时间", comparison)
         self.assertIn("证据标识：v1|100000000001|0:ev:0", report)
 
     def test_markdown_escapes_error_and_url_text(self):
