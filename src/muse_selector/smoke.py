@@ -84,16 +84,13 @@ def main() -> int:
     parser.add_argument("--offset", type=int, default=0, help="single Browse page offset; no automatic pagination")
     parser.add_argument("--environment", choices=("sandbox", "production"), default=None)
     args = parser.parse_args()
-    previous_environment = os.environ.get("EBAY_ENVIRONMENT")
-    try:
-        if args.environment is not None:
-            os.environ["EBAY_ENVIRONMENT"] = args.environment
-        payload = run_search(args.query, fixture_path=None, limit=args.limit, offset=args.offset)
-    finally:
-        if previous_environment is None:
-            os.environ.pop("EBAY_ENVIRONMENT", None)
-        else:
-            os.environ["EBAY_ENVIRONMENT"] = previous_environment
+    payload = run_search(
+        args.query,
+        fixture_path=None,
+        limit=args.limit,
+        offset=args.offset,
+        environment=args.environment,
+    )
     print(json.dumps(summarize(payload), ensure_ascii=False, indent=2, sort_keys=True))
     return 0 if payload.get("ok") else 2
 

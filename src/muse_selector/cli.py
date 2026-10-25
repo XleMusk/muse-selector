@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -38,16 +37,10 @@ def main() -> int:
     parser.add_argument("--format", choices=("json", "markdown", "comparison"), default="markdown")
     args = parser.parse_args()
     fixture = Path(args.fixture) if args.fixture else None
-    previous_environment = os.environ.get("EBAY_ENVIRONMENT")
-    try:
-        if args.environment is not None:
-            os.environ["EBAY_ENVIRONMENT"] = args.environment
-        payload = run_search(args.query, fixture, limit=args.limit, offset=args.offset)
-    finally:
-        if previous_environment is None:
-            os.environ.pop("EBAY_ENVIRONMENT", None)
-        else:
-            os.environ["EBAY_ENVIRONMENT"] = previous_environment
+    search_kwargs = {"limit": args.limit, "offset": args.offset}
+    if args.environment is not None:
+        search_kwargs["environment"] = args.environment
+    payload = run_search(args.query, fixture, **search_kwargs)
     if args.format == "json":
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
     elif args.format == "comparison":

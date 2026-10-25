@@ -71,6 +71,34 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertEqual(json.loads(output)["source_metadata"]["environment"], "sandbox")
 
+    def test_environment_argument_is_passed_to_pipeline_without_global_mutation(self):
+        payload = {
+            "ok": False,
+            "status": "source_unavailable",
+            "source": "ebay.browse.hk.v1",
+            "source_metadata": {"environment": "sandbox"},
+            "read_only": True,
+            "recommended": [],
+            "rejected": [],
+            "dropped": [],
+        }
+        with patch.dict(os.environ, {"EBAY_ENVIRONMENT": "production"}, clear=False):
+            with patch("muse_selector.cli.run_search", return_value=payload) as search:
+                code, _ = self._run(
+                    "--environment", "sandbox",
+                    "--query", "香港 RTX 4070 显卡，预算 HKD 9000",
+                    "--format", "json",
+                )
+            self.assertEqual(os.environ["EBAY_ENVIRONMENT"], "production")
+        self.assertEqual(code, 2)
+        search.assert_called_once_with(
+            "香港 RTX 4070 显卡，预算 HKD 9000",
+            None,
+            limit=10,
+            offset=0,
+            environment="sandbox",
+        )
+
     def test_offset_is_forwarded_as_single_browse_page_control(self):
         payload = {
             "ok": False,

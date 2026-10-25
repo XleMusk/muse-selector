@@ -138,6 +138,33 @@ class SmokeTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertEqual(json.loads(output.getvalue())["source_metadata"]["environment"], "sandbox")
 
+    def test_environment_argument_is_passed_to_pipeline_without_global_mutation(self):
+        output = io.StringIO()
+        payload = {
+            "ok": False,
+            "status": "source_unavailable",
+            "source": "ebay.browse.hk.v1",
+            "source_metadata": {"environment": "sandbox"},
+            "read_only": True,
+            "recommended": [],
+            "rejected": [],
+            "dropped": [],
+        }
+        with patch.dict(os.environ, {"EBAY_ENVIRONMENT": "production"}, clear=False):
+            with patch("muse_selector.smoke.run_search", return_value=payload) as search:
+                with patch.object(sys, "argv", ["muse-live-smoke", "--environment", "sandbox", "--query", "香港 RTX 4070 显卡，预算 HKD 9000"]):
+                    with contextlib.redirect_stdout(output):
+                        code = main()
+            self.assertEqual(os.environ["EBAY_ENVIRONMENT"], "production")
+        self.assertEqual(code, 2)
+        search.assert_called_once_with(
+            "香港 RTX 4070 显卡，预算 HKD 9000",
+            fixture_path=None,
+            limit=10,
+            offset=0,
+            environment="sandbox",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
