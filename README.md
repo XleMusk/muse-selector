@@ -125,7 +125,7 @@ Invoke-RestMethod "http://127.0.0.1:8765/api/watch?watch_id=mini_pc_hk"
 Invoke-RestMethod "http://127.0.0.1:8765/api/watches"
 ```
 
-`/api/watch` 只读取单个 watch 元数据和最新已保存结果，`/api/watches` 返回全部 watch 元数据；两个端点都不会刷新来源、调用连接器或写入 SQLite。未绑定 `--db` 或 watch 不存在时返回结构化 `watch_unavailable` / `watch_not_found`。
+`/api/watch` 只读取单个 watch 元数据和最新已保存结果，`/api/watches` 返回全部 watch 元数据；两个端点都不会刷新来源、调用连接器或写入 SQLite。watch 元数据中的 `last_change_summary` 是最近一次刷新相对于上一个检查点的新增、移除、内容变化和状态变化摘要，即使观察进程已经退出也可以恢复。未绑定 `--db` 或 watch 不存在时返回结构化 `watch_unavailable` / `watch_not_found`。
 
 运行离线回归：
 
@@ -185,7 +185,7 @@ print(store.replay_run(latest["run_id"]))
 '@ | python -
 ```
 
-这些操作只修改本地观察状态或读取已保存结果，不会向来源平台发起写操作。
+这些操作只修改本地观察状态或读取已保存结果，不会向来源平台发起写操作。`status` 和 Web 观察端点会保留并返回最近一次刷新摘要，便于在进程重启后判断观察任务是否发生变化。
 
 同样可以直接使用 `muse-watch` 管理生命周期：
 
