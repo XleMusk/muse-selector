@@ -15,6 +15,8 @@ class ContractTests(unittest.TestCase):
         self.assertIn("read_only: true", text)
         self.assertIn("writes_enabled: false", text)
         self.assertIn("localizedAspects", text)
+        self.assertIn("EBAY_PRODUCTION_CLIENT_ID", text)
+        self.assertIn("EBAY_SANDBOX_CLIENT_ID", text)
         self.assertIn("xianyu.partner.v1", text)
         self.assertIn("zhuanzhuan.recommerce.mcp.v1", text)
 

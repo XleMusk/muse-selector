@@ -14,6 +14,10 @@ sources:
     allowed_fields: [title, url, price, condition, stock, shipping, seller, localizedAspects]
     write_actions: []
     credentials_from_environment:
+      - EBAY_PRODUCTION_CLIENT_ID
+      - EBAY_PRODUCTION_CLIENT_SECRET
+      - EBAY_SANDBOX_CLIENT_ID
+      - EBAY_SANDBOX_CLIENT_SECRET
       - EBAY_CLIENT_ID
       - EBAY_CLIENT_SECRET
     environments: [sandbox, production]
