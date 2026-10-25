@@ -86,6 +86,37 @@ def _source_metadata_markup(payload: dict[str, Any]) -> str:
     )
 
 
+def _compatibility_matrix_markup(payload: dict[str, Any]) -> str:
+    matrix = payload.get("compatibility_matrix")
+    if not isinstance(matrix, dict) or not matrix.get("items"):
+        return ""
+    rows: list[str] = []
+    for item in matrix.get("items") or []:
+        if not isinstance(item, dict):
+            continue
+        for requirement in item.get("requirements") or []:
+            if not isinstance(requirement, dict):
+                continue
+            evidence_ids = ", ".join(requirement.get("evidence_ids") or ()) or "unknown"
+            rows.append(
+                "<tr>"
+                f"<td><code>{_text(item.get('listing_id') or 'unknown')}</code></td>"
+                f"<td>{_text(requirement.get('field') or 'unknown')}</td>"
+                f"<td>{_text(requirement.get('required'))}</td>"
+                f"<td>{_text(requirement.get('actual') if requirement.get('actual') is not None else 'unknown')}</td>"
+                f"<td>{_text(requirement.get('status') or 'unknown')}</td>"
+                f"<td><code>{_text(evidence_ids)}</code></td>"
+                "</tr>"
+            )
+    if not rows:
+        return ""
+    return (
+        "<section class='compatibility'><h2>硬件兼容性矩阵</h2>"
+        "<table><thead><tr><th>商品</th><th>字段</th><th>要求</th><th>实际</th><th>状态</th><th>证据</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody></table></section>"
+    )
+
+
 def _validate_bind_host(host: str) -> str:
     """Keep the local result page on loopback to prevent cross-tenant reads."""
 
@@ -249,6 +280,7 @@ def render_html(payload: dict[str, Any], query: str) -> str:
             f"{_source_metadata_markup(payload)}"
             "<h2>推荐结果</h2>"
             f"<div class='cards'>{''.join(cards) or '<p>没有满足全部硬约束的结果。</p>'}</div>"
+            f"{_compatibility_matrix_markup(payload)}"
             f"<details><summary>被过滤结果（{len(payload.get('rejected', []))}）</summary><ul>{rejected}</ul></details>"
             f"<details><summary>未进入推荐的来源记录（{len(payload.get('dropped', []))}）</summary><ul>{dropped}</ul></details>"
         )

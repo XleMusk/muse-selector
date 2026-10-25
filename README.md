@@ -261,6 +261,7 @@ muse-watch --db "D:\muse\data\selector.sqlite3" --action changes --watch-id "min
 关键字段证据覆盖率低于 95% 的来源记录会被标记为风险并排除，不会进入推荐。
 查询未提供预算上限时，系统返回 `needs_clarification` 并要求补充地区与 `max_total_hkd`；只有明确写出“价格不限”等表达才会在无预算上限下继续筛选。
 结果卡会同时输出 `cost_status` 和 `cost_basis`：税费或运费未知时显示“已知费用小计”，不会把未知税费伪装成完整到手价。
+结果卡还会输出 `compatibility_matrix`：对每个 `required_specs` 给出 `confirmed`、`mismatch` 或 `unknown`，并保留对应 `evidence_ids` 和来源 URL；缺少字段证据时保持 `unknown`。
 每张结果卡还会输出顶层 `evidence_ids`；它与卡片内 `evidence[].evidence_id` 一一对应，便于下游存储、回放和审计时直接定位证据，而无需解析证据正文。
 查询中明确写出“X 天内送达”或 “delivery within X days”时，系统只使用 eBay `shippingOptions.maxEstimatedDeliveryDate` 相对来源观测时间计算配送上限；缺少预计日期的记录显示 `delivery_unknown` 并排除，不会猜测送达时间。结果卡会显示 `delivery_max_days`。
 实时 eBay 响应中的 `itemEndDate` 会与本次抓取时间比较；已结束 listing 会保留 `itemEndDate` 证据并以 `listing_ended` 硬过滤。fixture 没有真实观测时钟，因此不会用本机当前时间改变离线回归结果。

@@ -18,6 +18,7 @@ from .contracts import (
     Evidence,
     Listing,
 )
+from .compatibility import build_compatibility_matrix
 from .filtering import filter_listings
 from .link_only import build_link_only_plan
 from .query_parser import PolicyBlockedError, has_explicit_unbounded_budget, parse_query
@@ -457,6 +458,7 @@ def run_search(
         "status": "complete",
         "search_spec": spec.to_dict(),
         "recommended": recommended_cards,
+        "compatibility_matrix": build_compatibility_matrix({"search_spec": spec.to_dict(), "recommended": recommended_cards}),
         "ranking_policy": "source_order_preserved",
         "rejected": rejected,
         "dropped": dropped,

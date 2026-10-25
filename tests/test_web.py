@@ -101,6 +101,32 @@ class WebTests(unittest.TestCase):
         self.assertIn("&quot;total&quot;: 5", page)
         self.assertNotIn("<script>alert(1)</script>", page)
 
+    def test_render_shows_compatibility_matrix(self):
+        payload = {
+            "ok": True,
+            "search_spec": {"region": "HK", "currency": "HKD", "budget_max": "7000"},
+            "recommended": [],
+            "compatibility_matrix": {
+                "schema_version": "muse.selector.compatibility.v1",
+                "items": [{
+                    "listing_id": "item-1",
+                    "requirements": [{
+                        "field": "ram_gb",
+                        "required": 32,
+                        "actual": 32,
+                        "status": "confirmed",
+                        "evidence_ids": ["item-1:specs"],
+                    }],
+                }],
+            },
+            "rejected": [],
+            "dropped": [],
+        }
+        page = render_html(payload, "ram")
+        self.assertIn("硬件兼容性矩阵", page)
+        self.assertIn("item-1:specs", page)
+        self.assertIn("confirmed", page)
+
     def test_render_replaces_untrusted_href(self):
         payload = {
             "ok": True,

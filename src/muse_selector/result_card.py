@@ -186,6 +186,23 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
             ],
             "",
         ])
+    matrix = payload.get("compatibility_matrix")
+    if isinstance(matrix, Mapping) and matrix.get("items"):
+        lines.extend(["## 硬件兼容性矩阵", "", "| 商品 | 字段 | 要求 | 实际 | 状态 | 证据 |", "| --- | --- | --- | --- | --- | --- |"])
+        for item in matrix.get("items") or []:
+            for requirement in item.get("requirements") or []:
+                evidence = ", ".join(requirement.get("evidence_ids") or ()) or "unknown"
+                lines.append(
+                    "| " + " | ".join([
+                        _table_untrusted(item.get("listing_id") or "unknown"),
+                        _table_untrusted(requirement.get("field") or "unknown"),
+                        _table_untrusted(requirement.get("required")),
+                        _table_untrusted(requirement.get("actual") if requirement.get("actual") is not None else "unknown"),
+                        _table_untrusted(requirement.get("status") or "unknown"),
+                        _table_untrusted(evidence),
+                    ]) + " |"
+                )
+        lines.append("")
     if payload.get("rejected"):
         lines.extend(["## 被硬约束过滤的结果", ""])
         for item in payload["rejected"]:
