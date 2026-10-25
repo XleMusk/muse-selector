@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any, Iterable
 
-from .contracts import Listing, SearchSpec
+from .contracts import FilterRule, Listing, SearchSpec
 
 
 @dataclass(frozen=True)
@@ -14,6 +14,21 @@ class FilterDecision:
     listing_id: str
     accepted: bool
     reasons: tuple[str, ...] = ()
+
+
+def filter_rules_for_spec(spec: SearchSpec) -> tuple[FilterRule, ...]:
+    """Translate explicit required specs into typed, explainable rules."""
+
+    rules: list[FilterRule] = []
+    for field, expected in spec.required_specs.items():
+        if isinstance(expected, (list, tuple, set)):
+            operator = "in"
+        elif isinstance(expected, (int, float, Decimal)) and not isinstance(expected, bool):
+            operator = "gte"
+        else:
+            operator = "eq"
+        rules.append(FilterRule(field=str(field), operator=operator, expected=expected, rule_id=f"required_spec:{field}"))
+    return tuple(rules)
 
 
 def _matches(required: Any, actual: Any) -> bool:
@@ -61,9 +76,10 @@ def filter_listings(spec: SearchSpec, listings: Iterable[Listing]) -> tuple[list
                         reasons.append("delivery_too_slow")
                 except (InvalidOperation, TypeError, ValueError):
                     reasons.append("delivery_unknown")
-        for key, required in spec.required_specs.items():
-            if key not in listing.specs or not _matches(required, listing.specs.get(key)):
-                reasons.append(f"required_spec:{key}")
+        for rule in filter_rules_for_spec(spec):
+            actual = listing.specs.get(rule.field)
+            if actual is None or not _matches(rule.expected, actual):
+                reasons.append(rule.rule_id or f"required_spec:{rule.field}")
         if listing.risk_flags:
             reasons.append("risk_flagged")
         decision = FilterDecision(listing.listing_id, not reasons, tuple(reasons))

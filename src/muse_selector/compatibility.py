@@ -5,6 +5,7 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation
 from typing import Any, Mapping
 
+from .contracts import CompatibilityCheck
 
 COMPATIBILITY_SCHEMA_VERSION = "muse.selector.compatibility.v1"
 
@@ -60,14 +61,17 @@ def build_compatibility_matrix(payload: Mapping[str, Any]) -> dict[str, Any]:
                 status = "confirmed"
             else:
                 status = "mismatch"
-            requirements.append({
-                "field": str(field),
-                "required": expected,
-                "actual": actual,
-                "status": status,
-                "evidence_ids": evidence_ids,
-                "source_urls": source_urls,
-            })
+            requirements.append(
+                CompatibilityCheck(
+                    field=str(field),
+                    required=expected,
+                    actual=actual,
+                    status=status,
+                    evidence_ids=tuple(evidence_ids),
+                    source_urls=tuple(source_urls),
+                    rule_id=f"compatibility:{field}",
+                ).to_dict()
+            )
         statuses = {item["status"] for item in requirements}
         overall = "incompatible" if "mismatch" in statuses else "unknown" if "unknown" in statuses else "compatible"
         items.append({

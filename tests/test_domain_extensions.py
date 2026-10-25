@@ -1,7 +1,9 @@
 import unittest
 
 from muse_selector.category_registry import get_category_schema
-from muse_selector.contracts import Evidence, Listing, ListingInstance
+from muse_selector.compatibility import build_compatibility_matrix
+from muse_selector.contracts import CompatibilityCheck, Evidence, FilterRule, Listing, ListingInstance, RankProfile
+from muse_selector.filtering import filter_rules_for_spec
 from muse_selector.query_parser import parse_query
 from muse_selector.source_capabilities import source_capability_registry
 from muse_selector.source_normalizer import normalize_source_row
@@ -78,6 +80,41 @@ class DomainExtensionTests(unittest.TestCase):
         self.assertEqual(capabilities["xianyu.partner.v1"].access_mode, "authorized_partner")
         self.assertEqual(capabilities["fixture.local.v1"].access_mode, "local_fixture")
         self.assertTrue(all(item.read_only and not item.write_actions for item in capabilities.values()))
+
+    def test_filter_rules_are_typed_without_changing_required_spec_semantics(self):
+        spec = parse_query("香港 RTX 4070 12GB 显存，预算 HKD 9000")
+        rules = filter_rules_for_spec(spec)
+        self.assertTrue(all(isinstance(rule, FilterRule) for rule in rules))
+        self.assertEqual(rules[0].operator, "gte")
+        self.assertEqual(rules[0].rule_id, "required_spec:vram_gb")
+
+    def test_rank_profile_and_compatibility_check_are_versioned_domain_objects(self):
+        profile = RankProfile("hardware-v1", {"evidence_coverage": 0.4, "availability": 0.2})
+        self.assertEqual(profile.to_dict()["profile_id"], "hardware-v1")
+        check = CompatibilityCheck(
+            field="vram_gb",
+            required=12,
+            actual=8,
+            status="mismatch",
+            rule_id="compatibility:vram_gb",
+        )
+        self.assertEqual(check.to_dict()["status"], "mismatch")
+
+    def test_compatibility_matrix_emits_typed_check_rule_ids(self):
+        matrix = build_compatibility_matrix({
+            "search_spec": {"required_specs": {"vram_gb": 12}},
+            "recommended": [{
+                "listing_id": "gpu-1",
+                "specs": {"vram_gb": 8},
+                "evidence": [{
+                    "evidence_id": "gpu-1:ev",
+                    "field": "specs",
+                    "value": {"vram_gb": 8},
+                    "status": "confirmed",
+                }],
+            }],
+        })
+        self.assertEqual(matrix["items"][0]["requirements"][0]["status"], "mismatch")
 
 
 if __name__ == "__main__":

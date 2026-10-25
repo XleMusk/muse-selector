@@ -30,6 +30,9 @@ REGION_CURRENCY = {"HK": "HKD", "CN": "CNY"}
 DOMESTIC_SOURCE_IDS = {"zhuanzhuan.recommerce.mcp.v1", "xianyu.partner.v1"}
 ALLOWED_SOURCE_IDS = {"ebay.browse.hk.v1", *DOMESTIC_SOURCE_IDS}
 SOURCE_ACCESS_MODES = {"official_api", "authorized_partner", "user_link", "local_fixture"}
+FILTER_OPERATORS = {"eq", "gte", "lte", "in", "contains", "exists"}
+UNKNOWN_POLICIES = {"reject", "allow", "flag"}
+COMPATIBILITY_STATUSES = {"confirmed", "mismatch", "unknown"}
 
 
 def _now_iso() -> str:
@@ -143,6 +146,99 @@ class SearchSpec:
         for key in ("sources", "unparsed_fragments", "clarification_fields"):
             result[key] = list(result[key])
         return result
+
+
+@dataclass(frozen=True)
+class FilterRule:
+    """One explainable rule used by hard filtering or ranking preparation."""
+
+    field: str
+    operator: str
+    expected: Any
+    hard: bool = True
+    unknown_policy: str = "reject"
+    rule_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.field:
+            raise ValueError("filter rule field is required")
+        if self.operator not in FILTER_OPERATORS:
+            raise ValueError(f"unsupported filter operator: {self.operator}")
+        if self.unknown_policy not in UNKNOWN_POLICIES:
+            raise ValueError(f"unsupported unknown policy: {self.unknown_policy}")
+        if not isinstance(self.hard, bool):
+            raise ValueError("filter rule hard must be boolean")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "field": self.field,
+            "operator": self.operator,
+            "expected": self.expected,
+            "hard": self.hard,
+            "unknown_policy": self.unknown_policy,
+            "rule_id": self.rule_id,
+        }
+
+
+@dataclass(frozen=True)
+class RankProfile:
+    """Versioned, explainable weights applied after hard filtering."""
+
+    profile_id: str
+    weights: Mapping[str, float]
+    source_order_preserved: bool = True
+    schema_version: str = SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        if not self.profile_id:
+            raise ValueError("rank profile id is required")
+        normalized = {str(key): float(value) for key, value in self.weights.items()}
+        if any(not math.isfinite(value) or value < 0 for value in normalized.values()):
+            raise ValueError("rank profile weights must be finite and non-negative")
+        if sum(normalized.values()) > 1.0 + 1e-9:
+            raise ValueError("rank profile weights cannot sum above 1")
+        if not isinstance(self.source_order_preserved, bool):
+            raise ValueError("source_order_preserved must be boolean")
+        object.__setattr__(self, "weights", normalized)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "profile_id": self.profile_id,
+            "weights": dict(self.weights),
+            "source_order_preserved": self.source_order_preserved,
+            "schema_version": self.schema_version,
+        }
+
+
+@dataclass(frozen=True)
+class CompatibilityCheck:
+    """One evidence-backed compatibility decision for a listing."""
+
+    field: str
+    required: Any
+    actual: Any
+    status: str
+    evidence_ids: tuple[str, ...] = ()
+    source_urls: tuple[str, ...] = ()
+    rule_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.field:
+            raise ValueError("compatibility field is required")
+        if self.status not in COMPATIBILITY_STATUSES:
+            raise ValueError(f"unsupported compatibility status: {self.status}")
+        object.__setattr__(self, "evidence_ids", tuple(self.evidence_ids or ()))
+        object.__setattr__(self, "source_urls", tuple(self.source_urls or ()))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "field": self.field,
+            "required": self.required,
+            "actual": self.actual,
+            "status": self.status,
+            "evidence_ids": list(self.evidence_ids),
+            "source_urls": list(self.source_urls),
+        }
 
 
 @dataclass(frozen=True)
