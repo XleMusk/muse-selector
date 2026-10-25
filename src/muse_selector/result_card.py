@@ -28,6 +28,7 @@ class ResultCard:
     risk_flags: tuple[str, ...]
     delivery_max_days: int | None = None
     warranty: str | None = None
+    product_id: str | None = None
     status: str = "recommended"
     shipping_cost: str | None = None
     tax: str | None = None
@@ -90,6 +91,7 @@ def build_card(
         specs=dict(listing.specs),
         delivery_max_days=listing.specs.get("delivery_max_days"),
         warranty=listing.specs.get("warranty"),
+        product_id=listing.product_id,
         evidence=tuple(item.to_dict() for item in evidence),
         risk_flags=listing.risk_flags,
         status=status,
@@ -141,6 +143,7 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
             f"- 来源顺序：{card.get('source_rank') or index}（保留 eBay 来源顺序，未在客户端重排）",
             f"- 匹配分：{float(card.get('fit_score', 0.0)):.1f}/100；拆解：{_markdown_untrusted(card.get('fit_breakdown') or 'unknown')}",
             f"- 来源标识：{_markdown_untrusted(card.get('source_id') or 'unknown')}",
+            f"- 实体标识：{_markdown_untrusted(card.get('product_id') or 'unknown')}",
             f"- {cost_label}：{card['landed_cost'] or 'unknown'} {card['currency']}（{card.get('cost_basis') or 'unknown'}）",
             f"- 运费/税费：{card.get('shipping_cost') or 'unknown'} / {card.get('tax') or 'unknown'} {card['currency']}",
             f"- 关键字段证据覆盖率：{float(card.get('evidence_coverage', 0.0)):.1%}",

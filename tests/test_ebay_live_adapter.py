@@ -252,6 +252,30 @@ class EbayLiveAdapterTests(unittest.TestCase):
             },
         )
 
+    def test_product_identity_fields_are_normalized_and_evidenced(self):
+        connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=_Opener())
+        row = connector._normalize_item({
+            "itemId": "identity|1|0",
+            "title": "ThinkCentre M90q Mini PC",
+            "itemWebUrl": "https://www.ebay.com.hk/itm/identity-1",
+            "price": {"value": "3999.00", "currency": "HKD"},
+            "condition": "Used",
+            "estimatedAvailabilityStatus": "IN_STOCK",
+            "seller": {"username": "hardware-hk", "feedbackPercentage": "99.9"},
+            "shippingOptions": [{"shippingCost": {"value": "0.00", "currency": "HKD"}}],
+            "brand": "Lenovo",
+            "model": "M90q Gen 3",
+            "mpn": "11T00001US",
+            "gtin": "0196801234567",
+        })
+        self.assertEqual(row["product_id"], "0196801234567")
+        self.assertEqual(row["specs"]["brand"], "Lenovo")
+        self.assertEqual(row["specs"]["mpn"], "11T00001US")
+        self.assertTrue(any(item["field"] == "identity" for item in row["evidence"]))
+        listing, evidence, reason = _to_listing(row)
+        self.assertIsNone(reason)
+        self.assertEqual(build_card(listing, evidence).to_dict()["product_id"], "0196801234567")
+
     def test_non_object_browse_response_fails_closed(self):
         connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=_NonObjectOpener())
         with self.assertRaises(ConnectorUnavailable):

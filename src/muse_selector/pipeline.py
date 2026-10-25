@@ -222,6 +222,7 @@ def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], st
             **(dict(row.get("specs")) if isinstance(row.get("specs"), Mapping) else {}),
             **({"delivery_max_days": delivery_max_days} if delivery_max_days is not None else {}),
         },
+        product_id=str(row.get("product_id")) if row.get("product_id") not in (None, "") else None,
         evidence_ids=tuple(item.evidence_id for item in evidence),
         source_observed_at=observed_at,
         risk_flags=tuple(flags),

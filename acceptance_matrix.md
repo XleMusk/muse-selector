@@ -11,6 +11,7 @@
 | OAuth/Browse 失败关闭与端点锁定 | `tests/test_ebay_live_adapter.py`、`tests/test_ebay_connector.py` | 已通过 |
 | eBay Sandbox/Production 环境隔离 | `src/muse_selector/connectors/ebay.py`、`tests/test_ebay_live_adapter.py`、`tests/test_ebay_connector.py` | Sandbox 端点配对和环境标记已通过；Sandbox 不代表市场报价 |
 | 实时字段适配、抓取时间和结束 listing 过滤 | `tests/test_ebay_live_adapter.py`、`tests/test_ebay_connector.py`、`src/muse_selector/filtering.py` | 适配逻辑已通过；已依据 `itemEndDate` 与 live 观测时间硬过滤；真实 API 待凭据 |
+| 硬件实体标识（品牌/型号/MPN/GTIN/EPID） | `src/muse_selector/connectors/ebay.py`、`src/muse_selector/result_card.py`、`tests/test_ebay_live_adapter.py` | 已通过；只保留来源明确字段 |
 | 来源、时间、字段证据、风险结果卡 | `src/muse_selector/result_card.py`、`src/muse_selector/web.py`、`tests/test_pipeline.py`、`tests/test_web.py` | 已通过 |
 | 来源顺序与单页召回 | `src/muse_selector/pipeline.py`、`tests/test_ebay_live_adapter.py` | 已通过；不自动跟随 `next` |
 | CLI 和本地结果页 | `src/muse_selector/cli.py`、`src/muse_selector/web.py`、README 运行命令 | 已实际运行 |

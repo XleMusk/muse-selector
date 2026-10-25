@@ -68,6 +68,7 @@ def render_html(payload: dict[str, Any], query: str) -> str:
                 "<article class='card'>"
                 f"<h2>{_text(card.get('title'))}</h2>"
                 f"<p>来源标识：<code>{_text(card.get('source_id') or 'unknown')}</code></p>"
+                f"<p>实体标识：<code>{_text(card.get('product_id') or 'unknown')}</code></p>"
                 f"<p>来源顺序：{_text(card.get('source_rank') or 'unknown')}（保留 eBay 来源顺序） · 匹配分：{_text(card.get('fit_score') or '0')} / 100</p>"
                 f"<p>匹配拆解：<code>{_text(json.dumps(card.get('fit_breakdown') or {}, ensure_ascii=False, sort_keys=True))}</code></p>"
                 f"<p class='price'>{_text(cost_label)}：{_text(card.get('landed_cost') or 'unknown')} {_text(card.get('currency'))}</p>"

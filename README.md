@@ -135,6 +135,7 @@ muse-watch --db "D:\muse\data\selector.sqlite3" --action replay --watch-id "mini
 查询中明确写出“X 天内送达”或 “delivery within X days”时，系统只使用 eBay `shippingOptions.maxEstimatedDeliveryDate` 相对来源观测时间计算配送上限；缺少预计日期的记录显示 `delivery_unknown` 并排除，不会猜测送达时间。结果卡会显示 `delivery_max_days`。
 实时 eBay 响应中的 `itemEndDate` 会与本次抓取时间比较；已结束 listing 会保留 `itemEndDate` 证据并以 `listing_ended` 硬过滤。fixture 没有真实观测时钟，因此不会用本机当前时间改变离线回归结果。
 结果卡也会显示来源明确提供的保修信息；没有保修字段时显示 `unknown`，不会根据标题或常识补写。
+来源明确提供品牌、型号、MPN、GTIN 或 EPID 时，结果卡会保留实体标识和对应字段证据；缺失时保持 `unknown`。
 eBay Browse API 的官方要求不允许合作方在客户端重新排序搜索结果，因此系统保留 eBay 返回的最佳匹配顺序，并在每张结果卡中显示 `source_rank`、`fit_score` 和拆解字段；预算、地区、库存、成色、必选规格和风险仍先经过硬约束过滤。
 
 ## 可选 eBay 只读 API

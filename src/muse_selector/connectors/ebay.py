@@ -385,6 +385,10 @@ class EbayBrowseConnector:
         # offline fixture has no observation clock and must remain unknown.
         observed_at = fetched_at or "unknown"
         specs = self._normalize_aspects(item.get("localizedAspects"))
+        for identity_key in ("brand", "model", "mpn", "gtin", "epid"):
+            identity_value = item.get(identity_key)
+            if isinstance(identity_value, str) and identity_value.strip():
+                specs[identity_key] = identity_value.strip()
         item_end_date = item.get("itemEndDate")
         if self._listing_ended(item_end_date, observed_at):
             specs["listing_ended"] = True
@@ -399,6 +403,9 @@ class EbayBrowseConnector:
         }
         if isinstance(item_end_date, str) and item_end_date:
             evidence_fields["itemEndDate"] = item_end_date
+        identity = {key: specs[key] for key in ("brand", "model", "mpn", "gtin", "epid") if key in specs}
+        if identity:
+            evidence_fields["identity"] = identity
         evidence = [
             {
                 "field": field,
@@ -429,6 +436,7 @@ class EbayBrowseConnector:
             },
             "shipping_options": shipping,
             "specs": specs,
+            "product_id": item.get("epid") or specs.get("gtin") or specs.get("mpn"),
             "source_observed_at": observed_at,
             "source_metadata": dict(source_metadata or self._empty_source_metadata()),
             "evidence": evidence,
@@ -508,6 +516,18 @@ class EbayBrowseConnector:
                 continue
             if name in {"warranty", "warranty duration", "manufacturer warranty", "seller warranty"}:
                 specs["warranty"] = raw_value
+                continue
+            if name in {"brand", "manufacturer", "make"}:
+                specs["brand"] = raw_value
+                continue
+            if name in {"model", "model number", "model name"}:
+                specs["model"] = raw_value
+                continue
+            if name in {"mpn", "manufacturer part number", "part number"}:
+                specs["mpn"] = raw_value
+                continue
+            if name in {"gtin", "upc", "ean", "isbn"}:
+                specs["gtin"] = raw_value
         return specs
 
     @staticmethod
