@@ -14,6 +14,10 @@ Positive cases in `queries.json` also carry curated `relevant_listing_ids` label
 the harness reports reproducible Precision@10, Recall@20, NDCG@10 and replay
 Top-k Jaccard baselines over those labels. These are fixture metrics, not live-market
 quality claims.
+The regression output also includes a deterministic `quality_report`: identity keys
+use only explicit GTIN/EPID/MPN/SKU or brand/model fields, duplicate groups are
+counted, and freshness uses the fixture's newest observation as the reference time.
+Titles never supply an inferred identity.
 
 Run without network or credentials from the repository root:
 

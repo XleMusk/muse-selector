@@ -10,6 +10,7 @@ import json
 import math
 import sys
 from dataclasses import asdict
+from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Iterable
@@ -23,6 +24,7 @@ from muse_selector.contracts import Evidence, Listing, SearchSpec  # noqa: E402
 from muse_selector.filtering import filter_listings  # noqa: E402
 
 FIXTURES = ROOT / "tests" / "fixtures"
+IDENTITY_KEY_PRIORITY = ("gtin", "epid", "mpn", "sku")
 
 
 def load_json(name: str) -> Any:
@@ -166,6 +168,87 @@ def _mean(values: Iterable[float]) -> float:
     return sum(values) / len(values) if values else 0.0
 
 
+def _quality_text(value: Any) -> str | None:
+    """Normalize an explicitly supplied identity value without inferring it."""
+
+    if value in (None, "") or isinstance(value, (dict, list, tuple, set)):
+        return None
+    text = str(value).strip()
+    return text.casefold() if text else None
+
+
+def _identity_key(raw: dict[str, Any]) -> str | None:
+    """Choose a deterministic identity key from source-provided fields only."""
+
+    specs = raw.get("specs") if isinstance(raw.get("specs"), dict) else {}
+    for field in IDENTITY_KEY_PRIORITY:
+        value = _quality_text(raw.get(field)) or _quality_text(specs.get(field))
+        if value is not None:
+            return f"{field}:{value}"
+    brand = _quality_text(raw.get("brand")) or _quality_text(specs.get("brand"))
+    model = _quality_text(raw.get("model")) or _quality_text(specs.get("model"))
+    if brand is not None and model is not None:
+        return f"brand_model:{brand}|{model}"
+    return None
+
+
+def _observed_at(raw: dict[str, Any]) -> datetime | None:
+    source = raw.get("source") if isinstance(raw.get("source"), dict) else {}
+    value = source.get("observed_at") or raw.get("source_observed_at")
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        observed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return observed.replace(tzinfo=timezone.utc) if observed.tzinfo is None else observed
+
+
+def build_quality_report(raw_listings: Iterable[dict[str, Any]], *, ttl_hours: int = 72) -> dict[str, Any]:
+    """Build deterministic entity and freshness metrics from source fields."""
+
+    rows = [item for item in raw_listings if isinstance(item, dict)]
+    keys: dict[str, list[str]] = {}
+    observed: dict[str, datetime | None] = {}
+    for raw in rows:
+        listing_id = str(raw.get("listing_id") or "unknown")
+        key = _identity_key(raw)
+        if key is not None:
+            keys.setdefault(key, []).append(listing_id)
+        observed[listing_id] = _observed_at(raw)
+    valid_times = [item for item in observed.values() if item is not None]
+    reference = max(valid_times) if valid_times else None
+    stale_count = 0
+    fresh_count = 0
+    unknown_observed_at_count = 0
+    for value in observed.values():
+        if value is None or reference is None:
+            unknown_observed_at_count += 1
+            continue
+        if (reference - value).total_seconds() > ttl_hours * 3600:
+            stale_count += 1
+        else:
+            fresh_count += 1
+    duplicate_groups = {key: ids for key, ids in keys.items() if len(ids) > 1}
+    known_count = sum(len(ids) for ids in keys.values())
+    return {
+        "listing_count": len(rows),
+        "identity_key_priority": list(IDENTITY_KEY_PRIORITY) + ["brand_model"],
+        "identity_key_count": len(keys),
+        "identity_unknown_count": len(rows) - known_count,
+        "identity_coverage_rate": round(known_count / len(rows), 4) if rows else 0.0,
+        "identity_key_counts": {key: len(ids) for key, ids in sorted(keys.items())},
+        "duplicate_group_count": len(duplicate_groups),
+        "duplicate_listing_count": sum(len(ids) - 1 for ids in duplicate_groups.values()),
+        "duplicate_groups": {key: sorted(ids) for key, ids in sorted(duplicate_groups.items())},
+        "ttl_hours": ttl_hours,
+        "reference_at": reference.astimezone(timezone.utc).isoformat().replace("+00:00", "Z") if reference else None,
+        "fresh_count": fresh_count,
+        "stale_count": stale_count,
+        "unknown_observed_at_count": unknown_observed_at_count,
+    }
+
+
 def validate_fixture_shape() -> list[str]:
     policy = load_json("regression_policy.json")
     errors: list[str] = []
@@ -185,7 +268,13 @@ def validate_fixture_shape() -> list[str]:
 def run_regression() -> dict[str, Any]:
     errors = validate_fixture_shape()
     raw = load_raw_listings()
-    listings = [build_listing(item) for item in raw if item.get("category") != "game_account"]
+    hardware_raw = [item for item in raw if item.get("category") != "game_account"]
+    listings = [build_listing(item) for item in hardware_raw]
+    policy = load_json("regression_policy.json")
+    quality_report = build_quality_report(
+        hardware_raw,
+        ttl_hours=int(policy.get("freshness_ttl_hours", 72)),
+    )
     query_results: dict[str, Any] = {}
     accepted_total = 0
     accepted_violations = 0
@@ -282,6 +371,7 @@ def run_regression() -> dict[str, Any]:
         "hard_constraint_violation_rate": violation_rate,
         "hard_constraint_checked_count": accepted_total,
         "ranking_metrics": ranking_metrics,
+        "quality_report": quality_report,
     }
 
 

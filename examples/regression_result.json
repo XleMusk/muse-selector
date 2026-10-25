@@ -4,6 +4,35 @@
   "hard_constraint_violation_rate": 0.0,
   "listing_count": 6,
   "ok": true,
+  "quality_report": {
+    "duplicate_group_count": 0,
+    "duplicate_groups": {},
+    "duplicate_listing_count": 0,
+    "fresh_count": 5,
+    "identity_coverage_rate": 1.0,
+    "identity_key_count": 6,
+    "identity_key_counts": {
+      "mpn:21k3001mhh": 1,
+      "mpn:9001g1362510000": 1,
+      "mpn:mini-16-512": 1,
+      "mpn:old-32": 1,
+      "mpn:rtx-4080": 1,
+      "mpn:u4-dual-100": 1
+    },
+    "identity_key_priority": [
+      "gtin",
+      "epid",
+      "mpn",
+      "sku",
+      "brand_model"
+    ],
+    "identity_unknown_count": 0,
+    "listing_count": 6,
+    "reference_at": "2026-10-24T10:00:00Z",
+    "stale_count": 1,
+    "ttl_hours": 72,
+    "unknown_observed_at_count": 0
+  },
   "queries": {
     "conflict_shipping": {
       "accepted": [

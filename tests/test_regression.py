@@ -1,6 +1,6 @@
 import unittest
 
-from regression_harness import run_regression
+from regression_harness import build_quality_report, run_regression
 
 
 class RegressionTests(unittest.TestCase):
@@ -29,6 +29,42 @@ class RegressionTests(unittest.TestCase):
         result = run_regression()
         self.assertTrue(result["queries"]["game_account_policy_block"]["policy_blocked"])
         self.assertTrue(result["queries"]["ssrf_url"]["blocked"])
+
+    def test_quality_report_is_deterministic_and_ttl_bounded(self):
+        first = run_regression()["quality_report"]
+        second = run_regression()["quality_report"]
+        self.assertEqual(first, second)
+        self.assertEqual(first["listing_count"], 6)
+        self.assertEqual(first["identity_unknown_count"], 0)
+        self.assertEqual(first["duplicate_listing_count"], 0)
+        self.assertEqual(first["ttl_hours"], 72)
+        self.assertEqual(first["stale_count"], 1)
+        self.assertEqual(first["fresh_count"], 5)
+        self.assertEqual(first["unknown_observed_at_count"], 0)
+
+    def test_quality_report_does_not_infer_identity_from_title(self):
+        report = build_quality_report([
+            {
+                "listing_id": "title-only",
+                "title": "Lenovo ThinkPad 21K3 32GB",
+                "source": {"observed_at": "2026-10-24T10:00:00Z"},
+            },
+            {
+                "listing_id": "explicit-mpn-a",
+                "title": "unknown",
+                "mpn": "M-1",
+                "source": {"observed_at": "2026-10-24T10:00:00Z"},
+            },
+            {
+                "listing_id": "explicit-mpn-b",
+                "title": "unknown",
+                "mpn": "M-1",
+                "source": {"observed_at": "2026-10-24T10:00:00Z"},
+            },
+        ])
+        self.assertEqual(report["identity_unknown_count"], 1)
+        self.assertEqual(report["duplicate_group_count"], 1)
+        self.assertEqual(report["duplicate_listing_count"], 1)
 
 
 if __name__ == "__main__":

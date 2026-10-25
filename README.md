@@ -246,6 +246,7 @@ muse-watch --db "D:\muse\data\selector.sqlite3" --action changes --watch-id "min
 回归产物 `examples/regression_result.json` 同时记录 `hard_constraint_violation_rate`；当前验收值必须为 `0.0`。
 回归集的正例还带有明确的 `relevant_listing_ids` 标签，产物会报告基于 fixture 的
 `Precision@10`、`Recall@20`、`NDCG@10` 和重放 `Top-k Jaccard` 基线；这些指标用于比较代码变更，不能当作实时市场质量或平台整体覆盖率。
+同一回归产物还带有 `quality_report`：只使用来源明确提供的 GTIN、EPID、MPN、SKU 或品牌/型号做实体键，报告去重和 72 小时 TTL 统计；标题不会被用来猜测型号或实体身份。
 逐项验收证据和唯一未验证的外部门见 [acceptance_matrix.md](acceptance_matrix.md)。
 未完成的 W2–W12 执行顺序、并行边界、角色分工和 Go/No-Go 条件见 [remaining_execution_plan.md](remaining_execution_plan.md)。
 关键字段证据覆盖率低于 95% 的来源记录会被标记为风险并排除，不会进入推荐。
