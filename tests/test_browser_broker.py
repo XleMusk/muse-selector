@@ -48,6 +48,7 @@ class BrowserBrokerTests(unittest.TestCase):
             "https://user:secret@www.ebay.com.hk/itm/123",
             "https://www.ebay.com.hk:8443/itm/123",
             "https://www.ebay.com.hk/itm/123#fragment",
+            "https://www.ebay.com.hk/itm/123?access_token=secret",
         ):
             with self.subTest(url=url):
                 result = broker.snapshot(url)

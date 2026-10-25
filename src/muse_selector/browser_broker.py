@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping, Sequence
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlparse
 
 
 BROWSER_SCHEMA_VERSION = "muse.selector.browser.v1"
@@ -26,7 +26,7 @@ def _feature_enabled() -> bool:
 
 
 def _safe_url(value: str) -> str:
-    if not isinstance(value, str) or not value or any(ord(char) < 0x20 or ord(char) == 0x7F for char in value):
+    if not isinstance(value, str) or not value or len(value) > 4096 or any(ord(char) < 0x20 or ord(char) == 0x7F for char in value):
         raise ValueError("browser URL contains invalid control characters")
     parsed = urlparse(value)
     try:
@@ -42,6 +42,9 @@ def _safe_url(value: str) -> str:
         or parsed.fragment
     ):
         raise ValueError("browser URL is outside the official eBay HK read-only allowlist")
+    sensitive_query_keys = {"access_token", "authorization", "client_secret", "cookie", "password", "secret", "token"}
+    if any(str(key).strip().casefold() in sensitive_query_keys for key, _ in parse_qsl(parsed.query, keep_blank_values=True)):
+        raise ValueError("browser URL contains a credential-like query parameter")
     return value
 
 
