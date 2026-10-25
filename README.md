@@ -339,6 +339,7 @@ $env:MUSE_SOURCE_EBAY_BROWSE_HK_DISABLED = "1"
 - `src/muse_selector/pipeline.py`：解析、来源查询、硬过滤和结果卡编排。
 - `src/muse_selector/source_normalizer.py`：来源行、证据和品类属性的纯标准化。
 - `src/muse_selector/ports.py`：来源连接器和观察存储的窄端口，便于替换适配器而不改领域规则。
+- `src/muse_selector/application.py`：CLI、Web、诊断和观察任务共用的 `SearchApplication` 搜索用例入口。
 - `src/muse_selector/watch_contracts.py`：`WatchSpec`、`RefreshJob`、`WatchEvent` 和 `AuditRecord`。
 - `src/muse_selector/result_card.py`：JSON/Markdown 结果卡。
 - `tests/fixtures/search_queries_v1.json`：20 条可解析的首版 SearchSpec 样例。

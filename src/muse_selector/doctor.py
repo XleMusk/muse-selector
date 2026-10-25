@@ -18,7 +18,7 @@ from typing import Any
 
 from . import __version__
 from .connectors.ebay import credential_env_names, credential_state as ebay_credential_state
-from .pipeline import run_search
+from .application import search as run_search
 
 
 DEFAULT_QUERY = "香港预算 HKD 7000 以内的迷你主机"

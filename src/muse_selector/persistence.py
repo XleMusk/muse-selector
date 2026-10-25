@@ -17,7 +17,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Mapping
 
-from .pipeline import run_search
+from .application import search as run_search
 from .watch_contracts import WatchEvent, WatchSpec
 
 

@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .pipeline import run_search
+from .application import search as run_search
 from .result_card import render_comparison, render_markdown
 
 

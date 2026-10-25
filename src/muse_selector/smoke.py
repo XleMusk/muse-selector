@@ -14,7 +14,7 @@ from .connectors.ebay import (
     credential_state as ebay_credential_state,
 )
 from .contracts import RESULT_SCHEMA_VERSION
-from .pipeline import run_search
+from .application import search as run_search
 
 
 def _safe_source_metadata(value: Any) -> dict[str, Any] | None:

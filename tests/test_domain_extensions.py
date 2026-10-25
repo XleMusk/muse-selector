@@ -2,6 +2,7 @@ import unittest
 from pathlib import Path
 
 from muse_selector.category_registry import get_category_schema
+from muse_selector.application import SearchApplication
 from muse_selector.compatibility import build_compatibility_matrix
 from muse_selector.contracts import CompatibilityCheck, Evidence, FilterRule, Listing, ListingInstance, RankProfile
 from muse_selector.filtering import filter_rules_for_spec
@@ -51,6 +52,18 @@ class DomainExtensionTests(unittest.TestCase):
         self.assertEqual(payload["source_metadata"]["adapter"], "fake")
         self.assertEqual(payload["recommended"][0]["listing_id"], "port-1")
         self.assertEqual(connector.search_spec["offset"], 0)
+
+    def test_application_use_case_uses_the_same_injected_connector(self):
+        class FakeConnector:
+            source_id = "ebay.browse.hk.v1"
+            source_metadata = {"adapter": "application-test"}
+
+            def search(self, search_spec):
+                return []
+
+        payload = SearchApplication(FakeConnector()).search("香港预算 HKD 2000 以内的迷你主机")
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["source_metadata"]["adapter"], "application-test")
 
     def test_search_records_the_versioned_rank_profile(self):
         payload = run_search(

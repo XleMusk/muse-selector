@@ -17,7 +17,7 @@ from .connectors.ebay import (
     credential_state as ebay_credential_state,
 )
 from .contracts import RESULT_SCHEMA_VERSION
-from .pipeline import run_search
+from .application import search as run_search
 from .source_capabilities import source_capability_registry
 from .url_policy import is_allowed_market_url
 from .persistence import SelectorStore

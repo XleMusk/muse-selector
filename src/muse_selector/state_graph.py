@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .contracts import RESULT_SCHEMA_VERSION
-from .pipeline import run_search
+from .application import search as run_search
 
 
 STATE_GRAPH_SCHEMA_VERSION = "muse.selector.execution.v1"
