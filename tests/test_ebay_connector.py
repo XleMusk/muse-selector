@@ -139,6 +139,23 @@ class EbayBrowseConnectorTests(unittest.TestCase):
         self.assertIn("deliveryCountry:HK", params["filter"])
         self.assertIn("buyingOptions:{FIXED_PRICE}", params["filter"])
 
+    def test_query_params_map_searchspec_budget_to_browse_price_filter(self):
+        params = EbayBrowseConnector()._query_params({
+            "query": "rtx 4070",
+            "budget_min": "4500.00",
+            "budget_max": 7000,
+        })
+        self.assertEqual(params["priceCurrency"], "HKD")
+        self.assertIn("price:[4500..7000]", params["filter"])
+
+        upper_only = EbayBrowseConnector()._query_params({"query": "mini pc", "budget": {"max": "7000"}})
+        self.assertEqual(upper_only["priceCurrency"], "HKD")
+        self.assertIn("price:[..7000]", upper_only["filter"])
+
+    def test_query_params_reject_reversed_budget_range(self):
+        with self.assertRaisesRegex(ValueError, "budget_min cannot exceed budget_max"):
+            EbayBrowseConnector()._query_params({"query": "mini pc", "budget_min": 8000, "budget_max": 7000})
+
     def test_connector_cannot_be_reconfigured_outside_hk(self):
         with self.assertRaises(ValueError):
             EbayConnectorConfig(marketplace_id="EBAY_US")

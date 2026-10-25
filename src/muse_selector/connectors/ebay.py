@@ -18,6 +18,7 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any, Mapping
@@ -428,11 +429,45 @@ class EbayBrowseConnector:
         category_id = search_spec.get("category_id") or search_spec.get("categoryId")
         if category_id:
             params["category_ids"] = str(category_id)
-        params["filter"] = ",".join([
+        filters = [
             f"deliveryCountry:{self.config.delivery_country}",
             f"buyingOptions:{{{self.config.default_buying_option}}}",
-        ])
+        ]
+        budget_min = search_spec.get("budget_min")
+        budget_max = search_spec.get("budget_max")
+        if isinstance(search_spec.get("budget"), Mapping):
+            budget = search_spec["budget"]
+            budget_min = budget_min if budget_min is not None else budget.get("min")
+            budget_max = budget_max if budget_max is not None else budget.get("max")
+        minimum = self._format_filter_amount(budget_min, "budget_min")
+        maximum = self._format_filter_amount(budget_max, "budget_max")
+        if minimum is not None or maximum is not None:
+            if minimum is not None and maximum is not None and Decimal(minimum) > Decimal(maximum):
+                raise ValueError("budget_min cannot exceed budget_max")
+            filters.append(f"price:[{minimum or ''}..{maximum or ''}]")
+            # Browse requires an explicit currency alongside a price filter.
+            params["priceCurrency"] = "HKD"
+        params["filter"] = ",".join(filters)
         return params
+
+    @staticmethod
+    def _format_filter_amount(value: Any, field: str) -> str | None:
+        """Format a non-negative budget value for Browse's price filter."""
+
+        if value is None or value == "":
+            return None
+        if isinstance(value, bool):
+            raise ValueError(f"{field} must be a non-negative number")
+        try:
+            amount = Decimal(str(value))
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            raise ValueError(f"{field} must be a non-negative number") from exc
+        if not amount.is_finite() or amount < 0:
+            raise ValueError(f"{field} must be a non-negative number")
+        rendered = format(amount, "f")
+        if "." in rendered:
+            rendered = rendered.rstrip("0").rstrip(".")
+        return rendered or "0"
 
     def _normalize_item(
         self,
