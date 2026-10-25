@@ -16,6 +16,7 @@ muse-watch = "muse_selector.watch:main"
 muse-live-smoke = "muse_selector.smoke:main"
 muse-zhuanzhuan-smoke = "muse_selector.zhuanzhuan_smoke:main"
 muse-doctor = "muse_selector.doctor:main"
+muse-release-check = "muse_selector.release_check:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

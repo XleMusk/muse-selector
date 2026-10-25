@@ -29,6 +29,9 @@ jobs:
           muse-selector-web --help
           muse-state-graph --help
           muse-doctor --version
+          muse-release-check --help
+          muse-release-check --root . > release_check.json
+          python -c "import json; p=json.load(open('release_check.json', encoding='utf-8')); assert p['schema_version'] == 'muse.selector.release.v1'; assert p['local_ready'] is True; assert p['go'] is False; assert p['read_only'] is True"
           muse-doctor --fixture tests/fixtures/ebay_hk_sample.json > doctor.json
           python -c "import json; p=json.load(open('doctor.json', encoding='utf-8')); assert p['ok'] is True; assert p['read_only'] is True; assert p['schema_version'] == 'muse.doctor.v1'; assert p['runtime']['package_version']; assert p['runtime']['python_version']; assert p['ebay_target']['environment'] == 'production'; assert p['ebay_target']['api_host'] == 'api.ebay.com'; assert all(c['ok'] for c in p['checks'])"
           muse-selector --query "香港预算 HKD 7000 以内的迷你主机" --fixture tests/fixtures/ebay_hk_sample.json --format json > cli_result.json
