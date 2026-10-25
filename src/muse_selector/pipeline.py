@@ -11,6 +11,7 @@ from .compatibility import build_compatibility_matrix
 from .filtering import filter_listings
 from .link_only import build_link_only_plan
 from .query_parser import PolicyBlockedError, has_explicit_unbounded_budget, parse_query
+from .ports import SourceConnector
 from .result_card import build_card
 
 
@@ -83,6 +84,7 @@ def run_search(
     limit: int = 10,
     offset: int = 0,
     environment: str | None = None,
+    connector: SourceConnector | None = None,
 ) -> dict[str, Any]:
     """Run a fully offline search and return serializable result cards."""
 
@@ -176,11 +178,16 @@ def run_search(
             "link_only": build_link_only_plan(spec),
             "read_only": True,
         }
+    source_id = "ebay.browse.hk.v1"
     try:
-        connector_kwargs: dict[str, Any] = {"fixture_path": fixture_path}
-        if environment is not None:
-            connector_kwargs["environment"] = environment
-        connector = EbayBrowseConnector(**connector_kwargs)
+        if connector is None:
+            connector_kwargs: dict[str, Any] = {"fixture_path": fixture_path}
+            if environment is not None:
+                connector_kwargs["environment"] = environment
+            connector = EbayBrowseConnector(**connector_kwargs)
+        candidate_source_id = getattr(connector, "source_id", source_id)
+        if isinstance(candidate_source_id, str) and candidate_source_id:
+            source_id = candidate_source_id
         connector_spec = spec.to_dict()
         # Keep the source request bounded while preserving recall after hard
         # filtering.  A small output limit must not shrink the single source
@@ -200,7 +207,7 @@ def run_search(
         connector_spec["offset"] = offset
         rows = connector.search(connector_spec)
     except (ConnectorUnavailable, ValueError) as exc:
-        source_metadata = connector.source_metadata if "connector" in locals() else None
+        source_metadata = connector.source_metadata if connector is not None else None
         if isinstance(source_metadata, dict) and "environment" not in source_metadata and "connector" in locals():
             source_metadata = {
                 **source_metadata,
@@ -215,7 +222,7 @@ def run_search(
             "recommended": [],
             "rejected": [],
             "dropped": [],
-            "source": "ebay.browse.hk.v1",
+            "source": source_id,
             "source_metadata": source_metadata,
             "read_only": True,
         }
@@ -299,7 +306,7 @@ def run_search(
         "ranking_policy": "source_order_preserved",
         "rejected": rejected,
         "dropped": dropped,
-        "source": "ebay.browse.hk.v1",
+        "source": source_id,
         "source_metadata": source_metadata,
         "read_only": True,
     }

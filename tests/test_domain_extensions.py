@@ -7,9 +7,50 @@ from muse_selector.filtering import filter_rules_for_spec
 from muse_selector.query_parser import parse_query
 from muse_selector.source_capabilities import source_capability_registry
 from muse_selector.source_normalizer import normalize_source_row
+from muse_selector.pipeline import run_search
 
 
 class DomainExtensionTests(unittest.TestCase):
+    def test_search_accepts_a_source_connector_port_without_changing_result_contract(self):
+        class FakeConnector:
+            source_id = "ebay.browse.hk.v1"
+            source_metadata = {"adapter": "fake", "environment": "fixture"}
+
+            def search(self, search_spec):
+                self.search_spec = search_spec
+                return [
+                    {
+                        "listing_id": "port-1",
+                        "source_id": self.source_id,
+                        "title": "Mini PC 32GB 1TB NVMe",
+                        "url": "https://www.ebay.com.hk/itm/port-1",
+                        "price": {"value": 1000, "currency": "HKD"},
+                        "availability": "IN_STOCK",
+                        "condition": "New",
+                        "shipping_options": [{"shippingCost": {"value": 0, "currency": "HKD"}}],
+                        "evidence": [
+                            {
+                                "source_id": self.source_id,
+                                "source_url": "https://www.ebay.com.hk/itm/port-1",
+                                "field": field,
+                                "value": field,
+                                "status": "confirmed",
+                            }
+                            for field in ("title", "url", "price", "condition", "seller", "shippingOptions")
+                        ],
+                    }
+                ]
+
+        connector = FakeConnector()
+        payload = run_search(
+            "香港预算 HKD 2000 以内的迷你主机",
+            connector=connector,
+        )
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["source_metadata"]["adapter"], "fake")
+        self.assertEqual(payload["recommended"][0]["listing_id"], "port-1")
+        self.assertEqual(connector.search_spec["offset"], 0)
+
     def test_first_phase_category_registry_covers_phone_laptop_and_gpu(self):
         for category_id, required_attribute in (
             ("smartphone", "battery_health_pct"),
