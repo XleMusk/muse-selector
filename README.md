@@ -72,6 +72,9 @@ python -m muse_selector `
   --format json
 ```
 
+所有 pipeline、CLI JSON、live smoke 和 Web JSON 响应都带有稳定的顶层
+`schema_version: "muse.selector.v1"`。这是结果/接口 envelope 的版本标识；新增字段保持向后兼容，已保存的 watch payload 重放时也保留该字段。嵌套的 `SearchSpec`、商品、挂牌和证据对象继续使用各自已有的对象版本字段。
+
 实时 eBay Browse 查询可以用 `--offset` 读取指定的单页；`--limit` 仍是结果卡上限，来源请求至少保留连接器默认的 20 条以避免硬过滤过早截断。`offset` 必须是非负整数，命令只读取这一页，不会自动跟随 `next` 或继续分页：
 
 ```powershell

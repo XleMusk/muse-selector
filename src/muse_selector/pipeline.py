@@ -10,7 +10,14 @@ from typing import Any, Mapping
 from urllib.parse import urlparse
 
 from .connectors.ebay import ConnectorUnavailable, EbayBrowseConnector
-from .contracts import ALLOWED_SOURCE_IDS, ALLOWED_STATUSES, KEY_EVIDENCE_FIELDS, Evidence, Listing
+from .contracts import (
+    ALLOWED_SOURCE_IDS,
+    ALLOWED_STATUSES,
+    KEY_EVIDENCE_FIELDS,
+    RESULT_SCHEMA_VERSION,
+    Evidence,
+    Listing,
+)
 from .filtering import filter_listings
 from .link_only import build_link_only_plan
 from .query_parser import PolicyBlockedError, has_explicit_unbounded_budget, parse_query
@@ -245,6 +252,7 @@ def run_search(
         spec = parse_query(query)
     except PolicyBlockedError as exc:
         return {
+            "schema_version": RESULT_SCHEMA_VERSION,
             "ok": False,
             "status": "policy_blocked",
             "message": str(exc),
@@ -257,6 +265,7 @@ def run_search(
         }
     except ValueError as exc:
         return {
+            "schema_version": RESULT_SCHEMA_VERSION,
             "ok": False,
             "status": "invalid_query",
             "message": str(exc),
@@ -269,6 +278,7 @@ def run_search(
         }
     if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
         return {
+            "schema_version": RESULT_SCHEMA_VERSION,
             "ok": False,
             "status": "invalid_query",
             "message": "limit must be a positive integer",
@@ -281,6 +291,7 @@ def run_search(
         }
     if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
         return {
+            "schema_version": RESULT_SCHEMA_VERSION,
             "ok": False,
             "status": "invalid_query",
             "message": "offset must be a non-negative integer",
@@ -296,6 +307,7 @@ def run_search(
         budget_name = "max_total_cny" if spec.currency == "CNY" else "max_total_hkd"
         currency_hint = "CNY" if spec.currency == "CNY" else "HKD"
         return {
+            "schema_version": RESULT_SCHEMA_VERSION,
             "ok": False,
             "status": "needs_clarification",
             "message": f"请补充配送地区和 {currency_hint} 预算上限；如无预算限制，请明确写“价格不限”。",
@@ -313,6 +325,7 @@ def run_search(
         # search connector.  Fail closed instead of routing a mainland query
         # into the HK eBay connector or using an unofficial scraper.
         return {
+            "schema_version": RESULT_SCHEMA_VERSION,
             "ok": False,
             "status": "source_unavailable",
             "message": "中国大陆二手挂牌搜索连接器尚未获得官方授权；闲鱼当前为 link_only，转转当前仅提供官方估价/回收入口。",
@@ -353,6 +366,7 @@ def run_search(
                 "environment": getattr(getattr(connector, "config", None), "environment", "unknown"),
             }
         return {
+            "schema_version": RESULT_SCHEMA_VERSION,
             "ok": False,
             "status": "source_unavailable",
             "message": str(exc),
@@ -434,6 +448,7 @@ def run_search(
         if item.listing_id not in accepted_ids
     ]
     return {
+        "schema_version": RESULT_SCHEMA_VERSION,
         "ok": True,
         "status": "complete",
         "search_spec": spec.to_dict(),

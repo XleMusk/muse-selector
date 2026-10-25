@@ -11,6 +11,7 @@ from urllib.request import urlopen
 from unittest.mock import patch
 
 from muse_selector.web import capability_snapshot, main, make_handler, render_html, serve
+from muse_selector.contracts import RESULT_SCHEMA_VERSION
 from muse_selector.persistence import SelectorStore
 
 
@@ -149,7 +150,9 @@ class WebTests(unittest.TestCase):
             base = f"http://127.0.0.1:{server.server_port}"
             with urlopen(base + "/healthz", timeout=2) as response:
                 health = json.loads(response.read().decode("utf-8"))
-            self.assertEqual(health, {"ok": True, "read_only": True})
+            self.assertEqual(health["schema_version"], RESULT_SCHEMA_VERSION)
+            self.assertTrue(health["ok"])
+            self.assertTrue(health["read_only"])
             with urlopen(base + "/?q=%E9%A6%99%E6%B8%AF%E9%A2%84%E7%AE%97%20HKD%207000%20%E4%BB%A5%E5%86%85%E7%9A%84%E8%BF%B7%E4%BD%A0%E4%B8%BB%E6%9C%BA", timeout=2) as response:
                 page = response.read().decode("utf-8")
             self.assertIn("Mini PC Ryzen 7", page)
@@ -168,6 +171,7 @@ class WebTests(unittest.TestCase):
         ):
             snapshot = capability_snapshot()
         self.assertTrue(snapshot["ok"])
+        self.assertEqual(snapshot["schema_version"], RESULT_SCHEMA_VERSION)
         self.assertTrue(snapshot["read_only"])
         self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["environment"], "sandbox")
         self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["credential_state"], "missing")
@@ -217,6 +221,7 @@ class WebTests(unittest.TestCase):
                         payload = json.loads(response.read().decode("utf-8"))
                 self.assertTrue(payload["ok"])
                 self.assertTrue(payload["read_only"])
+                self.assertEqual(payload["schema_version"], RESULT_SCHEMA_VERSION)
                 self.assertEqual(payload["status"], "watch_ready")
                 self.assertEqual(payload["watch"]["last_run_id"], refreshed["run_id"])
                 self.assertEqual(payload["watch"]["last_change_summary"], refreshed["change_summary"])
@@ -247,6 +252,7 @@ class WebTests(unittest.TestCase):
                     with urlopen(f"http://127.0.0.1:{server.server_port}/api/watches", timeout=2) as response:
                         payload = json.loads(response.read().decode("utf-8"))
                 self.assertTrue(payload["ok"])
+                self.assertEqual(payload["schema_version"], RESULT_SCHEMA_VERSION)
                 self.assertTrue(payload["read_only"])
                 self.assertEqual(payload["status"], "watches_ready")
                 self.assertEqual([item["watch_id"] for item in payload["watches"]], ["watch_one", "watch_two"])
@@ -275,6 +281,7 @@ class WebTests(unittest.TestCase):
                     ) as response:
                         payload = json.loads(response.read().decode("utf-8"))
                 self.assertTrue(payload["ok"])
+                self.assertEqual(payload["schema_version"], RESULT_SCHEMA_VERSION)
                 self.assertEqual(payload["status"], "watch_changes_ready")
                 self.assertEqual(payload["changes"][0]["run_id"], refreshed["run_id"])
                 self.assertEqual(payload["changes"][0]["payload"], refreshed["payload"])
@@ -387,6 +394,7 @@ class WebTests(unittest.TestCase):
                 payload = json.loads(response.read().decode("utf-8"))
             self.assertFalse(payload["ok"])
             self.assertEqual(payload["status"], "invalid_query")
+            self.assertEqual(payload["schema_version"], RESULT_SCHEMA_VERSION)
             self.assertTrue(payload["read_only"])
         finally:
             server.shutdown()

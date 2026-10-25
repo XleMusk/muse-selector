@@ -8,6 +8,7 @@ import os
 from typing import Any, Mapping
 
 from .connectors.ebay import _allowed_pagination_url
+from .contracts import RESULT_SCHEMA_VERSION
 from .pipeline import run_search
 
 
@@ -35,6 +36,7 @@ def summarize(payload: Mapping[str, Any]) -> dict[str, Any]:
     """Return a credential-free live smoke summary."""
 
     summary: dict[str, Any] = {
+        "schema_version": payload.get("schema_version", RESULT_SCHEMA_VERSION),
         "ok": bool(payload.get("ok")),
         "status": payload.get("status", "unknown"),
         "source": payload.get("source", "unknown"),

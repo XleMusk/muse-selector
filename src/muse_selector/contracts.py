@@ -14,7 +14,11 @@ from typing import Any, Mapping
 from urllib.parse import urlparse
 
 
+# Nested domain objects retain the historical numeric version.  Result and
+# HTTP payloads use a namespaced contract identifier so consumers can route
+# envelopes without guessing which object schema they received.
 SCHEMA_VERSION = "1.0"
+RESULT_SCHEMA_VERSION = "muse.selector.v1"
 ALLOWED_STATUSES = {"confirmed", "unknown", "conflict", "stale"}
 ALLOWED_STOCK = {"in_stock", "out_of_stock", "preorder", "unknown"}
 ALLOWED_CONDITION = {"new", "used", "refurbished", "unknown"}

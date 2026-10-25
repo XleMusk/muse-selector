@@ -79,7 +79,7 @@ class EbayBrowseConnectorTests(unittest.TestCase):
     def test_response_metadata_drops_non_official_or_non_browse_links(self):
         data = {
             "href": "https://evil.example/buy/browse/v1/item_summary/search?q=mini%20pc",
-            "next": "https://api.ebay.com/other-endpoint?offset=2",
+            "next": "https://api.ebay.com/buy/browse/v1/item_summary/search?offset=2&access_token=secret-value",
             "prev": "https://user:secret@api.ebay.com/buy/browse/v1/item_summary/search?offset=0",
             "total": 9,
             "limit": 1,
@@ -96,6 +96,15 @@ class EbayBrowseConnectorTests(unittest.TestCase):
             {"href": None, "next": None, "prev": None, "total": 9, "limit": 1, "offset": 1},
         )
         self.assertEqual(connector.source_metadata["href"], None)
+
+    def test_pagination_metadata_rejects_sensitive_query_keys(self):
+        self.assertFalse(
+            EbayBrowseConnector._normalize_source_metadata({
+                "href": "https://api.ebay.com/buy/browse/v1/item_summary/search?client_secret=secret-value",
+                "next": "https://api.ebay.com/buy/browse/v1/item_summary/search?offset=20",
+                "prev": None,
+            })["href"]
+        )
 
     def test_non_object_fixture_fails_closed(self):
         with tempfile.TemporaryDirectory() as d:

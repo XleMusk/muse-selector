@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from muse_selector.filtering import filter_listings
+from muse_selector.contracts import RESULT_SCHEMA_VERSION
 from muse_selector.pipeline import _extract_specs, _to_listing, run_search
 from muse_selector.query_parser import PolicyBlockedError, parse_query
 from muse_selector.result_card import render_markdown
@@ -15,6 +16,16 @@ FIXTURE = ROOT / "tests" / "fixtures" / "ebay_hk_sample.json"
 
 
 class PipelineTests(unittest.TestCase):
+    def test_every_search_payload_has_stable_top_level_schema_version(self):
+        payloads = [
+            run_search("香港预算 HKD 7000 以内的迷你主机", FIXTURE),
+            run_search("帮我买一个游戏账号并完成转移"),
+            run_search("找一台适合本地视觉模型的电脑", FIXTURE),
+            run_search("国内预算 CNY 8000 以内的二手迷你主机", FIXTURE),
+            run_search("香港预算 HKD 7000 以内的迷你主机", FIXTURE, limit=0),
+        ]
+        self.assertTrue(all(payload["schema_version"] == RESULT_SCHEMA_VERSION for payload in payloads))
+
     def test_malformed_source_record_is_dropped_without_crashing_search(self):
         data = {
             "itemSummaries": [{

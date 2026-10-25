@@ -37,6 +37,16 @@ class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
 
 _OFFICIAL_API_HOSTS = frozenset({"api.ebay.com", "api.sandbox.ebay.com"})
 _BROWSE_SEARCH_PATH = "/buy/browse/v1/item_summary/search"
+_SENSITIVE_QUERY_KEYS = frozenset({
+    "access_token",
+    "authorization",
+    "client_id",
+    "client_secret",
+    "id_token",
+    "refresh_token",
+    "secret",
+    "token",
+})
 
 
 def _allowed_pagination_url(value: Any) -> bool:
@@ -54,6 +64,10 @@ def _allowed_pagination_url(value: Any) -> bool:
     try:
         parsed = urllib.parse.urlparse(value)
         port = parsed.port
+        query_keys = {
+            key.strip().lower()
+            for key, _ in urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+        }
     except ValueError:
         return False
     return (
@@ -65,6 +79,7 @@ def _allowed_pagination_url(value: Any) -> bool:
         and parsed.path == _BROWSE_SEARCH_PATH
         and not parsed.params
         and not parsed.fragment
+        and not query_keys.intersection(_SENSITIVE_QUERY_KEYS)
     )
 
 

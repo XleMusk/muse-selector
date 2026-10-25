@@ -7,9 +7,16 @@ import unittest
 from unittest.mock import patch
 
 from muse_selector.smoke import main, summarize
+from muse_selector.contracts import RESULT_SCHEMA_VERSION
 
 
 class SmokeTests(unittest.TestCase):
+    def test_summary_exposes_result_schema_version(self):
+        self.assertEqual(
+            summarize({"ok": False, "status": "source_unavailable"})["schema_version"],
+            RESULT_SCHEMA_VERSION,
+        )
+
     def test_summary_preserves_bounded_source_page_metadata(self):
         summary = summarize({
             "ok": True,

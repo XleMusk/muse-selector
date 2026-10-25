@@ -12,6 +12,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from .connectors.ebay import EbayBrowseConnector
+from .contracts import RESULT_SCHEMA_VERSION
 from .pipeline import _allowed_source_url, run_search
 from .persistence import SelectorStore
 
@@ -114,6 +115,7 @@ def capability_snapshot() -> dict[str, Any]:
     except (TypeError, ValueError, OSError):
         ebay["status"] = "configuration_error"
     return {
+        "schema_version": RESULT_SCHEMA_VERSION,
         "ok": True,
         "read_only": True,
         "sources": {
@@ -243,11 +245,10 @@ def make_handler(
         def do_GET(self) -> None:  # noqa: N802
             parsed = urlparse(self.path)
             if parsed.path == "/healthz":
-                self._send(200, "application/json; charset=utf-8", b'{"ok":true,"read_only":true}')
+                self._send_json(200, {"ok": True, "read_only": True})
                 return
             if parsed.path == "/api/capabilities":
-                content = json.dumps(capability_snapshot(), ensure_ascii=False, sort_keys=True).encode("utf-8")
-                self._send(200, "application/json; charset=utf-8", content)
+                self._send_json(200, capability_snapshot())
                 return
             if parsed.path == "/api/watches":
                 if store is None:
@@ -399,8 +400,7 @@ def make_handler(
                 except (TypeError, ValueError):
                     limit = 0
                 payload = run_search(query, fixture, limit=limit)
-                content = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-                self._send(200, "application/json; charset=utf-8", content)
+                self._send_json(200, payload)
                 return
             if parsed.path != "/":
                 self._send(404, "text/plain; charset=utf-8", b"not found")
@@ -418,7 +418,11 @@ def make_handler(
             self.wfile.write(content)
 
         def _send_json(self, status: int, payload: dict[str, Any]) -> None:
-            content = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+            # Every JSON endpoint carries the same additive envelope marker.
+            # Existing fields remain untouched for older clients.
+            body = dict(payload)
+            body.setdefault("schema_version", RESULT_SCHEMA_VERSION)
+            content = json.dumps(body, ensure_ascii=False, sort_keys=True).encode("utf-8")
             self._send(status, "application/json; charset=utf-8", content)
 
         def log_message(self, format: str, *args: Any) -> None:
