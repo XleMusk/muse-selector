@@ -198,6 +198,7 @@ class WebTests(unittest.TestCase):
                 self.assertTrue(payload["read_only"])
                 self.assertEqual(payload["status"], "watch_ready")
                 self.assertEqual(payload["watch"]["last_run_id"], refreshed["run_id"])
+                self.assertEqual(payload["watch"]["last_change_summary"], refreshed["change_summary"])
                 self.assertEqual(payload["payload"], refreshed["payload"])
             finally:
                 server.shutdown()

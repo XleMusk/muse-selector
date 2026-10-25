@@ -160,7 +160,8 @@ class SelectorStore:
                     revision INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
                     last_run_id TEXT,
-                    last_refreshed_at TEXT
+                    last_refreshed_at TEXT,
+                    last_change_summary_json TEXT
                 );
                 """
             )
@@ -169,6 +170,8 @@ class SelectorStore:
             watch_columns = {row["name"] for row in conn.execute("PRAGMA table_info(watches)")}
             if "revision" not in watch_columns:
                 conn.execute("ALTER TABLE watches ADD COLUMN revision INTEGER NOT NULL DEFAULT 0")
+            if "last_change_summary_json" not in watch_columns:
+                conn.execute("ALTER TABLE watches ADD COLUMN last_change_summary_json TEXT")
             card_columns = {row["name"] for row in conn.execute("PRAGMA table_info(result_cards)")}
             if "source_rank" not in card_columns:
                 conn.execute("ALTER TABLE result_cards ADD COLUMN source_rank INTEGER NOT NULL DEFAULT 0")
@@ -252,14 +255,31 @@ class SelectorStore:
         sql += " ORDER BY created_at, watch_id"
         with self._connection() as conn:
             rows = conn.execute(sql).fetchall()
-        return [dict(row) for row in rows]
+        return [self._watch_dict(row) for row in rows]
+
+    @staticmethod
+    def _watch_dict(row: sqlite3.Row | Mapping[str, Any]) -> dict[str, Any]:
+        """Return a watch row with its persisted change summary decoded."""
+
+        result = dict(row)
+        encoded = result.pop("last_change_summary_json", None)
+        if encoded:
+            try:
+                result["last_change_summary"] = json.loads(encoded)
+            except (TypeError, ValueError):
+                # A malformed legacy value must not make read-only status
+                # endpoints fail; expose the absence of a usable summary.
+                result["last_change_summary"] = None
+        else:
+            result["last_change_summary"] = None
+        return result
 
     def get_watch(self, watch_id: str) -> dict[str, Any] | None:
         """Return one persisted watch specification without executing it."""
 
         with self._connection() as conn:
             row = conn.execute("SELECT * FROM watches WHERE watch_id = ?", (watch_id,)).fetchone()
-        return dict(row) if row else None
+        return self._watch_dict(row) if row else None
 
     def disable_watch(self, watch_id: str) -> None:
         with self._connection() as conn:
@@ -318,7 +338,7 @@ class SelectorStore:
             updates.append("interval_seconds = ?")
             values.append(int(interval_seconds))
         if input_changed:
-            updates.extend(["last_run_id = NULL", "last_refreshed_at = NULL"])
+            updates.extend(["last_run_id = NULL", "last_refreshed_at = NULL", "last_change_summary_json = NULL"])
         if updates:
             updates.append("revision = revision + 1")
             values.append(watch_id)
@@ -385,29 +405,31 @@ class SelectorStore:
                     "SELECT payload_json FROM runs WHERE run_id = ?", (previous_run_id,)
                 ).fetchone()
                 previous_payload = json.loads(previous["payload_json"]) if previous else None
-                if previous_payload and watch_content_fingerprint(previous_payload) == watch_content_fingerprint(payload):
-                    conn.execute(
-                        "UPDATE watches SET last_refreshed_at = ? WHERE watch_id = ?",
-                        (_now(), watch_id),
-                    )
-                    return {
-                        "watch_id": watch_id,
-                        "run_id": previous_run_id,
-                        "changed": False,
-                        "change_summary": watch_change_summary(previous_payload, payload),
-                        "payload": payload,
-                    }
+            change_summary = watch_change_summary(previous_payload, payload)
+            encoded_change_summary = _canonical(change_summary)
+            if previous_payload and watch_content_fingerprint(previous_payload) == watch_content_fingerprint(payload):
+                conn.execute(
+                    "UPDATE watches SET last_refreshed_at = ?, last_change_summary_json = ? WHERE watch_id = ?",
+                    (_now(), encoded_change_summary, watch_id),
+                )
+                return {
+                    "watch_id": watch_id,
+                    "run_id": previous_run_id,
+                    "changed": False,
+                    "change_summary": change_summary,
+                    "payload": payload,
+                }
 
             run_id, inserted = self._save_run_connection(conn, payload_dict, run_id, serialized)
             conn.execute(
-                "UPDATE watches SET last_run_id = ?, last_refreshed_at = ? WHERE watch_id = ?",
-                (run_id, _now(), watch_id),
+                "UPDATE watches SET last_run_id = ?, last_refreshed_at = ?, last_change_summary_json = ? WHERE watch_id = ?",
+                (run_id, _now(), encoded_change_summary, watch_id),
             )
         return {
             "watch_id": watch_id,
             "run_id": run_id,
             "changed": inserted,
-            "change_summary": watch_change_summary(previous_payload, payload),
+            "change_summary": change_summary,
             "payload": payload,
         }
 

@@ -38,6 +38,14 @@ python -m pip install --no-deps -e D:\muse
 muse-selector --help
 ```
 
+安装后可以用离线 doctor 检查 Python、包导入和 fixture 端到端契约。它不会联网；凭据只输出 `missing`、`partial` 或 `present` 状态，不会输出凭据值：
+
+```powershell
+muse-doctor --fixture D:\muse\tests\fixtures\ebay_hk_sample.json
+```
+
+省略 `--fixture` 时只检查本地 Python 和包导入，适合在已安装 wheel 或脱离源码目录的环境中快速确认命令入口。fixture 不存在、格式错误或结果契约不满足时返回退出码 `2`，成功返回 `0`。
+
 也可以不安装，使用下面的 `PYTHONPATH` 方式直接运行源码。
 
 ```powershell

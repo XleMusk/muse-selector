@@ -13,6 +13,42 @@ FIXTURE = ROOT / "tests" / "fixtures" / "ebay_hk_sample.json"
 
 
 class PersistenceTests(unittest.TestCase):
+    def test_existing_watch_schema_migrates_change_summary_checkpoint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db_path = Path(directory) / "legacy.sqlite3"
+            conn = sqlite3.connect(db_path)
+            try:
+                conn.execute(
+                    """
+                    CREATE TABLE watches (
+                        watch_id TEXT PRIMARY KEY,
+                        query TEXT NOT NULL,
+                        fixture_path TEXT,
+                        interval_seconds INTEGER NOT NULL,
+                        enabled INTEGER NOT NULL,
+                        revision INTEGER NOT NULL DEFAULT 0,
+                        created_at TEXT NOT NULL,
+                        last_run_id TEXT,
+                        last_refreshed_at TEXT
+                    )
+                    """
+                )
+                conn.execute(
+                    "INSERT INTO watches VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    ("legacy", "mini pc", None, 900, 1, 0, "2026-01-01T00:00:00Z", None, None),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+            store = SelectorStore(db_path)
+            self.assertIsNone(store.get_watch("legacy")["last_change_summary"])
+            conn = store._connect()
+            try:
+                columns = {row[1] for row in conn.execute("PRAGMA table_info(watches)")}
+            finally:
+                conn.close()
+            self.assertIn("last_change_summary_json", columns)
+
     def test_list_cards_preserves_source_rank_for_replay(self):
         with tempfile.TemporaryDirectory() as directory:
             store = SelectorStore(Path(directory) / "selector.sqlite3")
@@ -205,6 +241,7 @@ class PersistenceTests(unittest.TestCase):
             self.assertTrue(store.get_run(first["run_id"])["read_only"])
             self.assertEqual(len(store.list_cards(first["run_id"])), 1)
             self.assertEqual(store.list_watches()[0]["last_run_id"], first["run_id"])
+            self.assertEqual(store.get_watch(watch_id)["last_change_summary"], second["change_summary"])
 
     def test_live_watch_unavailable_is_saved_as_read_only_state(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -266,6 +303,7 @@ class PersistenceTests(unittest.TestCase):
             updated = store.update_watch(watch_id, query="香港 RTX 4070 显卡，预算 HKD 9000", interval_seconds=60)
             self.assertEqual(updated["interval_seconds"], 60)
             self.assertIsNone(updated["last_run_id"])
+            self.assertIsNone(updated["last_change_summary"])
             self.assertEqual(store.replay_run(first["run_id"]), first["payload"])
             second = store.refresh_watch(watch_id)
             self.assertNotEqual(second["run_id"], first["run_id"])
