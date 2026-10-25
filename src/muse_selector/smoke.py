@@ -25,6 +25,8 @@ def _safe_source_metadata(value: Any) -> dict[str, Any] | None:
     for field in ("total", "limit", "offset"):
         item = value.get(field)
         result[field] = item if isinstance(item, int) and not isinstance(item, bool) else None
+    environment = value.get("environment")
+    result["environment"] = environment if environment in {"production", "sandbox"} else "unknown"
     return result
 
 

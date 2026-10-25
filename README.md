@@ -148,6 +148,17 @@ $env:PYTHONPATH = "D:\muse\src"
 python -m muse_selector --query "香港 RTX 4070 显卡，预算 HKD 9000" --format json
 ```
 
+可以先用官方 Sandbox keyset 验证 OAuth、请求头和响应字段；Sandbox 结果只用于接口集成测试，不能当作当前市场报价：
+
+```powershell
+$env:EBAY_ENVIRONMENT = "sandbox"
+$env:EBAY_CLIENT_ID = "<sandbox-app-id>"
+$env:EBAY_CLIENT_SECRET = "<sandbox-cert-id>"
+muse-live-smoke --query "香港 RTX 4070 显卡，预算 HKD 9000"
+```
+
+省略 `EBAY_ENVIRONMENT` 或设置为 `production` 时使用 `api.ebay.com`；`sandbox` 会严格锁定到 `api.sandbox.ebay.com`。
+
 拿到官方凭据后可用一次性 smoke 命令验证实时只读链路。它只输出凭据状态、结果数量和证据时间摘要，不输出凭据或 token；没有凭据时返回 `source_unavailable` 并退出码 `2`：
 
 ```powershell

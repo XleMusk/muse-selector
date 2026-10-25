@@ -16,6 +16,7 @@ sources:
     credentials_from_environment:
       - EBAY_CLIENT_ID
       - EBAY_CLIENT_SECRET
+    environments: [sandbox, production]
     production_access_status: partner_approval_pending
     default_policy: allow_read_only
     retention_days: 30

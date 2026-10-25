@@ -42,6 +42,7 @@ class EbayConnectorConfig:
     timeout_seconds: float = 15.0
     default_limit: int = 20
     default_buying_option: str = "FIXED_PRICE"
+    environment: str = "production"
 
     def __post_init__(self) -> None:
         if self.marketplace_id != "EBAY_HK":
@@ -50,10 +51,13 @@ class EbayConnectorConfig:
             raise ValueError("MVP connector is locked to delivery country HK")
         if self.default_buying_option != "FIXED_PRICE":
             raise ValueError("MVP connector is read-only fixed-price search")
+        if self.environment not in {"production", "sandbox"}:
+            raise ValueError("environment must be production or sandbox")
         if not isinstance(self.timeout_seconds, (int, float)) or not math.isfinite(float(self.timeout_seconds)) or self.timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be a finite positive number")
         if not isinstance(self.default_limit, int) or isinstance(self.default_limit, bool) or not 1 <= self.default_limit <= 200:
             raise ValueError("default_limit must be an integer between 1 and 200")
+        expected_host = "api.ebay.com" if self.environment == "production" else "api.sandbox.ebay.com"
         for name, value in (("api_base", self.api_base), ("token_url", self.token_url)):
             parsed = urllib.parse.urlparse(value)
             try:
@@ -62,7 +66,7 @@ class EbayConnectorConfig:
                 raise ValueError(f"{name} must use the official https://api.ebay.com host") from exc
             if (
                 parsed.scheme != "https"
-                or parsed.hostname != "api.ebay.com"
+                or parsed.hostname != expected_host
                 or parsed.username is not None
                 or parsed.password is not None
                 or port not in (None, 443)
@@ -76,13 +80,16 @@ class EbayConnectorConfig:
 
     @classmethod
     def from_env(cls) -> "EbayConnectorConfig":
+        environment = os.getenv("EBAY_ENVIRONMENT", "production").strip().lower()
+        default_host = "api.ebay.com" if environment == "production" else "api.sandbox.ebay.com"
         return cls(
             marketplace_id=os.getenv("EBAY_MARKETPLACE_ID", "EBAY_HK"),
             delivery_country=os.getenv("EBAY_DELIVERY_COUNTRY", "HK"),
-            api_base=os.getenv("EBAY_API_BASE", "https://api.ebay.com").rstrip("/"),
-            token_url=os.getenv("EBAY_TOKEN_URL", "https://api.ebay.com/identity/v1/oauth2/token"),
+            api_base=os.getenv("EBAY_API_BASE", f"https://{default_host}").rstrip("/"),
+            token_url=os.getenv("EBAY_TOKEN_URL", f"https://{default_host}/identity/v1/oauth2/token"),
             timeout_seconds=float(os.getenv("EBAY_TIMEOUT_SECONDS", "15")),
             default_limit=int(os.getenv("EBAY_DEFAULT_LIMIT", "20")),
+            environment=environment,
         )
 
 
@@ -224,6 +231,8 @@ class EbayBrowseConnector:
         if len(listing_ids) != len(set(listing_ids)):
             raise ConnectorUnavailable("eBay response itemSummaries contains duplicate itemId values")
         self._source_metadata = self._normalize_source_metadata(payload)
+        if live:
+            self._source_metadata["environment"] = self.config.environment
         listings = [
             self._normalize_item(
                 item,

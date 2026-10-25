@@ -155,6 +155,16 @@ class EbayBrowseConnectorTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             EbayConnectorConfig(token_url="https://api.ebay.com/other-token")
 
+    def test_sandbox_requires_the_official_sandbox_endpoint_pair(self):
+        config = EbayConnectorConfig(
+            environment="sandbox",
+            api_base="https://api.sandbox.ebay.com",
+            token_url="https://api.sandbox.ebay.com/identity/v1/oauth2/token",
+        )
+        self.assertEqual(config.environment, "sandbox")
+        with self.assertRaises(ValueError):
+            EbayConnectorConfig(environment="sandbox", api_base="https://api.ebay.com")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -23,6 +23,7 @@ class SmokeTests(unittest.TestCase):
                 "total": 42,
                 "limit": 20,
                 "offset": 0,
+                "environment": "sandbox",
                 "ignored": "drop me",
             },
             "recommended": [],
@@ -31,6 +32,7 @@ class SmokeTests(unittest.TestCase):
         })
         self.assertEqual(summary["source_metadata"]["total"], 42)
         self.assertEqual(summary["source_metadata"]["limit"], 20)
+        self.assertEqual(summary["source_metadata"]["environment"], "sandbox")
         self.assertNotIn("ignored", summary["source_metadata"])
 
     def test_summary_contains_no_credentials(self):

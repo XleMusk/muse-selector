@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.error import HTTPError
 from unittest.mock import patch
 
-from muse_selector.connectors.ebay import ConnectorUnavailable, EbayBrowseConnector, _NoRedirectHandler
+from muse_selector.connectors.ebay import ConnectorUnavailable, EbayBrowseConnector, EbayConnectorConfig, _NoRedirectHandler
 from muse_selector.pipeline import _to_listing, run_search
 from muse_selector.result_card import build_card
 
@@ -149,6 +149,23 @@ class EbayLiveAdapterTests(unittest.TestCase):
             "contextualLocation=country%3DHK",
         )
         self.assertIn("deliveryCountry%3AHK", opener.requests[1][1])
+
+    def test_sandbox_profile_uses_official_sandbox_host_and_is_labeled(self):
+        opener = _Opener()
+        connector = EbayBrowseConnector(
+            config=EbayConnectorConfig(
+                environment="sandbox",
+                api_base="https://api.sandbox.ebay.com",
+                token_url="https://api.sandbox.ebay.com/identity/v1/oauth2/token",
+            ),
+            client_id="id",
+            client_secret="secret",
+            opener=opener,
+        )
+        rows = connector.search({"query": "mini pc", "limit": 1})
+        self.assertEqual(rows[0]["source_metadata"]["environment"], "sandbox")
+        self.assertTrue(opener.requests[0][1].startswith("https://api.sandbox.ebay.com/"))
+        self.assertTrue(opener.requests[1][1].startswith("https://api.sandbox.ebay.com/"))
 
     def test_live_row_flows_through_listing_and_result_card_contract(self):
         connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=_Opener())

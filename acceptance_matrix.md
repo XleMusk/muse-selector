@@ -9,6 +9,7 @@
 | 香港/HKD/电脑硬件 `SearchSpec` | `src/muse_selector/contracts.py`、`src/muse_selector/query_parser.py`、`tests/fixtures/search_queries_v1.json`、`tests/test_query_parser.py` | 已通过 |
 | eBay HK 官方只读连接器 | `data/source_registry.yaml`、`src/muse_selector/connectors/ebay.py`、`tests/test_ebay_connector.py` | 连接器契约已通过；生产访问批准和凭据待完成 |
 | OAuth/Browse 失败关闭与端点锁定 | `tests/test_ebay_live_adapter.py`、`tests/test_ebay_connector.py` | 已通过 |
+| eBay Sandbox/Production 环境隔离 | `src/muse_selector/connectors/ebay.py`、`tests/test_ebay_live_adapter.py`、`tests/test_ebay_connector.py` | Sandbox 端点配对和环境标记已通过；Sandbox 不代表市场报价 |
 | 实时字段适配、抓取时间和结束 listing 过滤 | `tests/test_ebay_live_adapter.py`、`tests/test_ebay_connector.py`、`src/muse_selector/filtering.py` | 适配逻辑已通过；已依据 `itemEndDate` 与 live 观测时间硬过滤；真实 API 待凭据 |
 | 来源、时间、字段证据、风险结果卡 | `src/muse_selector/result_card.py`、`src/muse_selector/web.py`、`tests/test_pipeline.py`、`tests/test_web.py` | 已通过 |
 | 来源顺序与单页召回 | `src/muse_selector/pipeline.py`、`tests/test_ebay_live_adapter.py` | 已通过；不自动跟随 `next` |
