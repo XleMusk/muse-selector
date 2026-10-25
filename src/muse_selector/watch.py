@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import time
 from pathlib import Path
 
@@ -16,6 +17,19 @@ def default_watch_id(query: str, fixture: str | Path | None = None) -> str:
 
     identity = f"{query.strip()}\x00{fixture or ''}".encode("utf-8")
     return f"watch_{hashlib.sha256(identity).hexdigest()[:16]}"
+
+
+def _refresh_with_environment(store: SelectorStore, watch_id: str, environment: str | None) -> dict:
+    previous_environment = os.environ.get("EBAY_ENVIRONMENT")
+    try:
+        if environment is not None:
+            os.environ["EBAY_ENVIRONMENT"] = environment
+        return store.refresh_watch(watch_id)
+    finally:
+        if previous_environment is None:
+            os.environ.pop("EBAY_ENVIRONMENT", None)
+        else:
+            os.environ["EBAY_ENVIRONMENT"] = previous_environment
 
 
 def main() -> int:
@@ -30,6 +44,7 @@ def main() -> int:
         action="store_true",
         help="for --action update, clear a stored fixture and use the live read-only API",
     )
+    parser.add_argument("--environment", choices=("sandbox", "production"), default=None)
     parser.add_argument("--watch-id", default=None)
     parser.add_argument("--interval-seconds", type=int, default=None)
     parser.add_argument("--once", action="store_true", help="refresh once and exit")
@@ -88,7 +103,7 @@ def main() -> int:
     interval_seconds = args.interval_seconds or int(existing["interval_seconds"])
 
     while True:
-        result = store.refresh_watch(watch_id)
+        result = _refresh_with_environment(store, watch_id, args.environment)
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
         if args.once:
             return 0 if result["payload"].get("ok") else 2

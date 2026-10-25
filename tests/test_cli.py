@@ -1,5 +1,6 @@
 import contextlib
 import io
+import json
 import os
 import sys
 import unittest
@@ -42,6 +43,17 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn('"status": "source_unavailable"', output)
         self.assertIn('"read_only": true', output)
+
+    def test_environment_argument_selects_sandbox_without_persisting_env(self):
+        with patch.dict(os.environ, {"EBAY_CLIENT_ID": "", "EBAY_CLIENT_SECRET": "", "EBAY_ENVIRONMENT": "production"}, clear=False):
+            code, output = self._run(
+                "--environment", "sandbox",
+                "--query", "香港 RTX 4070 显卡，预算 HKD 9000",
+                "--format", "json",
+            )
+            self.assertEqual(os.environ["EBAY_ENVIRONMENT"], "production")
+        self.assertEqual(code, 2)
+        self.assertEqual(json.loads(output)["source_metadata"]["environment"], "sandbox")
 
 
 if __name__ == "__main__":

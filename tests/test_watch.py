@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -88,6 +89,21 @@ class WatchTests(unittest.TestCase):
                 with self.assertRaises(SystemExit) as raised:
                     main()
             self.assertEqual(raised.exception.code, 2)
+
+    def test_cli_refresh_environment_selects_sandbox(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / "watch.sqlite3"
+            output = io.StringIO()
+            with patch.dict(os.environ, {"EBAY_CLIENT_ID": "", "EBAY_CLIENT_SECRET": "", "EBAY_ENVIRONMENT": "production"}, clear=False):
+                with patch.object(sys, "argv", [
+                    "muse-watch", "--db", str(db), "--action", "refresh", "--watch-id", "watch_sandbox",
+                    "--query", "香港 RTX 4070 显卡，预算 HKD 9000", "--environment", "sandbox", "--once",
+                ]), contextlib.redirect_stdout(output):
+                    code = main()
+                self.assertEqual(os.environ["EBAY_ENVIRONMENT"], "production")
+            self.assertEqual(code, 2)
+            payload = json.loads(output.getvalue())
+            self.assertEqual(payload["payload"]["source_metadata"]["environment"], "sandbox")
 
 
 if __name__ == "__main__":
