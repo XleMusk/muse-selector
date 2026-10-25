@@ -1,4 +1,5 @@
 import unittest
+import tempfile
 from pathlib import Path
 
 from muse_selector.category_registry import get_category_schema
@@ -6,6 +7,8 @@ from muse_selector.application import SearchApplication
 from muse_selector.compatibility import build_compatibility_matrix
 from muse_selector.contracts import CompatibilityCheck, Evidence, FilterRule, Listing, ListingInstance, RankProfile
 from muse_selector.filtering import filter_rules_for_spec
+from muse_selector.connectors.ebay import EbayBrowseConnector
+from muse_selector.persistence import SelectorStore
 from muse_selector.query_parser import parse_query
 from muse_selector.source_capabilities import source_capability_registry
 from muse_selector.source_normalizer import normalize_source_row
@@ -177,6 +180,13 @@ class DomainExtensionTests(unittest.TestCase):
             }],
         })
         self.assertEqual(matrix["items"][0]["requirements"][0]["status"], "mismatch")
+
+    def test_existing_adapters_satisfy_narrow_ports(self):
+        connector = EbayBrowseConnector(fixture_path="tests/fixtures/ebay_hk_sample.json")
+        self.assertTrue(hasattr(connector, "search"))
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "watch.sqlite3")
+            self.assertTrue(hasattr(store, "replay_watch"))
 
 
 if __name__ == "__main__":

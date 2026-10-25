@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Mapping, Protocol
 
 
@@ -28,4 +29,11 @@ class WatchStore(Protocol):
         ...
 
 
-__all__ = ["SourceConnector", "WatchStore"]
+class Clock(Protocol):
+    """Explicit time dependency for deterministic application logic."""
+
+    def now(self) -> datetime:
+        ...
+
+
+__all__ = ["Clock", "SourceConnector", "WatchStore"]
