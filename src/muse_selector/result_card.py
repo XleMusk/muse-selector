@@ -144,6 +144,12 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
         return "\n".join(lines) + "\n"
 
     spec = payload["search_spec"]
+    source_capability = payload.get("source_capability") if isinstance(payload.get("source_capability"), Mapping) else {}
+    capability_label = " / ".join(
+        str(source_capability.get(key))
+        for key in ("access_mode", "status", "environment")
+        if source_capability.get(key)
+    ) or "unknown"
     lines = [
         "# Muse Selector 结果卡",
         "",
@@ -151,7 +157,7 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
         f"地区/币种：{spec['region']} / {spec['currency']}",
         f"预算上限：{spec.get('budget_max') or '未指定'}",
         f"来源：{_markdown_untrusted(payload.get('source') or 'unknown')}",
-        f"来源能力：{_markdown_untrusted((payload.get('source_capability') or {}).get('access_mode') or 'unknown')}",
+        f"来源能力：{_markdown_untrusted(capability_label)}",
         "只读状态：true",
         "",
         "## 推荐结果",
@@ -223,13 +229,19 @@ def render_comparison(payload: Mapping[str, Any]) -> str:
     if not payload.get("ok"):
         return render_markdown(payload)
     spec = payload.get("search_spec") or {}
+    source_capability = payload.get("source_capability") if isinstance(payload.get("source_capability"), Mapping) else {}
+    capability_label = " / ".join(
+        str(source_capability.get(key))
+        for key in ("access_mode", "status", "environment")
+        if source_capability.get(key)
+    ) or "unknown"
     lines = [
         "# Muse Selector 比较表",
         "",
         f"查询：{_table_untrusted(spec.get('query') or 'unknown')}",
         f"地区/币种：{_table_untrusted(spec.get('region') or 'unknown')} / {_table_untrusted(spec.get('currency') or 'unknown')}",
         f"来源：{_table_untrusted(payload.get('source') or 'unknown')}（保留来源顺序，不在客户端重排）",
-        f"来源能力：{_table_untrusted((payload.get('source_capability') or {}).get('access_mode') or 'unknown')}",
+        f"来源能力：{_table_untrusted(capability_label)}",
         "只读状态：true",
         "",
         "| 来源顺序 | 商品 | 实体标识 | 成本 | 证据覆盖 | 观测时间 | 状态/成色 | 配送 | 保修 | 风险 | 来源能力 | 来源 |",
@@ -260,7 +272,7 @@ def render_comparison(payload: Mapping[str, Any]) -> str:
                 _table_untrusted(delivery_text),
                 _table_untrusted(card.get("warranty") or "unknown"),
                 _table_untrusted(risk),
-                _table_untrusted((payload.get("source_capability") or {}).get("access_mode") or "unknown"),
+                _table_untrusted(capability_label),
                 _table_untrusted(f"{card.get('source_id') or 'unknown'} · {card.get('url') or 'unknown'}"),
             ])
             + " |"

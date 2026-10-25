@@ -8,7 +8,7 @@ import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 from urllib.parse import parse_qs, urlparse
 
 from .connectors.ebay import (
@@ -25,6 +25,17 @@ from .persistence import SelectorStore
 
 def _text(value: Any) -> str:
     return html.escape(str(value), quote=True)
+
+
+def _capability_label(payload: Mapping[str, Any]) -> str:
+    capability = payload.get("source_capability")
+    if not isinstance(capability, Mapping):
+        return "unknown"
+    return " / ".join(
+        str(capability.get(key))
+        for key in ("access_mode", "status", "environment")
+        if capability.get(key)
+    ) or "unknown"
 
 
 def _evidence_excerpt(item: dict[str, Any]) -> str:
@@ -271,7 +282,7 @@ def render_html(payload: dict[str, Any], query: str) -> str:
         body = (
             f"<section class='summary'><p>地区/币种：{_text(spec.get('region'))} / {_text(spec.get('currency'))}</p>"
             f"<p>预算上限：{_text(spec.get('budget_max') or '未指定')}</p>"
-            f"<p>来源能力：{_text((payload.get('source_capability') or {}).get('access_mode') or 'unknown')}</p></section>"
+            f"<p>来源能力：{_text(_capability_label(payload))}</p></section>"
             f"{_source_metadata_markup(payload)}"
             "<h2>推荐结果</h2>"
             f"<div class='cards'>{''.join(cards) or '<p>没有满足全部硬约束的结果。</p>'}</div>"
