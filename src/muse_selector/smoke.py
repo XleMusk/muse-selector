@@ -64,8 +64,18 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="One-shot live read-only eBay smoke check")
     parser.add_argument("--query", required=True, help="explicit Hong Kong hardware query with a budget")
     parser.add_argument("--limit", type=int, default=10)
+    parser.add_argument("--environment", choices=("sandbox", "production"), default=None)
     args = parser.parse_args()
-    payload = run_search(args.query, fixture_path=None, limit=args.limit)
+    previous_environment = os.environ.get("EBAY_ENVIRONMENT")
+    try:
+        if args.environment is not None:
+            os.environ["EBAY_ENVIRONMENT"] = args.environment
+        payload = run_search(args.query, fixture_path=None, limit=args.limit)
+    finally:
+        if previous_environment is None:
+            os.environ.pop("EBAY_ENVIRONMENT", None)
+        else:
+            os.environ["EBAY_ENVIRONMENT"] = previous_environment
     print(json.dumps(summarize(payload), ensure_ascii=False, indent=2, sort_keys=True))
     return 0 if payload.get("ok") else 2
 

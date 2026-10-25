@@ -82,6 +82,16 @@ class SmokeTests(unittest.TestCase):
         self.assertNotIn("client-id", serialized)
         self.assertNotIn("client-secret", serialized)
 
+    def test_environment_argument_selects_sandbox_without_persisting_env(self):
+        output = io.StringIO()
+        with patch.dict(os.environ, {"EBAY_CLIENT_ID": "", "EBAY_CLIENT_SECRET": "", "EBAY_ENVIRONMENT": "production"}, clear=False):
+            with patch.object(sys, "argv", ["muse-live-smoke", "--environment", "sandbox", "--query", "香港 RTX 4070 显卡，预算 HKD 9000"]):
+                with contextlib.redirect_stdout(output):
+                    code = main()
+            self.assertEqual(os.environ["EBAY_ENVIRONMENT"], "production")
+        self.assertEqual(code, 2)
+        self.assertEqual(json.loads(output.getvalue())["source_metadata"]["environment"], "sandbox")
+
 
 if __name__ == "__main__":
     unittest.main()

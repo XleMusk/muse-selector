@@ -154,7 +154,7 @@ python -m muse_selector --query "香港 RTX 4070 显卡，预算 HKD 9000" --for
 $env:EBAY_ENVIRONMENT = "sandbox"
 $env:EBAY_CLIENT_ID = "<sandbox-app-id>"
 $env:EBAY_CLIENT_SECRET = "<sandbox-cert-id>"
-muse-live-smoke --query "香港 RTX 4070 显卡，预算 HKD 9000"
+muse-live-smoke --environment sandbox --query "香港 RTX 4070 显卡，预算 HKD 9000"
 ```
 
 省略 `EBAY_ENVIRONMENT` 或设置为 `production` 时使用 `api.ebay.com`；`sandbox` 会严格锁定到 `api.sandbox.ebay.com`。
