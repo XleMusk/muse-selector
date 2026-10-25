@@ -424,6 +424,30 @@ class WebTests(unittest.TestCase):
             server.server_close()
             thread.join(timeout=2)
 
+    def test_explicit_environment_is_forwarded_without_process_global_mutation(self):
+        with patch.dict(os.environ, {"EBAY_ENVIRONMENT": "production"}, clear=False):
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE, environment="sandbox"))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with patch(
+                    "muse_selector.web.run_search",
+                    return_value={"ok": True, "read_only": True, "recommended": []},
+                ) as search:
+                    url = f"http://127.0.0.1:{server.server_port}/api/search?q=mini%20pc&limit=1"
+                    with urlopen(url, timeout=2) as response:
+                        payload = json.loads(response.read().decode("utf-8"))
+                self.assertTrue(payload["ok"])
+                search.assert_called_once_with("mini pc", str(FIXTURE), limit=1, offset=0, environment="sandbox")
+                with urlopen(f"http://127.0.0.1:{server.server_port}/api/capabilities", timeout=2) as response:
+                    capabilities = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(capabilities["sources"]["ebay.browse.hk.v1"]["environment"], "sandbox")
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+            self.assertEqual(os.environ["EBAY_ENVIRONMENT"], "production")
+
     def test_json_search_endpoint_reports_invalid_offset_without_silent_zero(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
         thread = threading.Thread(target=server.serve_forever, daemon=True)

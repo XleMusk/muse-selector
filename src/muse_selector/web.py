@@ -94,10 +94,12 @@ def _validate_bind_host(host: str) -> str:
     return host
 
 
-def capability_snapshot() -> dict[str, Any]:
+def capability_snapshot(environment: str | None = None) -> dict[str, Any]:
     """Return local source readiness without issuing any network request."""
 
-    selected_environment = str(os.environ.get("EBAY_ENVIRONMENT", "production")).strip().lower()
+    selected_environment = str(
+        environment if environment is not None else os.environ.get("EBAY_ENVIRONMENT", "production")
+    ).strip().lower()
     credential_env = None
     if selected_environment in {"production", "sandbox"}:
         client_id_var, client_secret_var = credential_env_names(selected_environment)
@@ -122,7 +124,9 @@ def capability_snapshot() -> dict[str, Any]:
         "status": "unavailable",
     }
     try:
-        connector = EbayBrowseConnector()
+        connector = EbayBrowseConnector(
+            environment=selected_environment if selected_environment in {"production", "sandbox"} else None
+        )
         ebay.update(
             {
                 "environment": connector.config.environment,
@@ -261,6 +265,7 @@ def render_html(payload: dict[str, Any], query: str) -> str:
 def make_handler(
     fixture_path: str | Path | None = None,
     store: SelectorStore | None = None,
+    environment: str | None = None,
 ) -> type[BaseHTTPRequestHandler]:
     """Create a request handler bound to one fixture or source configuration."""
     fixture = str(fixture_path) if fixture_path is not None else None
@@ -272,7 +277,7 @@ def make_handler(
                 self._send_json(200, {"ok": True, "read_only": True})
                 return
             if parsed.path == "/api/capabilities":
-                self._send_json(200, capability_snapshot())
+                self._send_json(200, capability_snapshot(environment))
                 return
             if parsed.path == "/api/watches":
                 if store is None:
@@ -432,14 +437,18 @@ def make_handler(
                     # structured invalid_query response instead of silently
                     # changing the requested page to offset zero.
                     offset = raw_offset
-                payload = run_search(query, fixture, limit=limit, offset=offset)
+                search_kwargs: dict[str, Any] = {"limit": limit, "offset": offset}
+                if environment is not None:
+                    search_kwargs["environment"] = environment
+                payload = run_search(query, fixture, **search_kwargs)
                 self._send_json(200, payload)
                 return
             if parsed.path != "/":
                 self._send(404, "text/plain; charset=utf-8", b"not found")
                 return
             query = parse_qs(parsed.query).get("q", ["香港预算 HKD 7000 以内的迷你主机"])[0]
-            content = render_html(run_search(query, fixture), query).encode("utf-8")
+            search_kwargs = {"environment": environment} if environment is not None else {}
+            content = render_html(run_search(query, fixture, **search_kwargs), query).encode("utf-8")
             self._send(200, "text/html; charset=utf-8", content)
 
         def _send(self, status: int, content_type: str, content: bytes) -> None:
@@ -469,10 +478,11 @@ def serve(
     host: str = "127.0.0.1",
     port: int = 8765,
     db_path: str | Path | None = None,
+    environment: str | None = None,
 ) -> None:
     host = _validate_bind_host(host)
     store = SelectorStore(db_path) if db_path is not None else None
-    server = ThreadingHTTPServer((host, port), make_handler(fixture_path, store))
+    server = ThreadingHTTPServer((host, port), make_handler(fixture_path, store, environment))
     print(f"Muse Selector read-only web view: http://{host}:{server.server_port}/")
     try:
         server.serve_forever()
@@ -490,16 +500,13 @@ def main() -> int:
     parser.add_argument("--environment", choices=("sandbox", "production"), default=None)
     parser.add_argument("--db", default=None, help="local SQLite database for read-only /api/watch snapshots")
     args = parser.parse_args()
-    previous_environment = os.environ.get("EBAY_ENVIRONMENT")
-    try:
-        if args.environment is not None:
-            os.environ["EBAY_ENVIRONMENT"] = args.environment
-        serve(Path(args.fixture) if args.fixture else None, args.host, args.port, Path(args.db) if args.db else None)
-    finally:
-        if previous_environment is None:
-            os.environ.pop("EBAY_ENVIRONMENT", None)
-        else:
-            os.environ["EBAY_ENVIRONMENT"] = previous_environment
+    serve(
+        Path(args.fixture) if args.fixture else None,
+        args.host,
+        args.port,
+        Path(args.db) if args.db else None,
+        args.environment,
+    )
     return 0
 
 
