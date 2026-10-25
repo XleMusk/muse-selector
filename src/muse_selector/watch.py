@@ -35,7 +35,7 @@ def _refresh_with_environment(store: SelectorStore, watch_id: str, environment: 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run a read-only Muse Selector watch")
     parser.add_argument("--db", default="data/selector.sqlite3")
-    parser.add_argument("--action", choices=("refresh", "pause", "resume", "update", "replay", "status"), default="refresh")
+    parser.add_argument("--action", choices=("refresh", "pause", "resume", "update", "replay", "status", "list"), default="refresh")
     parser.add_argument("--query", default=None)
     fixture_group = parser.add_mutually_exclusive_group()
     fixture_group.add_argument("--fixture", default=None, help="offline fixture; omit for live read-only API")
@@ -55,6 +55,18 @@ def main() -> int:
         parser.error("--live is only valid with --action update")
 
     store = SelectorStore(Path(args.db))
+    if args.action == "list":
+        if args.watch_id:
+            parser.error("--watch-id is not valid for --action list")
+        if args.once:
+            parser.error("--once is only valid for --action refresh")
+        result = {
+            "action": "list",
+            "read_only": True,
+            "watches": store.list_watches(),
+        }
+        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
     if args.action != "refresh":
         if not args.watch_id:
             parser.error("--watch-id is required for --action " + args.action)
