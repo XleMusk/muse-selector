@@ -121,6 +121,29 @@ class _SecretEchoHttpErrorOpener(_Opener):
         )
 
 
+class _TransientStatusOpener:
+    def __init__(self, failures_by_method):
+        self.failures_by_method = dict(failures_by_method)
+        self.requests = []
+
+    def open(self, request, timeout=None):
+        method = request.get_method()
+        self.requests.append((method, request.full_url, dict(request.headers)))
+        remaining = self.failures_by_method.get(method, 0)
+        if remaining:
+            self.failures_by_method[method] = remaining - 1
+            raise HTTPError(
+                request.full_url,
+                503,
+                "service unavailable",
+                hdrs=None,
+                fp=io.BytesIO(b'{"error":"temporary"}'),
+            )
+        if request.full_url.endswith("/identity/v1/oauth2/token"):
+            return _Response({"access_token": "test-token", "expires_in": 7200})
+        return _Response({"itemSummaries": []})
+
+
 class EbayLiveAdapterTests(unittest.TestCase):
     def test_default_redirect_handler_does_not_replay_credentials(self):
         self.assertIsNone(_NoRedirectHandler().redirect_request(None, None, 302, "found", {}, "https://evil.example"))
@@ -322,6 +345,32 @@ class EbayLiveAdapterTests(unittest.TestCase):
         connector = EbayBrowseConnector(client_id="id", client_secret="secret", opener=_HttpErrorOpener(fail_on="GET"))
         with self.assertRaises(ConnectorUnavailable):
             connector.search({"query": "mini pc"})
+
+    def test_retryable_oauth_status_is_retried_with_bounded_backoff(self):
+        opener = _TransientStatusOpener({"POST": 1})
+        connector = EbayBrowseConnector(
+            config=EbayConnectorConfig(max_retries=1, retry_backoff_seconds=0.01),
+            client_id="id",
+            client_secret="secret",
+            opener=opener,
+        )
+        with patch("muse_selector.connectors.ebay.time.sleep") as sleep:
+            connector.search({"query": "mini pc"})
+        self.assertEqual([method for method, _, _ in opener.requests], ["POST", "POST", "GET"])
+        sleep.assert_called_once_with(0.01)
+
+    def test_retryable_browse_status_is_retried_without_retrying_non_transient_errors(self):
+        opener = _TransientStatusOpener({"GET": 1})
+        connector = EbayBrowseConnector(
+            config=EbayConnectorConfig(max_retries=1, retry_backoff_seconds=0),
+            client_id="id",
+            client_secret="secret",
+            opener=opener,
+        )
+        with patch("muse_selector.connectors.ebay.time.sleep") as sleep:
+            connector.search({"query": "mini pc"})
+        self.assertEqual([method for method, _, _ in opener.requests], ["POST", "GET", "GET"])
+        sleep.assert_not_called()
 
 
 if __name__ == "__main__":

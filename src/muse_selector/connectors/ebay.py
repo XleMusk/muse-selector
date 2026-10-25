@@ -43,6 +43,8 @@ class EbayConnectorConfig:
     default_limit: int = 20
     default_buying_option: str = "FIXED_PRICE"
     environment: str = "production"
+    max_retries: int = 2
+    retry_backoff_seconds: float = 0.25
 
     def __post_init__(self) -> None:
         if self.marketplace_id != "EBAY_HK":
@@ -57,6 +59,16 @@ class EbayConnectorConfig:
             raise ValueError("timeout_seconds must be a finite positive number")
         if not isinstance(self.default_limit, int) or isinstance(self.default_limit, bool) or not 1 <= self.default_limit <= 200:
             raise ValueError("default_limit must be an integer between 1 and 200")
+        if not isinstance(self.max_retries, int) or isinstance(self.max_retries, bool) or not 0 <= self.max_retries <= 5:
+            raise ValueError("max_retries must be an integer between 0 and 5")
+        if (
+            not isinstance(self.retry_backoff_seconds, (int, float))
+            or isinstance(self.retry_backoff_seconds, bool)
+            or not math.isfinite(float(self.retry_backoff_seconds))
+            or self.retry_backoff_seconds < 0
+            or self.retry_backoff_seconds > 30
+        ):
+            raise ValueError("retry_backoff_seconds must be a finite number between 0 and 30")
         expected_host = "api.ebay.com" if self.environment == "production" else "api.sandbox.ebay.com"
         for name, value in (("api_base", self.api_base), ("token_url", self.token_url)):
             parsed = urllib.parse.urlparse(value)
@@ -90,6 +102,8 @@ class EbayConnectorConfig:
             timeout_seconds=float(os.getenv("EBAY_TIMEOUT_SECONDS", "15")),
             default_limit=int(os.getenv("EBAY_DEFAULT_LIMIT", "20")),
             environment=environment,
+            max_retries=int(os.getenv("EBAY_MAX_RETRIES", "2")),
+            retry_backoff_seconds=float(os.getenv("EBAY_RETRY_BACKOFF_SECONDS", "0.25")),
         )
 
 
@@ -98,6 +112,7 @@ class EbayBrowseConnector:
 
     source_id = "ebay.browse.hk.v1"
     _RESPONSE_METADATA_FIELDS = ("href", "next", "prev", "total", "limit", "offset")
+    _RETRYABLE_HTTP_STATUSES = frozenset({429, 500, 502, 503, 504})
 
     def __init__(
         self,
@@ -210,6 +225,37 @@ class EbayBrowseConnector:
                 text = text.replace(candidate, "[redacted]")
         return text
 
+    def _retry_delay(self, attempt: int) -> None:
+        """Back off between bounded retries without retrying arbitrary errors."""
+
+        delay = float(self.config.retry_backoff_seconds) * (2**attempt)
+        if delay > 0:
+            time.sleep(delay)
+
+    def _open_http(self, request: urllib.request.Request, context: str, *sensitive: Any) -> tuple[int, bytes]:
+        """Read one official response, retrying only explicitly transient statuses."""
+
+        for attempt in range(self.config.max_retries + 1):
+            try:
+                with self.opener.open(request, timeout=self.config.timeout_seconds) as response:
+                    status = self._response_status(response, context)
+                    body = response.read()
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode("utf-8", errors="replace")[:500]
+                if exc.code in self._RETRYABLE_HTTP_STATUSES and attempt < self.config.max_retries:
+                    self._retry_delay(attempt)
+                    continue
+                raise ConnectorUnavailable(
+                    self._redact_error(f"eBay {context} HTTP {exc.code}: {detail}", *sensitive)
+                ) from exc
+            except (urllib.error.URLError, TimeoutError) as exc:
+                raise ConnectorUnavailable(self._redact_error(f"eBay {context} unavailable: {exc}", *sensitive)) from exc
+            if status in self._RETRYABLE_HTTP_STATUSES and attempt < self.config.max_retries:
+                self._retry_delay(attempt)
+                continue
+            return status, body
+        raise ConnectorUnavailable(f"eBay {context} retry loop exhausted")  # pragma: no cover
+
     def search(self, search_spec: Mapping[str, Any]) -> list[dict[str, Any]]:
         """Search listings and return canonical-ish dictionaries."""
         self._source_metadata = self._empty_source_metadata()
@@ -279,15 +325,7 @@ class EbayBrowseConnector:
                 "X-EBAY-C-ENDUSERCTX": "contextualLocation=country%3DHK",
             },
         )
-        try:
-            with self.opener.open(request, timeout=self.config.timeout_seconds) as response:
-                status = self._response_status(response, "Browse API")
-                body = response.read()
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")[:500]
-            raise ConnectorUnavailable(self._redact_error(f"eBay Browse API HTTP {exc.code}: {detail}", token)) from exc
-        except (urllib.error.URLError, TimeoutError) as exc:
-            raise ConnectorUnavailable(self._redact_error(f"eBay Browse API unavailable: {exc}", token)) from exc
+        status, body = self._open_http(request, "Browse API", token)
         if status >= 400:
             raise ConnectorUnavailable(f"eBay Browse API HTTP {status}")
         try:
@@ -317,12 +355,7 @@ class EbayBrowseConnector:
                 "Accept": "application/json",
             },
         )
-        try:
-            with self.opener.open(request, timeout=self.config.timeout_seconds) as response:
-                status = self._response_status(response, "OAuth")
-                body = response.read()
-        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as exc:
-            raise ConnectorUnavailable(self._redact_error(f"eBay OAuth token request failed: {exc}")) from exc
+        status, body = self._open_http(request, "OAuth")
         if status >= 400:
             raise ConnectorUnavailable(f"eBay OAuth token request failed: HTTP {status}")
         try:

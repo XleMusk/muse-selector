@@ -205,6 +205,8 @@ muse-live-smoke --query "香港 RTX 4070 显卡，预算 HKD 9000"
 
 成功时 smoke 还会输出 eBay 返回的来源页元数据（`href`、`total`、`limit`、`offset` 和分页链接），用于确认真实响应页已被抓取；它不会自动跟随 `next`。
 
+实时连接器只对明确的瞬态 HTTP 状态 `429`、`500`、`502`、`503`、`504` 做有限重试；默认最多重试 2 次并使用短退避。可用 `EBAY_MAX_RETRIES` 和 `EBAY_RETRY_BACKOFF_SECONDS` 调整，认证、参数和其他 4xx 错误不会重试，也不会自动分页或跟随重定向。
+
 如需立即停用实时 eBay 来源，可设置来源注册表中的 kill switch；它会在 OAuth 请求之前 fail-closed，fixture 离线模式不受影响：
 
 ```powershell

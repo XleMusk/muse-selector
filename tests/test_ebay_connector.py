@@ -114,6 +114,10 @@ class EbayBrowseConnectorTests(unittest.TestCase):
             EbayConnectorConfig(timeout_seconds=float("nan"))
         with self.assertRaises(ValueError):
             EbayConnectorConfig(default_limit=201)
+        with self.assertRaises(ValueError):
+            EbayConnectorConfig(max_retries=6)
+        with self.assertRaises(ValueError):
+            EbayConnectorConfig(retry_backoff_seconds=-1)
 
     def test_live_mode_is_closed_without_credentials(self):
         connector = EbayBrowseConnector(config=EbayConnectorConfig())
