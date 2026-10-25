@@ -141,8 +141,8 @@ class EbayConnectorConfig:
                 raise ValueError(f"{name} must use the registered eBay endpoint path")
 
     @classmethod
-    def from_env(cls) -> "EbayConnectorConfig":
-        environment = os.getenv("EBAY_ENVIRONMENT", "production").strip().lower()
+    def from_env(cls, environment: str | None = None) -> "EbayConnectorConfig":
+        environment = str(environment if environment is not None else os.getenv("EBAY_ENVIRONMENT", "production")).strip().lower()
         default_host = "api.ebay.com" if environment == "production" else "api.sandbox.ebay.com"
         return cls(
             marketplace_id=os.getenv("EBAY_MARKETPLACE_ID", "EBAY_HK"),
@@ -174,8 +174,9 @@ class EbayBrowseConnector:
         client_id: str | None = None,
         client_secret: str | None = None,
         opener: Any | None = None,
+        environment: str | None = None,
     ) -> None:
-        self.config = config or EbayConnectorConfig.from_env()
+        self.config = config or EbayConnectorConfig.from_env(environment=environment)
         self.fixture_path = Path(fixture_path) if fixture_path else None
         self.client_id = client_id if client_id is not None else os.getenv("EBAY_CLIENT_ID")
         self.client_secret = client_secret if client_secret is not None else os.getenv("EBAY_CLIENT_SECRET")

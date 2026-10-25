@@ -245,6 +245,7 @@ def run_search(
     *,
     limit: int = 10,
     offset: int = 0,
+    environment: str | None = None,
 ) -> dict[str, Any]:
     """Run a fully offline search and return serializable result cards."""
 
@@ -339,7 +340,10 @@ def run_search(
             "read_only": True,
         }
     try:
-        connector = EbayBrowseConnector(fixture_path=fixture_path)
+        connector_kwargs: dict[str, Any] = {"fixture_path": fixture_path}
+        if environment is not None:
+            connector_kwargs["environment"] = environment
+        connector = EbayBrowseConnector(**connector_kwargs)
         connector_spec = spec.to_dict()
         # Keep the source request bounded while preserving recall after hard
         # filtering.  A small output limit must not shrink the single source

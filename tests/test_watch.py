@@ -23,6 +23,8 @@ class WatchTests(unittest.TestCase):
         other_fixture = default_watch_id(query, Path("tests/fixtures/other.json"))
         self.assertEqual(first, second)
         self.assertNotEqual(first, other_fixture)
+        self.assertEqual(first, default_watch_id(query, Path("tests/fixtures/ebay_hk_sample.json"), None))
+        self.assertNotEqual(first, default_watch_id(query, Path("tests/fixtures/ebay_hk_sample.json"), "sandbox"))
         self.assertRegex(first, r"^watch_[0-9a-f]{16}$")
 
     def test_cli_lifecycle_actions_use_local_checkpoint_only(self):
@@ -95,10 +97,23 @@ class WatchTests(unittest.TestCase):
 
             code, updated = invoke(
                 "--db", str(db), "--action", "update", "--watch-id", "watch_live_switch", "--live",
+                "--environment", "sandbox",
             )
             self.assertEqual(code, 0)
             self.assertIsNone(updated["watch"]["fixture_path"])
+            self.assertEqual(updated["watch"]["environment"], "sandbox")
             self.assertIsNone(updated["watch"]["last_run_id"])
+
+            with patch.dict(
+                os.environ,
+                {"EBAY_CLIENT_ID": "", "EBAY_CLIENT_SECRET": "", "EBAY_ENVIRONMENT": "production"},
+                clear=False,
+            ):
+                code, refreshed = invoke(
+                    "--db", str(db), "--action", "refresh", "--watch-id", "watch_live_switch", "--once",
+                )
+            self.assertEqual(code, 2)
+            self.assertEqual(refreshed["payload"]["source_metadata"]["environment"], "sandbox")
 
     def test_cli_live_switch_is_rejected_for_non_update_actions(self):
         with tempfile.TemporaryDirectory() as directory:

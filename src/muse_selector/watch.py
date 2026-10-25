@@ -21,24 +21,21 @@ def _print_result(result: dict) -> None:
     print(json.dumps(body, ensure_ascii=False, indent=2, sort_keys=True))
 
 
-def default_watch_id(query: str, fixture: str | Path | None = None) -> str:
+def default_watch_id(
+    query: str,
+    fixture: str | Path | None = None,
+    environment: str | None = None,
+) -> str:
     """Return a stable id for an implicit watch invocation."""
 
     identity = f"{query.strip()}\x00{fixture or ''}".encode("utf-8")
+    if environment is not None:
+        identity += f"\x00{environment}".encode("utf-8")
     return f"watch_{hashlib.sha256(identity).hexdigest()[:16]}"
 
 
 def _refresh_with_environment(store: SelectorStore, watch_id: str, environment: str | None) -> dict:
-    previous_environment = os.environ.get("EBAY_ENVIRONMENT")
-    try:
-        if environment is not None:
-            os.environ["EBAY_ENVIRONMENT"] = environment
-        return store.refresh_watch(watch_id)
-    finally:
-        if previous_environment is None:
-            os.environ.pop("EBAY_ENVIRONMENT", None)
-        else:
-            os.environ["EBAY_ENVIRONMENT"] = previous_environment
+    return store.refresh_watch(watch_id, environment=environment)
 
 
 def main() -> int:
@@ -130,8 +127,14 @@ def main() -> int:
             if watch.get("last_run_id"):
                 result["payload"] = store.replay_run(str(watch["last_run_id"]))
         else:
-            if args.query is None and args.fixture is None and not args.live and args.interval_seconds is None:
-                parser.error("--action update requires --query, --fixture or --interval-seconds")
+            if (
+                args.query is None
+                and args.fixture is None
+                and not args.live
+                and args.interval_seconds is None
+                and args.environment is None
+            ):
+                parser.error("--action update requires --query, --fixture, --live, --interval-seconds or --environment")
             kwargs = {}
             if args.query is not None:
                 kwargs["query"] = args.query
@@ -141,6 +144,8 @@ def main() -> int:
                 kwargs["fixture_path"] = None
             if args.interval_seconds is not None:
                 kwargs["interval_seconds"] = args.interval_seconds
+            if args.environment is not None:
+                kwargs["environment"] = args.environment
             result = {"action": "update", "watch": store.update_watch(args.watch_id, **kwargs)}
         _print_result(result)
         return 0
@@ -150,7 +155,10 @@ def main() -> int:
     # Keep the implicit watch stable across process restarts so rerunning the
     # same command does not create duplicate persistent watch rows. Callers
     # that need parallel watches can still provide an explicit --watch-id.
-    watch_id = args.watch_id or default_watch_id(args.query or "", args.fixture)
+    selected_environment = args.environment or os.environ.get("EBAY_ENVIRONMENT", "production").strip().lower()
+    if selected_environment not in {"production", "sandbox"}:
+        parser.error("environment must be production or sandbox")
+    watch_id = args.watch_id or default_watch_id(args.query or "", args.fixture, args.environment)
     existing = store.get_watch(watch_id)
     if existing is None:
         interval_seconds = args.interval_seconds or 900
@@ -159,12 +167,13 @@ def main() -> int:
             Path(args.fixture) if args.fixture else None,
             interval_seconds=interval_seconds,
             watch_id=watch_id,
+            environment=selected_environment,
         )
         existing = store.get_watch(watch_id)
     interval_seconds = args.interval_seconds or int(existing["interval_seconds"])
 
     while True:
-        result = _refresh_with_environment(store, watch_id, args.environment)
+        result = _refresh_with_environment(store, watch_id, args.environment or existing.get("environment", "production"))
         _print_result(result)
         if args.once:
             return 0 if result["payload"].get("ok") else 2

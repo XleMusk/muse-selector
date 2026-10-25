@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sqlite3
 import uuid
 from contextlib import contextmanager
@@ -155,6 +156,7 @@ class SelectorStore:
                     watch_id TEXT PRIMARY KEY,
                     query TEXT NOT NULL,
                     fixture_path TEXT,
+                    environment TEXT NOT NULL DEFAULT 'production',
                     interval_seconds INTEGER NOT NULL CHECK (interval_seconds > 0),
                     enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
                     revision INTEGER NOT NULL DEFAULT 0,
@@ -183,6 +185,8 @@ class SelectorStore:
                 conn.execute("ALTER TABLE watches ADD COLUMN revision INTEGER NOT NULL DEFAULT 0")
             if "last_change_summary_json" not in watch_columns:
                 conn.execute("ALTER TABLE watches ADD COLUMN last_change_summary_json TEXT")
+            if "environment" not in watch_columns:
+                conn.execute("ALTER TABLE watches ADD COLUMN environment TEXT NOT NULL DEFAULT 'production'")
             card_columns = {row["name"] for row in conn.execute("PRAGMA table_info(result_cards)")}
             if "source_rank" not in card_columns:
                 conn.execute("ALTER TABLE result_cards ADD COLUMN source_rank INTEGER NOT NULL DEFAULT 0")
@@ -246,16 +250,26 @@ class SelectorStore:
             ).fetchall()
         return [json.loads(row["card_json"]) for row in rows]
 
-    def add_watch(self, query: str, fixture_path: str | Path | None = None, *, interval_seconds: int = 900, watch_id: str | None = None) -> str:
+    def add_watch(
+        self,
+        query: str,
+        fixture_path: str | Path | None = None,
+        *,
+        interval_seconds: int = 900,
+        watch_id: str | None = None,
+        environment: str = "production",
+    ) -> str:
         if not query.strip():
             raise ValueError("watch query must be non-empty")
         if interval_seconds <= 0:
             raise ValueError("interval_seconds must be positive")
+        if environment not in {"production", "sandbox"}:
+            raise ValueError("environment must be production or sandbox")
         resolved_id = watch_id or f"watch_{uuid.uuid4().hex[:16]}"
         with self._connection() as conn:
             conn.execute(
-                "INSERT INTO watches(watch_id, query, fixture_path, interval_seconds, enabled, revision, created_at) VALUES (?, ?, ?, ?, 1, 0, ?)",
-                (resolved_id, query.strip(), str(fixture_path) if fixture_path is not None else None, int(interval_seconds), _now()),
+                "INSERT INTO watches(watch_id, query, fixture_path, environment, interval_seconds, enabled, revision, created_at) VALUES (?, ?, ?, ?, ?, 1, 0, ?)",
+                (resolved_id, query.strip(), str(fixture_path) if fixture_path is not None else None, environment, int(interval_seconds), _now()),
             )
         return resolved_id
 
@@ -318,6 +332,7 @@ class SelectorStore:
         query: str | None = None,
         fixture_path: str | Path | None | object = _UNSET,
         interval_seconds: int | None = None,
+        environment: str | None = None,
     ) -> dict[str, Any]:
         """Apply a user edit and clear the checkpoint when its input changes.
 
@@ -348,6 +363,12 @@ class SelectorStore:
                 raise ValueError("interval_seconds must be positive")
             updates.append("interval_seconds = ?")
             values.append(int(interval_seconds))
+        if environment is not None:
+            if environment not in {"production", "sandbox"}:
+                raise ValueError("environment must be production or sandbox")
+            updates.append("environment = ?")
+            values.append(environment)
+            input_changed = input_changed or environment != current.get("environment", "production")
         if input_changed:
             updates.extend(["last_run_id = NULL", "last_refreshed_at = NULL", "last_change_summary_json = NULL"])
         if updates:
@@ -431,7 +452,7 @@ class SelectorStore:
             result.append(item)
         return result
 
-    def refresh_watch(self, watch_id: str) -> dict[str, Any]:
+    def refresh_watch(self, watch_id: str, *, environment: str | None = None) -> dict[str, Any]:
         with self._connection() as conn:
             row = conn.execute("SELECT * FROM watches WHERE watch_id = ?", (watch_id,)).fetchone()
         if row is None:
@@ -439,7 +460,14 @@ class SelectorStore:
         if not row["enabled"]:
             raise ValueError(f"watch is disabled: {watch_id}")
         initial_revision = int(row["revision"])
-        payload = run_search(row["query"], row["fixture_path"])
+        selected_environment = environment or row["environment"] or "production"
+        if selected_environment not in {"production", "sandbox"}:
+            raise ValueError("environment must be production or sandbox")
+        configured_environment = str(os.environ.get("EBAY_ENVIRONMENT", "production")).strip().lower()
+        if configured_environment == selected_environment:
+            payload = run_search(row["query"], row["fixture_path"])
+        else:
+            payload = run_search(row["query"], row["fixture_path"], environment=selected_environment)
         payload_dict = dict(payload)
         run_id = run_id_for_payload(payload_dict)
         serialized = _canonical(payload_dict)

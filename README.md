@@ -235,6 +235,8 @@ muse-watch --db "D:\muse\data\selector.sqlite3" --action list
 muse-watch --db "D:\muse\data\selector.sqlite3" --action changes --watch-id "mini_pc_hk" --include-payload
 ```
 
+观察任务会持久化 `environment`（`production` 或 `sandbox`）。创建或更新时显式传入 `--environment sandbox` 后，后续省略该参数的刷新仍会使用已保存的 Sandbox 目标；旧 SQLite 数据库迁移后默认使用 production。
+
 这些 action 只读写本地 SQLite 状态；`replay`、`status`、`list` 和 `changes` 不会调用连接器，`status` 会返回观察任务元数据和最新已保存结果，`list` 返回全部观察任务，`changes` 返回历史检查点并可用 `--include-payload` 导出可重放 payload，`update` 会保留旧 run 供重放。已有 fixture 观察任务可用 `--action update --live` 清除 fixture，原地切换到实时只读 API。
 
 回归集覆盖预算、地区、必选规格、陈旧/冲突证据、缺失 URL、账号策略阻断、提示注入、SSRF 和重放稳定性。fixture 中的价格和库存是测试数据，不能当作当前市场报价。

@@ -48,6 +48,35 @@ class PersistenceTests(unittest.TestCase):
             finally:
                 conn.close()
             self.assertIn("last_change_summary_json", columns)
+            self.assertIn("environment", columns)
+            self.assertEqual(store.get_watch("legacy")["environment"], "production")
+
+    def test_watch_environment_is_persisted_and_used_for_refresh(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            watch_id = store.add_watch(
+                "香港预算 HKD 7000 以内的迷你主机",
+                FIXTURE,
+                watch_id="watch_sandbox",
+                environment="sandbox",
+            )
+            payload = {
+                "ok": True,
+                "status": "complete",
+                "search_spec": {"query": "sandbox"},
+                "recommended": [],
+                "rejected": [],
+                "dropped": [],
+                "source": "ebay.browse.hk.v1",
+                "read_only": True,
+            }
+            with patch("muse_selector.persistence.run_search", return_value=payload) as search:
+                store.refresh_watch(watch_id)
+            self.assertEqual(store.get_watch(watch_id)["environment"], "sandbox")
+            self.assertEqual(search.call_args.kwargs["environment"], "sandbox")
+            updated = store.update_watch(watch_id, environment="production")
+            self.assertEqual(updated["environment"], "production")
+            self.assertIsNone(updated["last_run_id"])
 
     def test_list_cards_preserves_source_rank_for_replay(self):
         with tempfile.TemporaryDirectory() as directory:
