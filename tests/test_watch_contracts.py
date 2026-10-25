@@ -68,6 +68,15 @@ class WatchContractTests(unittest.TestCase):
             self.assertEqual(refreshed["refresh_job"]["status"], "complete")
             self.assertEqual(refreshed["refresh_job"]["run_id"], refreshed["run_id"])
 
+    def test_refresh_job_marks_source_failure_without_hiding_payload(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            watch_id = store.add_watch("香港 RTX 4070 显卡，预算 HKD 9000", watch_id="watch-failure")
+            result = store.refresh_watch(watch_id)
+            self.assertEqual(result["payload"]["status"], "source_unavailable")
+            self.assertEqual(result["refresh_job"]["status"], "failed")
+            self.assertTrue(result["refresh_job"]["error"])
+
 
 if __name__ == "__main__":
     unittest.main()

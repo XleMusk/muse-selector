@@ -25,6 +25,27 @@ from .watch_contracts import WatchEvent, WatchSpec
 _UNSET = object()
 
 
+def _refresh_job(
+    watch_id: str,
+    revision: int,
+    run_id: str,
+    payload: Mapping[str, Any],
+    started_at: str,
+    finished_at: str,
+) -> RefreshJob:
+    failed_statuses = {"source_unavailable", "invalid_query", "policy_blocked"}
+    failed = payload.get("status") in failed_statuses
+    return RefreshJob(
+        job_id=f"{watch_id}:{revision}:{run_id}",
+        watch_id=watch_id,
+        status="failed" if failed else "complete",
+        run_id=run_id,
+        started_at=started_at,
+        finished_at=finished_at,
+        error=str(payload.get("message")) if failed and payload.get("message") else None,
+    )
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -697,13 +718,13 @@ class SelectorStore:
                     (watch_id, observed_at, str(previous_run_id), encoded_change_summary),
                 )
                 events = persist_threshold_events(str(previous_run_id), observed_at)
-                refresh_job = RefreshJob(
-                    job_id=f"{watch_id}:{initial_revision}:{previous_run_id}",
-                    watch_id=watch_id,
-                    status="complete",
-                    run_id=str(previous_run_id),
-                    started_at=started_at,
-                    finished_at=observed_at,
+                refresh_job = _refresh_job(
+                    watch_id,
+                    initial_revision,
+                    str(previous_run_id),
+                    payload,
+                    started_at,
+                    observed_at,
                 )
                 return {
                     "watch_id": watch_id,
@@ -730,14 +751,7 @@ class SelectorStore:
                 (watch_id, observed_at, run_id, int(inserted), encoded_change_summary),
             )
             events = persist_threshold_events(run_id, observed_at)
-        refresh_job = RefreshJob(
-            job_id=f"{watch_id}:{initial_revision}:{run_id}",
-            watch_id=watch_id,
-            status="complete",
-            run_id=run_id,
-            started_at=started_at,
-            finished_at=observed_at,
-        )
+        refresh_job = _refresh_job(watch_id, initial_revision, run_id, payload, started_at, observed_at)
         return {
             "watch_id": watch_id,
             "run_id": run_id,
