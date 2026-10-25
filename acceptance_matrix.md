@@ -26,6 +26,7 @@
 | W11 合成灰度指标 | `tests/metrics_harness.py`、`tests/test_metrics.py`、`examples/metrics_result.json`、`.github/workflows/ci.yml` | p50/p95、成功率、失败率、重放稳定性、硬约束率和外部请求成本代理可复现；只读 |
 | W12 Runbook 与 Go/No-Go | `release_runbook.md`、`remaining_execution_plan.md`、`.github/workflows/ci.yml` | 启动、熔断、删除、事故响应、回滚和发布条件已形成可执行文档；真实生产 smoke 仍待官方批准/keyset |
 | W12 可执行 release check | `src/muse_selector/release_check.py`、`tests/test_release_check.py`、`.github/workflows/ci.yml` | 离线验证本地 artifact/document readiness，并明确 live gate pending；不读取 secret 值、不联网 |
+| 脱敏 live smoke 证据 | `src/muse_selector/smoke.py`、`src/muse_selector/release_check.py`、`tests/test_smoke.py` | 可保存无凭据 smoke 摘要；仅有效 schema/source/read_only/status/environment 才计入 `real_smoke_recorded` |
 | W8 只读浏览器 broker 第一阶段 | `src/muse_selector/browser_broker.py`、`tests/test_browser_broker.py` | 默认关闭；eBay HK allowlist、accessibility tree 清理和人工接管契约已通过；真实浏览器与凭据路径未开启 |
 | 账号登录、购买、转移、代打、支付和平台控制绕过 | `src/muse_selector/query_parser.py`、`scope_decision.md` | 已排除并阻断 |
 | GitHub 主线自动验证 | `.github/workflows/ci.yml` | 最新 CI 通过 |

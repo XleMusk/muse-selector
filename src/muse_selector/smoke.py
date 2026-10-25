@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from pathlib import Path
 from typing import Any, Mapping
 
 from .connectors.ebay import (
@@ -77,12 +78,24 @@ def summarize(payload: Mapping[str, Any]) -> dict[str, Any]:
     return summary
 
 
+def _write_evidence(path: str, summary: Mapping[str, Any]) -> None:
+    """Write only the credential-free smoke summary requested by the caller."""
+
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(dict(summary), ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="One-shot live read-only eBay smoke check")
     parser.add_argument("--query", required=True, help="explicit Hong Kong hardware query with a budget")
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--offset", type=int, default=0, help="single Browse page offset; no automatic pagination")
     parser.add_argument("--environment", choices=("sandbox", "production"), default=None)
+    parser.add_argument("--evidence-file", default=None, help="write a credential-free smoke summary JSON")
     args = parser.parse_args()
     payload = run_search(
         args.query,
@@ -91,7 +104,13 @@ def main() -> int:
         offset=args.offset,
         environment=args.environment,
     )
-    print(json.dumps(summarize(payload), ensure_ascii=False, indent=2, sort_keys=True))
+    summary = summarize(payload)
+    if args.evidence_file:
+        try:
+            _write_evidence(args.evidence_file, summary)
+        except OSError as exc:
+            parser.error(f"cannot write evidence file: {exc}")
+    print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
     return 0 if payload.get("ok") else 2
 
 

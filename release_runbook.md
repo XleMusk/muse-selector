@@ -6,6 +6,15 @@
 
 生产 eBay 结果只有在官方 Buy API 访问批准、对应 keyset、真实 OAuth/Browse smoke 和字段证据核对全部通过后才可以标记为 live verified。Sandbox 只证明接口集成，不证明市场报价。
 
+拿到官方 keyset 后，smoke 可以把脱敏证据写入本地文件：
+
+```powershell
+muse-live-smoke --environment sandbox --query "香港 RTX 4070 显卡，预算 HKD 9000" --evidence-file D:\muse\examples\live_smoke_result.json
+muse-release-check --root D:\muse
+```
+
+证据文件只包含 smoke 摘要、来源元数据和观测时间，不包含 credential、token 或 secret。真实生产批准仍需独立记录，不能由存在凭据变量推断。
+
 ## 启动和健康检查
 
 ```powershell

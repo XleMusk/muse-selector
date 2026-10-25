@@ -262,6 +262,7 @@ W11 合成负载指标可运行 `python tests/metrics_harness.py`，输出 `muse
 未完成的 W2–W12 执行顺序、并行边界、角色分工和 Go/No-Go 条件见 [remaining_execution_plan.md](remaining_execution_plan.md)。
 启动、故障熔断、数据删除、事故响应和 Go/No-Go 操作见 [release_runbook.md](release_runbook.md)。
 可用 `muse-release-check --root D:\\muse` 离线检查本地 artifact 和发布文档；当前会明确报告 `local_ready_external_gate_pending`，不会把 fixture 结果标记为真实生产通过。
+拿到官方 keyset 后可追加 `muse-live-smoke --evidence-file examples/live_smoke_result.json ...` 保存脱敏 smoke 摘要；release check 只在摘要 schema、来源、只读标记、状态和环境都有效时记录 `real_smoke_recorded`，不会保存凭据或 token。
 W8 只读浏览器 broker 目前是默认关闭的本地契约：只接受 eBay HK HTTPS allowlist，通过注入 adapter 读取 accessibility tree 并清理敏感字段；没有 click、type、JavaScript 或真实凭据路径。
 关键字段证据覆盖率低于 95% 的来源记录会被标记为风险并排除，不会进入推荐。
 查询未提供预算上限时，系统返回 `needs_clarification` 并要求补充地区与 `max_total_hkd`；只有明确写出“价格不限”等表达才会在无预算上限下继续筛选。

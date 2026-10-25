@@ -6,7 +6,7 @@ import argparse
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from .connectors.ebay import credential_env_names, credential_state
 
@@ -17,6 +17,7 @@ _ARTIFACTS = {
     "faults": "examples/fault_result.json",
     "metrics": "examples/metrics_result.json",
 }
+_LIVE_SMOKE_EVIDENCE = "examples/live_smoke_result.json"
 _DOCUMENTS = ("README.md", "acceptance_matrix.md", "remaining_execution_plan.md", "release_runbook.md")
 
 
@@ -26,6 +27,21 @@ def _read_json(path: Path) -> tuple[dict[str, Any] | None, str | None]:
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         return None, f"{type(exc).__name__}: {exc}"
     return (dict(value), None) if isinstance(value, dict) else (None, "artifact must be a JSON object")
+
+
+def _valid_live_smoke_evidence(value: Mapping[str, Any] | None) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    metadata = value.get("source_metadata")
+    return (
+        value.get("schema_version") == "muse.selector.v1"
+        and value.get("ok") is True
+        and value.get("status") == "complete"
+        and value.get("source") == "ebay.browse.hk.v1"
+        and value.get("read_only") is True
+        and isinstance(metadata, Mapping)
+        and metadata.get("environment") in {"production", "sandbox"}
+    )
 
 
 def run_release_check(root: str | Path | None = None, *, require_live: bool = False) -> dict[str, Any]:
@@ -45,6 +61,9 @@ def run_release_check(root: str | Path | None = None, *, require_live: bool = Fa
         checks[f"document:{relative}"] = {"path": relative, "exists": path.is_file(), "ok": path.is_file()}
 
     local_ready = all(item["ok"] for item in checks.values())
+    live_evidence_path = base / _LIVE_SMOKE_EVIDENCE
+    live_evidence, live_evidence_error = _read_json(live_evidence_path) if live_evidence_path.is_file() else (None, None)
+    real_smoke_recorded = _valid_live_smoke_evidence(live_evidence)
     selected_environment = str(os.getenv("EBAY_ENVIRONMENT", "production")).strip().lower()
     if selected_environment not in {"production", "sandbox"}:
         selected_environment = "production"
@@ -58,8 +77,10 @@ def run_release_check(root: str | Path | None = None, *, require_live: bool = Fa
         },
         "credential_state": credential_state(selected_environment),
         "official_approval_recorded": False,
-        "real_smoke_recorded": False,
-        "reason": "official production approval, keyset and real read-only smoke are not recorded in this workspace",
+        "real_smoke_recorded": real_smoke_recorded,
+        "evidence_file": _LIVE_SMOKE_EVIDENCE if live_evidence_path.is_file() else None,
+        "evidence_error": live_evidence_error,
+        "reason": "official production approval is not recorded in this workspace" if real_smoke_recorded else "official production approval, keyset and real read-only smoke are not recorded in this workspace",
     }
     go = local_ready and live_gate["official_approval_recorded"] and live_gate["real_smoke_recorded"]
     result = {

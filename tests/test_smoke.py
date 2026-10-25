@@ -3,6 +3,7 @@ import io
 import json
 import os
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -164,6 +165,34 @@ class SmokeTests(unittest.TestCase):
             offset=0,
             environment="sandbox",
         )
+
+    def test_evidence_file_writes_only_credential_free_summary(self):
+        output = io.StringIO()
+        payload = {
+            "ok": True,
+            "status": "complete",
+            "source": "ebay.browse.hk.v1",
+            "source_metadata": {"environment": "sandbox", "href": "https://api.sandbox.ebay.com/buy/browse/v1/item_summary/search"},
+            "read_only": True,
+            "recommended": [{"evidence": [{"observed_at": "2026-10-24T04:00:00Z"}]}],
+            "rejected": [],
+            "dropped": [],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            evidence_path = os.path.join(directory, "smoke.json")
+            with patch("muse_selector.smoke.run_search", return_value=payload):
+                with patch.object(sys, "argv", [
+                    "muse-live-smoke", "--query", "香港 RTX 4070 显卡，预算 HKD 9000",
+                    "--environment", "sandbox", "--evidence-file", evidence_path,
+                ]), contextlib.redirect_stdout(output):
+                    self.assertEqual(main(), 0)
+            with open(evidence_path, encoding="utf-8") as evidence_stream:
+                saved = json.load(evidence_stream)
+        self.assertEqual(saved["status"], "complete")
+        self.assertEqual(saved["source_metadata"]["environment"], "sandbox")
+        serialized = json.dumps(saved, ensure_ascii=False)
+        self.assertNotIn("client_secret", serialized)
+        self.assertNotIn("test-token", serialized)
 
 
 if __name__ == "__main__":
