@@ -21,6 +21,21 @@ def _print_result(result: dict) -> None:
     print(json.dumps(body, ensure_ascii=False, indent=2, sort_keys=True))
 
 
+def _print_error(action: str, status: str, message: str) -> int:
+    """Print a structured read-only CLI error instead of a traceback."""
+
+    _print_result(
+        {
+            "action": action,
+            "ok": False,
+            "status": status,
+            "message": message,
+            "read_only": True,
+        }
+    )
+    return 2
+
+
 def default_watch_id(
     query: str,
     fixture: str | Path | None = None,
@@ -92,33 +107,49 @@ def main() -> int:
         if args.once:
             parser.error("--once is only valid with --action refresh")
         if args.action == "changes":
-            result = {
-                "action": "changes",
-                "watch_id": args.watch_id,
-                "read_only": True,
-                "changes": store.list_watch_changes(
+            try:
+                changes = store.list_watch_changes(
                     args.watch_id,
                     limit=args.limit,
                     offset=args.offset,
                     include_payload=args.include_payload,
-                ),
+                )
+            except KeyError as exc:
+                return _print_error("changes", "watch_not_found", str(exc))
+            result = {
+                "action": "changes",
+                "watch_id": args.watch_id,
+                "read_only": True,
+                "changes": changes,
                 "limit": args.limit,
                 "offset": args.offset,
             }
             _print_result(result)
             return 0
         if args.action == "pause":
-            store.pause_watch(args.watch_id)
+            try:
+                store.pause_watch(args.watch_id)
+            except KeyError as exc:
+                return _print_error("pause", "watch_not_found", str(exc))
             result = {"action": "pause", "watch": store.get_watch(args.watch_id)}
         elif args.action == "resume":
-            store.resume_watch(args.watch_id)
+            try:
+                store.resume_watch(args.watch_id)
+            except KeyError as exc:
+                return _print_error("resume", "watch_not_found", str(exc))
             result = {"action": "resume", "watch": store.get_watch(args.watch_id)}
         elif args.action == "replay":
-            result = {"action": "replay", "watch_id": args.watch_id, "payload": store.replay_watch(args.watch_id)}
+            try:
+                payload = store.replay_watch(args.watch_id)
+            except KeyError as exc:
+                return _print_error("replay", "watch_not_found", str(exc))
+            except ValueError as exc:
+                return _print_error("replay", "watch_unavailable", str(exc))
+            result = {"action": "replay", "watch_id": args.watch_id, "payload": payload}
         elif args.action == "status":
             watch = store.get_watch(args.watch_id)
             if watch is None:
-                raise KeyError(f"unknown watch_id: {args.watch_id}")
+                return _print_error("status", "watch_not_found", f"unknown watch_id: {args.watch_id}")
             result = {
                 "action": "status",
                 "watch": watch,
@@ -146,7 +177,13 @@ def main() -> int:
                 kwargs["interval_seconds"] = args.interval_seconds
             if args.environment is not None:
                 kwargs["environment"] = args.environment
-            result = {"action": "update", "watch": store.update_watch(args.watch_id, **kwargs)}
+            try:
+                updated_watch = store.update_watch(args.watch_id, **kwargs)
+            except KeyError as exc:
+                return _print_error("update", "watch_not_found", str(exc))
+            except ValueError as exc:
+                return _print_error("update", "invalid_watch", str(exc))
+            result = {"action": "update", "watch": updated_watch}
         _print_result(result)
         return 0
 

@@ -130,6 +130,23 @@ class WatchTests(unittest.TestCase):
                     main()
             self.assertEqual(raised.exception.code, 2)
 
+    def test_cli_unknown_watch_actions_return_structured_errors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / "watch.sqlite3"
+
+            def invoke(*args):
+                output = io.StringIO()
+                with patch.object(sys, "argv", ["muse-watch", *args]), contextlib.redirect_stdout(output):
+                    code = main()
+                return code, json.loads(output.getvalue())
+
+            for action in ("status", "changes"):
+                code, result = invoke("--db", str(db), "--action", action, "--watch-id", "missing")
+                self.assertEqual(code, 2)
+                self.assertFalse(result["ok"])
+                self.assertEqual(result["status"], "watch_not_found")
+                self.assertTrue(result["read_only"])
+
     def test_cli_refresh_environment_selects_sandbox(self):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / "watch.sqlite3"
