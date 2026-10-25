@@ -37,6 +37,7 @@ files = [
   "src/muse_selector/category_registry.py",
   "src/muse_selector/contracts.py",
   "src/muse_selector/ports.py",
+  "src/muse_selector/ranking.py",
   "src/muse_selector/source_capabilities.py",
   "src/muse_selector/source_normalizer.py",
   "src/muse_selector/url_policy.py",

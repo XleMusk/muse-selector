@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 from muse_selector.category_registry import get_category_schema
 from muse_selector.compatibility import build_compatibility_matrix
@@ -50,6 +51,13 @@ class DomainExtensionTests(unittest.TestCase):
         self.assertEqual(payload["source_metadata"]["adapter"], "fake")
         self.assertEqual(payload["recommended"][0]["listing_id"], "port-1")
         self.assertEqual(connector.search_spec["offset"], 0)
+
+    def test_search_records_the_versioned_rank_profile(self):
+        payload = run_search(
+            "香港预算 HKD 7000 以内的迷你主机",
+            Path(__file__).resolve().parent / "fixtures" / "ebay_hk_sample.json",
+        )
+        self.assertEqual(payload["rank_profile_id"], "source_order_preserved.v1")
 
     def test_first_phase_category_registry_covers_phone_laptop_and_gpu(self):
         for category_id, required_attribute in (

@@ -13,6 +13,7 @@ from .link_only import build_link_only_plan
 from .query_parser import PolicyBlockedError, has_explicit_unbounded_budget, parse_query
 from .ports import SourceConnector
 from .result_card import build_card
+from .ranking import SOURCE_ORDER_PROFILE
 
 
 # Compatibility aliases for callers that imported the former private helpers.
@@ -304,6 +305,7 @@ def run_search(
         "recommended": recommended_cards,
         "compatibility_matrix": build_compatibility_matrix({"search_spec": spec.to_dict(), "recommended": recommended_cards}),
         "ranking_policy": "source_order_preserved",
+        "rank_profile_id": SOURCE_ORDER_PROFILE.profile_id,
         "rejected": rejected,
         "dropped": dropped,
         "source": source_id,
