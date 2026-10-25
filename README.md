@@ -62,6 +62,14 @@ python -m muse_selector.web `
 
 然后打开 `http://127.0.0.1:8765/`。省略 `--fixture` 会进入实时只读路径；没有 eBay 官方凭据时页面显示 `source_unavailable`，不会偷偷回退到 fixture。
 结果页只绑定 `127.0.0.1` 或 `::1`，不会监听局域网地址，避免其他租户读取本地结果。
+同一个本地服务还提供结构化只读端点，便于前端或桌面壳直接消费结果：
+
+```powershell
+Invoke-RestMethod `
+  "http://127.0.0.1:8765/api/search?q=香港预算%20HKD%207000%20以内的迷你主机&limit=5"
+```
+
+端点复用相同的 SearchSpec、来源证据和过滤逻辑，只返回 JSON，不提供登录、购买或写操作；`limit` 非法时返回 `invalid_query`。
 
 运行离线回归：
 

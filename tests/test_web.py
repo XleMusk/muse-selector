@@ -96,6 +96,43 @@ class WebTests(unittest.TestCase):
             server.server_close()
             thread.join(timeout=2)
 
+    def test_local_server_json_search_endpoint_reuses_read_only_pipeline(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = (
+                f"http://127.0.0.1:{server.server_port}/api/search"
+                "?q=%E9%A6%99%E6%B8%AF%E9%A2%84%E7%AE%97%20HKD%207000%20%E4%BB%A5%E5%86%85%E7%9A%84%E8%BF%B7%E4%BD%A0%E4%B8%BB%E6%9C%BA&limit=1"
+            )
+            with urlopen(url, timeout=2) as response:
+                self.assertEqual(response.headers.get_content_type(), "application/json")
+                payload = json.loads(response.read().decode("utf-8"))
+            self.assertTrue(payload["ok"])
+            self.assertTrue(payload["read_only"])
+            self.assertEqual(len(payload["recommended"]), 1)
+            self.assertEqual(payload["recommended"][0]["source_id"], "ebay.browse.hk.v1")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
+    def test_json_search_endpoint_reports_invalid_limit_without_side_effects(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = f"http://127.0.0.1:{server.server_port}/api/search?q=mini%20pc&limit=nope"
+            with urlopen(url, timeout=2) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            self.assertFalse(payload["ok"])
+            self.assertEqual(payload["status"], "invalid_query")
+            self.assertTrue(payload["read_only"])
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
     def test_live_handler_without_credentials_is_read_only_error(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(None))
         thread = threading.Thread(target=server.serve_forever, daemon=True)

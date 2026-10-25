@@ -120,6 +120,17 @@ def make_handler(fixture_path: str | Path | None = None) -> type[BaseHTTPRequest
             if parsed.path == "/healthz":
                 self._send(200, "application/json; charset=utf-8", b'{"ok":true,"read_only":true}')
                 return
+            if parsed.path == "/api/search":
+                query = parse_qs(parsed.query).get("q", [""])[0]
+                raw_limit = parse_qs(parsed.query).get("limit", ["10"])[0]
+                try:
+                    limit = int(raw_limit)
+                except (TypeError, ValueError):
+                    limit = 0
+                payload = run_search(query, fixture, limit=limit)
+                content = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+                self._send(200, "application/json; charset=utf-8", content)
+                return
             if parsed.path != "/":
                 self._send(404, "text/plain; charset=utf-8", b"not found")
                 return
