@@ -8,7 +8,7 @@ from muse_selector.filtering import filter_listings
 from muse_selector.contracts import RESULT_SCHEMA_VERSION
 from muse_selector.pipeline import _extract_specs, _to_listing, run_search
 from muse_selector.query_parser import PolicyBlockedError, parse_query
-from muse_selector.result_card import render_markdown
+from muse_selector.result_card import render_comparison, render_markdown
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -213,6 +213,8 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("证据片段（title）：Mini PC Ryzen 7", report)
         self.assertIn(r"source\_field", report)
         self.assertEqual(payload["source_capability"]["access_mode"], "local_fixture")
+        comparison = render_comparison(payload)
+        self.assertIn("来源能力：local\\_fixture", comparison)
         self.assertIn("证据标识：v1|100000000001|0:ev:0", report)
 
     def test_markdown_escapes_error_and_url_text(self):

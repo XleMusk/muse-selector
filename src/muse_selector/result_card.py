@@ -229,10 +229,11 @@ def render_comparison(payload: Mapping[str, Any]) -> str:
         f"查询：{_table_untrusted(spec.get('query') or 'unknown')}",
         f"地区/币种：{_table_untrusted(spec.get('region') or 'unknown')} / {_table_untrusted(spec.get('currency') or 'unknown')}",
         f"来源：{_table_untrusted(payload.get('source') or 'unknown')}（保留来源顺序，不在客户端重排）",
+        f"来源能力：{_table_untrusted((payload.get('source_capability') or {}).get('access_mode') or 'unknown')}",
         "只读状态：true",
         "",
-        "| 来源顺序 | 商品 | 实体标识 | 成本 | 证据覆盖 | 状态/成色 | 配送 | 保修 | 风险 | 来源 |",
-        "| ---: | --- | --- | --- | ---: | --- | ---: | --- | --- | --- |",
+        "| 来源顺序 | 商品 | 实体标识 | 成本 | 证据覆盖 | 状态/成色 | 配送 | 保修 | 风险 | 来源能力 | 来源 |",
+        "| ---: | --- | --- | --- | ---: | --- | ---: | --- | --- | --- | --- |",
     ]
     for index, card in enumerate(payload.get("recommended") or [], 1):
         cost = card.get("landed_cost") or "unknown"
@@ -258,6 +259,7 @@ def render_comparison(payload: Mapping[str, Any]) -> str:
                 _table_untrusted(delivery_text),
                 _table_untrusted(card.get("warranty") or "unknown"),
                 _table_untrusted(risk),
+                _table_untrusted((payload.get("source_capability") or {}).get("access_mode") or "unknown"),
                 _table_untrusted(f"{card.get('source_id') or 'unknown'} · {card.get('url') or 'unknown'}"),
             ])
             + " |"
