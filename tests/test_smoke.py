@@ -69,11 +69,21 @@ class SmokeTests(unittest.TestCase):
             "status": "complete",
             "source": "ebay.browse.hk.v1",
             "read_only": True,
-            "recommended": [{"evidence": [{"observed_at": "2026-10-24T04:00:00Z"}]}],
+            "source_capability": {
+                "source_id": "ebay.browse.hk.v1",
+                "access_mode": "official_api",
+                "status": "ready",
+                "read_only": True,
+                "listing_search": True,
+                "credential_state": "present",
+            },
+            "recommended": [{"evidence": [{"observed_at": "2026-10-24T04:00:00Z"}], "evidence_coverage": 1.0}],
             "rejected": [],
             "dropped": [],
         })
         self.assertEqual(summary["observed_at_samples"], ["2026-10-24T04:00:00Z"])
+        self.assertEqual(summary["source_capability"]["access_mode"], "official_api")
+        self.assertEqual(summary["evidence_coverage_min"], 1.0)
         self.assertIn(summary["credential_state"], {"missing", "partial", "present"})
         serialized = json.dumps(summary)
         self.assertNotIn("client_secret", serialized)

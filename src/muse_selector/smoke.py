@@ -51,6 +51,13 @@ def summarize(payload: Mapping[str, Any]) -> dict[str, Any]:
         "dropped_count": len(payload.get("dropped") or []),
         "source_metadata": _safe_source_metadata(payload.get("source_metadata")),
     }
+    capability = payload.get("source_capability")
+    if isinstance(capability, Mapping):
+        summary["source_capability"] = {
+            key: capability.get(key)
+            for key in ("source_id", "access_mode", "status", "read_only", "listing_search", "environment", "credential_state")
+            if capability.get(key) is not None
+        }
     metadata = payload.get("source_metadata")
     selected_environment = metadata.get("environment") if isinstance(metadata, Mapping) else None
     if selected_environment not in {"production", "sandbox"}:
@@ -71,6 +78,12 @@ def summarize(payload: Mapping[str, Any]) -> dict[str, Any]:
             if item.get("observed_at")
         }
         summary["observed_at_samples"] = sorted(observed)[:5]
+        coverage = [
+            float(card.get("evidence_coverage"))
+            for card in payload.get("recommended") or []
+            if isinstance(card, Mapping) and isinstance(card.get("evidence_coverage"), (int, float))
+        ]
+        summary["evidence_coverage_min"] = min(coverage) if coverage else None
     else:
         summary["message"] = payload.get("message", "")
         if payload.get("ask"):
