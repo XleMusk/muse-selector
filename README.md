@@ -143,7 +143,7 @@ Invoke-RestMethod `
 Invoke-RestMethod "http://127.0.0.1:8765/api/capabilities"
 ```
 
-返回只包含 `configured`、`partial` 或 `missing` 等凭据状态，不返回任何凭据值，也不会发起 eBay 或国内平台请求。
+返回只包含 `configured`、`partial` 或 `missing` 等凭据状态，并报告 eBay 当前环境、官方 API 主机和 OAuth 路径；不返回任何凭据值，也不会发起 eBay 或国内平台请求。
 
 如果要让本地页面读取已经保存的观察任务快照，可额外绑定 SQLite 文件：
 

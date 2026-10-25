@@ -174,6 +174,8 @@ class WebTests(unittest.TestCase):
         self.assertEqual(snapshot["schema_version"], RESULT_SCHEMA_VERSION)
         self.assertTrue(snapshot["read_only"])
         self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["environment"], "sandbox")
+        self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["api_host"], "api.sandbox.ebay.com")
+        self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["token_path"], "/identity/v1/oauth2/token")
         self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["credential_state"], "missing")
         self.assertEqual(snapshot["sources"]["xianyu.partner.v1"]["status"], "link_only")
         self.assertEqual(snapshot["sources"]["zhuanzhuan.recommerce.mcp.v1"]["status"], "auxiliary_only")
@@ -194,6 +196,7 @@ class WebTests(unittest.TestCase):
             self.assertEqual(content_type, "application/json")
             self.assertTrue(payload["read_only"])
             self.assertEqual(payload["sources"]["ebay.browse.hk.v1"]["status"], "credential_unavailable")
+            self.assertEqual(payload["sources"]["ebay.browse.hk.v1"]["api_host"], "api.sandbox.ebay.com")
         finally:
             server.shutdown()
             server.server_close()

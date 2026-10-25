@@ -102,6 +102,8 @@ def capability_snapshot() -> dict[str, Any]:
         "listing_search": True,
         "credential_state": credential_state,
         "environment": "unknown",
+        "api_host": None,
+        "token_path": None,
         "status": "unavailable",
     }
     try:
@@ -109,6 +111,8 @@ def capability_snapshot() -> dict[str, Any]:
         ebay.update(
             {
                 "environment": connector.config.environment,
+                "api_host": urlparse(connector.config.api_base).hostname,
+                "token_path": urlparse(connector.config.token_url).path,
                 "status": "disabled" if connector._kill_switch_active() else "ready" if connector.live_enabled else "credential_unavailable",
             }
         )
