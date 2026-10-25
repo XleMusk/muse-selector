@@ -37,18 +37,22 @@ def _source_capability(source_id: str, connector: Any = None) -> dict[str, Any] 
     if capability is None:
         return None
     result = capability.to_dict()
-    if getattr(connector, "fixture_path", None) is not None:
+    fixture_path = getattr(connector, "fixture_path", None)
+    if isinstance(fixture_path, (str, Path)) and str(fixture_path):
         result.update({"access_mode": "local_fixture", "status": "ready"})
     elif source_id == "ebay.browse.hk.v1" and connector is not None:
         kill_switch = getattr(connector, "_kill_switch_active", None)
-        if callable(kill_switch) and kill_switch():
+        kill_switch_active = kill_switch() if callable(kill_switch) else False
+        if kill_switch_active is True:
             result["status"] = "disabled"
-        elif getattr(connector, "live_enabled", False):
+        elif getattr(connector, "live_enabled", False) is True:
             result["status"] = "ready"
         else:
             result["status"] = "credential_unavailable"
-        result["credential_state"] = getattr(connector, "credential_state", "missing")
-        result["environment"] = getattr(getattr(connector, "config", None), "environment", "unknown")
+        credential_state = getattr(connector, "credential_state", "missing")
+        result["credential_state"] = credential_state if isinstance(credential_state, str) else "unknown"
+        environment = getattr(getattr(connector, "config", None), "environment", "unknown")
+        result["environment"] = environment if isinstance(environment, str) else "unknown"
     return result
 
 
