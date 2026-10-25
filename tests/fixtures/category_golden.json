@@ -1,0 +1,74 @@
+[
+  {
+    "product_type": "smartphone",
+    "query": "香港二手手机，预算 HKD 6000 以内，256GB",
+    "required_specs": {"storage_gb": 256},
+    "listing": {
+      "listing_id": "golden|phone|1",
+      "source_id": "ebay.browse.hk.v1",
+      "title": "Apple iPhone 15 256GB",
+      "url": "https://www.ebay.com.hk/itm/golden-phone-1",
+      "price": {"value": 4599, "currency": "HKD"},
+      "availability": "IN_STOCK",
+      "condition": "Used",
+      "shipping_options": [{"shippingCost": {"value": 0, "currency": "HKD"}}],
+      "specs": {"storage_gb": 256, "battery_health_pct": 92, "model_number": "A3092"},
+      "evidence": [
+        {"field": "title", "value": "Apple iPhone 15 256GB", "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-phone-1", "source_id": "ebay.browse.hk.v1"},
+        {"field": "url", "value": "https://www.ebay.com.hk/itm/golden-phone-1", "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-phone-1", "source_id": "ebay.browse.hk.v1"},
+        {"field": "price", "value": 4599, "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-phone-1", "source_id": "ebay.browse.hk.v1"},
+        {"field": "condition", "value": "Used", "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-phone-1", "source_id": "ebay.browse.hk.v1"},
+        {"field": "seller", "value": "seller-phone", "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-phone-1", "source_id": "ebay.browse.hk.v1"},
+        {"field": "shippingOptions", "value": [{"shippingCost": {"value": 0, "currency": "HKD"}}], "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-phone-1", "source_id": "ebay.browse.hk.v1"}
+      ]
+    }
+  },
+  {
+    "product_type": "laptop",
+    "query": "香港二手笔记本，预算 HKD 9000 以内，32GB 内存，1TB SSD",
+    "required_specs": {"ram_gb": 32, "storage_gb": 1024},
+    "listing": {
+      "listing_id": "golden|laptop|1",
+      "source_id": "ebay.browse.hk.v1",
+      "title": "Lenovo ThinkPad X1 Carbon 32GB 1TB SSD",
+      "url": "https://www.ebay.com.hk/itm/golden-laptop-1",
+      "price": {"value": 7999, "currency": "HKD"},
+      "availability": "IN_STOCK",
+      "condition": "Used",
+      "shipping_options": [{"shippingCost": {"value": 0, "currency": "HKD"}}],
+      "specs": {"ram_gb": 32, "storage_gb": 1024, "battery_health_pct": 88},
+      "evidence": [
+        {"field": "title", "value": "Lenovo ThinkPad X1 Carbon 32GB 1TB SSD", "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-laptop-1", "source_id": "ebay.browse.hk.v1"},
+        {"field": "url", "value": "https://www.ebay.com.hk/itm/golden-laptop-1", "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-laptop-1", "source_id": "ebay.browse.hk.v1"},
+        {"field": "price", "value": 7999, "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-laptop-1", "source_id": "ebay.browse.hk.v1"},
+        {"field": "condition", "value": "Used", "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-laptop-1", "source_id": "ebay.browse.hk.v1"},
+        {"field": "seller", "value": "seller-laptop", "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-laptop-1", "source_id": "ebay.browse.hk.v1"},
+        {"field": "shippingOptions", "value": [{"shippingCost": {"value": 0, "currency": "HKD"}}], "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-laptop-1", "source_id": "ebay.browse.hk.v1"}
+      ]
+    }
+  },
+  {
+    "product_type": "gpu",
+    "query": "香港二手显卡，预算 HKD 7000 以内，12GB 显存",
+    "required_specs": {"vram_gb": 12},
+    "listing": {
+      "listing_id": "golden|gpu|1",
+      "source_id": "ebay.browse.hk.v1",
+      "title": "NVIDIA RTX 4070 12GB VRAM",
+      "url": "https://www.ebay.com.hk/itm/golden-gpu-1",
+      "price": {"value": 5200, "currency": "HKD"},
+      "availability": "IN_STOCK",
+      "condition": "Used",
+      "shipping_options": [{"shippingCost": {"value": 0, "currency": "HKD"}}],
+      "specs": {"vram_gb": 12, "power_w": 200, "interface": "PCIe"},
+      "evidence": [
+        {"field": "title", "value": "NVIDIA RTX 4070 12GB VRAM", "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-gpu-1", "source_id": "ebay.browse.hk.v1"},
+        {"field": "url", "value": "https://www.ebay.com.hk/itm/golden-gpu-1", "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-gpu-1", "source_id": "ebay.browse.hk.v1"},
+        {"field": "price", "value": 5200, "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-gpu-1", "source_id": "ebay.browse.hk.v1"},
+        {"field": "condition", "value": "Used", "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-gpu-1", "source_id": "ebay.browse.hk.v1"},
+        {"field": "seller", "value": "seller-gpu", "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-gpu-1", "source_id": "ebay.browse.hk.v1"},
+        {"field": "shippingOptions", "value": [{"shippingCost": {"value": 0, "currency": "HKD"}}], "status": "confirmed", "source_url": "https://www.ebay.com.hk/itm/golden-gpu-1", "source_id": "ebay.browse.hk.v1"}
+      ]
+    }
+  }
+]
