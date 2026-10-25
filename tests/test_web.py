@@ -204,6 +204,51 @@ class WebTests(unittest.TestCase):
                 server.server_close()
                 thread.join(timeout=2)
 
+    def test_watches_endpoint_lists_saved_watches_without_refreshing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            store.add_watch(
+                "香港预算 HKD 7000 以内的迷你主机",
+                FIXTURE,
+                watch_id="watch_one",
+            )
+            store.add_watch(
+                "香港 RTX 4070 显卡，预算 HKD 9000",
+                FIXTURE,
+                watch_id="watch_two",
+            )
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE, store))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with patch("muse_selector.web.run_search", side_effect=AssertionError("watches endpoint refreshed")):
+                    with urlopen(f"http://127.0.0.1:{server.server_port}/api/watches", timeout=2) as response:
+                        payload = json.loads(response.read().decode("utf-8"))
+                self.assertTrue(payload["ok"])
+                self.assertTrue(payload["read_only"])
+                self.assertEqual(payload["status"], "watches_ready")
+                self.assertEqual([item["watch_id"] for item in payload["watches"]], ["watch_one", "watch_two"])
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
+    def test_watches_endpoint_without_db_is_structured_unavailable(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with self.assertRaises(HTTPError) as error:
+                urlopen(f"http://127.0.0.1:{server.server_port}/api/watches", timeout=2)
+            self.assertEqual(error.exception.code, 503)
+            payload = json.loads(error.exception.read().decode("utf-8"))
+            self.assertEqual(payload["status"], "watch_unavailable")
+            self.assertTrue(payload["read_only"])
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
     def test_watch_endpoint_reports_structured_unavailable_and_not_found(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
         thread = threading.Thread(target=server.serve_forever, daemon=True)

@@ -229,6 +229,28 @@ def make_handler(
                 content = json.dumps(capability_snapshot(), ensure_ascii=False, sort_keys=True).encode("utf-8")
                 self._send(200, "application/json; charset=utf-8", content)
                 return
+            if parsed.path == "/api/watches":
+                if store is None:
+                    self._send_json(
+                        503,
+                        {
+                            "ok": False,
+                            "status": "watch_unavailable",
+                            "message": "start the web view with --db to expose persisted watches",
+                            "read_only": True,
+                        },
+                    )
+                    return
+                self._send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "status": "watches_ready",
+                        "read_only": True,
+                        "watches": store.list_watches(),
+                    },
+                )
+                return
             if parsed.path == "/api/watch":
                 watch_id = parse_qs(parsed.query).get("watch_id", [""])[0].strip()
                 if not watch_id:

@@ -114,9 +114,10 @@ python -m muse_selector.web `
   --port 8765
 
 Invoke-RestMethod "http://127.0.0.1:8765/api/watch?watch_id=mini_pc_hk"
+Invoke-RestMethod "http://127.0.0.1:8765/api/watches"
 ```
 
-`/api/watch` 只读取 watch 元数据和最新已保存结果，不会刷新来源、不调用连接器，也不会写入 SQLite；未绑定 `--db` 或 watch 不存在时返回结构化 `watch_unavailable` / `watch_not_found`。
+`/api/watch` 只读取单个 watch 元数据和最新已保存结果，`/api/watches` 返回全部 watch 元数据；两个端点都不会刷新来源、调用连接器或写入 SQLite。未绑定 `--db` 或 watch 不存在时返回结构化 `watch_unavailable` / `watch_not_found`。
 
 运行离线回归：
 
