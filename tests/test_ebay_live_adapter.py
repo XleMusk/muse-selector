@@ -194,6 +194,7 @@ class EbayLiveAdapterTests(unittest.TestCase):
         self.assertEqual(rows[0]["source_metadata"]["total"], 3)
         self.assertEqual(rows[0]["source_metadata"]["limit"], 1)
         self.assertEqual(rows[0]["source_metadata"]["offset"], 0)
+        self.assertIsInstance(rows[0]["source_metadata"]["latency_ms"], (int, float))
         self.assertTrue(rows[0]["source_metadata"]["next"].endswith("offset=1"))
         self.assertIsNone(rows[0]["source_metadata"]["prev"])
         self.assertEqual(rows[0]["availability"], "IN_STOCK")

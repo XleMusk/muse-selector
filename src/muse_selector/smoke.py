@@ -32,6 +32,8 @@ def _safe_source_metadata(value: Any) -> dict[str, Any] | None:
     for field in ("total", "limit", "offset"):
         item = value.get(field)
         result[field] = item if isinstance(item, int) and not isinstance(item, bool) else None
+    latency = value.get("latency_ms")
+    result["latency_ms"] = round(float(latency), 3) if isinstance(latency, (int, float)) and latency >= 0 else None
     environment = value.get("environment")
     result["environment"] = environment if environment in {"production", "sandbox"} else "unknown"
     return result

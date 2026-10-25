@@ -223,6 +223,7 @@ class EbayBrowseConnector:
         self.opener = opener or urllib.request.build_opener(_NoRedirectHandler())
         self._token: str | None = None
         self._token_expires_at = 0.0
+        self._last_latency_ms: float | None = None
         self._source_metadata = self._empty_source_metadata()
 
     @property
@@ -362,6 +363,7 @@ class EbayBrowseConnector:
         """Read one official response, retrying only explicitly transient statuses."""
 
         for attempt in range(self.config.max_retries + 1):
+            started = time.monotonic()
             try:
                 with self.opener.open(request, timeout=self.config.timeout_seconds) as response:
                     status = self._response_status(response, context)
@@ -383,6 +385,7 @@ class EbayBrowseConnector:
             if status in self._RETRYABLE_HTTP_STATUSES and attempt < self.config.max_retries:
                 self._retry_delay(attempt, getattr(response, "headers", None))
                 continue
+            self._last_latency_ms = round((time.monotonic() - started) * 1000, 3)
             return status, body
         raise ConnectorUnavailable(f"eBay {context} retry loop exhausted")  # pragma: no cover
 
@@ -409,6 +412,7 @@ class EbayBrowseConnector:
         self._source_metadata = self._normalize_source_metadata(payload)
         if live:
             self._source_metadata["environment"] = self.config.environment
+            self._source_metadata["latency_ms"] = self._last_latency_ms
         listings = [
             self._normalize_item(
                 item,
