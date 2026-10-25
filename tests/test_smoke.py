@@ -90,6 +90,23 @@ class SmokeTests(unittest.TestCase):
         self.assertNotIn("test-secret-value", output.getvalue())
         self.assertNotIn("test-token-value", output.getvalue())
 
+    def test_environment_specific_credentials_are_reported_for_selected_source(self):
+        with patch.dict(
+            os.environ,
+            {
+                "EBAY_CLIENT_ID": "legacy-id",
+                "EBAY_CLIENT_SECRET": "legacy-secret",
+                "EBAY_SANDBOX_CLIENT_ID": "sandbox-id",
+                "EBAY_SANDBOX_CLIENT_SECRET": "sandbox-secret",
+            },
+            clear=False,
+        ):
+            summary = summarize({
+                "ok": False,
+                "status": "source_unavailable",
+                "source_metadata": {"environment": "sandbox"},
+            })
+        self.assertEqual(summary["credential_state"], "present")
     def test_partial_credentials_are_reported_without_values(self):
         payload = {
             "ok": False,

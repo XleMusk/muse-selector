@@ -48,6 +48,20 @@ class DoctorTests(unittest.TestCase):
             self.assertEqual(report["ebay_target"]["api_host"], "api.sandbox.ebay.com")
             self.assertEqual(os.environ["EBAY_ENVIRONMENT"], "production")
 
+    def test_environment_specific_credentials_drive_selected_state(self):
+        with patch.dict(
+            os.environ,
+            {
+                "EBAY_CLIENT_ID": "legacy-id",
+                "EBAY_CLIENT_SECRET": "legacy-secret",
+                "EBAY_SANDBOX_CLIENT_ID": "sandbox-id",
+                "EBAY_SANDBOX_CLIENT_SECRET": "sandbox-secret",
+            },
+            clear=False,
+        ):
+            report = run_doctor(environment="sandbox")
+        self.assertEqual(report["credential_state"]["ebay"], "present")
+
     def test_invalid_environment_is_unhealthy(self):
         report = run_doctor(environment="staging")
         self.assertFalse(report["ok"])

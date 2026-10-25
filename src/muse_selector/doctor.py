@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
+from .connectors.ebay import credential_state as ebay_credential_state
 from .pipeline import run_search
 
 
@@ -31,13 +32,12 @@ def _check(name: str, ok: bool, detail: str, *, skipped: bool = False) -> dict[s
     return result
 
 
-def _credential_state() -> dict[str, str]:
-    def state(*names: str) -> str:
-        present = sum(bool(os.getenv(name)) for name in names)
-        return {0: "missing", 1: "partial", 2: "present"}[present]
-
+def _credential_state(environment: str | None = None) -> dict[str, str]:
+    selected = environment if environment in {"production", "sandbox"} else os.getenv("EBAY_ENVIRONMENT", "production")
+    if selected not in {"production", "sandbox"}:
+        selected = "production"
     return {
-        "ebay": state("EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET"),
+        "ebay": ebay_credential_state(selected),
         "zhuanzhuan": "present" if bool(os.getenv("ZHUANZHUAN_MCP_TOKEN")) else "missing",
     }
 
@@ -145,7 +145,7 @@ def run_doctor(
         "runtime": _runtime_info(),
         "ebay_target": ebay_target,
         "checks": checks,
-        "credential_state": _credential_state(),
+        "credential_state": _credential_state(ebay_target.get("environment")),
     }
 
 

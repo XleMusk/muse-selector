@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from .connectors.ebay import EbayBrowseConnector
+from .connectors.ebay import EbayBrowseConnector, credential_state as ebay_credential_state
 from .contracts import RESULT_SCHEMA_VERSION
 from .pipeline import _allowed_source_url, run_search
 from .persistence import SelectorStore
@@ -93,15 +93,18 @@ def _validate_bind_host(host: str) -> str:
 def capability_snapshot() -> dict[str, Any]:
     """Return local source readiness without issuing any network request."""
 
-    client_id = str(os.environ.get("EBAY_CLIENT_ID") or "").strip()
-    client_secret = str(os.environ.get("EBAY_CLIENT_SECRET") or "").strip()
-    credential_state = "configured" if client_id and client_secret else "partial" if client_id or client_secret else "missing"
+    selected_environment = str(os.environ.get("EBAY_ENVIRONMENT", "production")).strip().lower()
+    credential_state = (
+        ebay_credential_state(selected_environment)
+        if selected_environment in {"production", "sandbox"}
+        else "missing"
+    )
     ebay: dict[str, Any] = {
         "source_id": "ebay.browse.hk.v1",
         "read_only": True,
         "listing_search": True,
         "credential_state": credential_state,
-        "environment": "unknown",
+        "environment": selected_environment if selected_environment in {"production", "sandbox"} else "unknown",
         "api_host": None,
         "token_path": None,
         "status": "unavailable",
@@ -111,6 +114,7 @@ def capability_snapshot() -> dict[str, Any]:
         ebay.update(
             {
                 "environment": connector.config.environment,
+                "credential_state": connector.credential_state,
                 "api_host": urlparse(connector.config.api_base).hostname,
                 "token_path": urlparse(connector.config.token_url).path,
                 "status": "disabled" if connector._kill_switch_active() else "ready" if connector.live_enabled else "credential_unavailable",

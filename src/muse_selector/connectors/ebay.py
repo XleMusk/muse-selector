@@ -49,6 +49,43 @@ _SENSITIVE_QUERY_KEYS = frozenset({
 })
 
 
+def credential_env_names(environment: str) -> tuple[str, str]:
+    """Return environment-specific eBay credential variable names."""
+
+    selected = str(environment).strip().lower()
+    if selected not in {"production", "sandbox"}:
+        raise ValueError("environment must be production or sandbox")
+    prefix = selected.upper()
+    return f"EBAY_{prefix}_CLIENT_ID", f"EBAY_{prefix}_CLIENT_SECRET"
+
+
+def resolve_credentials(environment: str, environ: Mapping[str, str] | None = None) -> tuple[str | None, str | None]:
+    """Resolve one complete environment keyset, with legacy fallback.
+
+    If either environment-specific variable is supplied, the pair is used as
+    a unit so a partial keyset cannot be silently mixed with another
+    environment's credentials.
+    """
+
+    values = os.environ if environ is None else environ
+    specific_id, specific_secret = credential_env_names(environment)
+    scoped_id = str(values.get(specific_id) or "").strip()
+    scoped_secret = str(values.get(specific_secret) or "").strip()
+    if scoped_id or scoped_secret:
+        return scoped_id or None, scoped_secret or None
+    return (
+        str(values.get("EBAY_CLIENT_ID") or "").strip() or None,
+        str(values.get("EBAY_CLIENT_SECRET") or "").strip() or None,
+    )
+
+
+def credential_state(environment: str, environ: Mapping[str, str] | None = None) -> str:
+    """Return only the selected environment's credential presence state."""
+
+    client_id, client_secret = resolve_credentials(environment, environ)
+    return {0: "missing", 1: "partial", 2: "present"}[int(bool(client_id)) + int(bool(client_secret))]
+
+
 def _allowed_pagination_url(value: Any) -> bool:
     """Accept only official eBay Browse search links from response metadata.
 
@@ -178,8 +215,9 @@ class EbayBrowseConnector:
     ) -> None:
         self.config = config or EbayConnectorConfig.from_env(environment=environment)
         self.fixture_path = Path(fixture_path) if fixture_path else None
-        self.client_id = client_id if client_id is not None else os.getenv("EBAY_CLIENT_ID")
-        self.client_secret = client_secret if client_secret is not None else os.getenv("EBAY_CLIENT_SECRET")
+        resolved_id, resolved_secret = resolve_credentials(self.config.environment)
+        self.client_id = client_id if client_id is not None else resolved_id
+        self.client_secret = client_secret if client_secret is not None else resolved_secret
         # The official endpoints are fixed above. Do not let urllib follow a
         # redirect and replay Basic/Bearer headers at another host.
         self.opener = opener or urllib.request.build_opener(_NoRedirectHandler())
@@ -190,6 +228,14 @@ class EbayBrowseConnector:
     @property
     def live_enabled(self) -> bool:
         return bool(self.client_id and self.client_secret)
+
+    @property
+    def credential_state(self) -> str:
+        """Return credential presence without exposing credential values."""
+
+        return {0: "missing", 1: "partial", 2: "present"}[
+            int(bool(self.client_id)) + int(bool(self.client_secret))
+        ]
 
     @staticmethod
     def _kill_switch_active() -> bool:
@@ -389,9 +435,10 @@ class EbayBrowseConnector:
         if self._kill_switch_active():
             raise ConnectorUnavailable("eBay live connector disabled by source kill switch")
         if not self.live_enabled:
+            scoped_id, scoped_secret = credential_env_names(self.config.environment)
             raise ConnectorUnavailable(
-                "eBay live connector disabled: set EBAY_CLIENT_ID and EBAY_CLIENT_SECRET, "
-                "or pass fixture_path for offline mode"
+                f"eBay live connector disabled: set {scoped_id} and {scoped_secret} "
+                "(or legacy EBAY_CLIENT_ID and EBAY_CLIENT_SECRET), or pass fixture_path for offline mode"
             )
         token = self._application_token()
         params = self._query_params(search_spec)

@@ -180,6 +180,22 @@ class WebTests(unittest.TestCase):
         self.assertEqual(snapshot["sources"]["xianyu.partner.v1"]["status"], "link_only")
         self.assertEqual(snapshot["sources"]["zhuanzhuan.recommerce.mcp.v1"]["status"], "auxiliary_only")
 
+    def test_capability_snapshot_reports_selected_environment_credentials(self):
+        with patch.dict(
+            os.environ,
+            {
+                "EBAY_ENVIRONMENT": "sandbox",
+                "EBAY_CLIENT_ID": "",
+                "EBAY_CLIENT_SECRET": "",
+                "EBAY_SANDBOX_CLIENT_ID": "sandbox-id",
+                "EBAY_SANDBOX_CLIENT_SECRET": "sandbox-secret",
+            },
+            clear=False,
+        ):
+            snapshot = capability_snapshot()
+        self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["credential_state"], "present")
+        self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["status"], "ready")
+
     def test_capability_endpoint_does_not_require_network_or_credentials(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
         thread = threading.Thread(target=server.serve_forever, daemon=True)

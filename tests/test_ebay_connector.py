@@ -154,6 +154,38 @@ class EbayBrowseConnectorTests(unittest.TestCase):
         with self.assertRaises(ConnectorUnavailable):
             connector.search({"query": "mini pc"})
 
+    def test_environment_specific_credentials_override_legacy_pair_without_mixing(self):
+        with patch.dict(
+            os.environ,
+            {
+                "EBAY_CLIENT_ID": "legacy-id",
+                "EBAY_CLIENT_SECRET": "legacy-secret",
+                "EBAY_SANDBOX_CLIENT_ID": "sandbox-id",
+                "EBAY_SANDBOX_CLIENT_SECRET": "",
+            },
+            clear=False,
+        ):
+            connector = EbayBrowseConnector(environment="sandbox")
+        self.assertEqual(connector.client_id, "sandbox-id")
+        self.assertIsNone(connector.client_secret)
+        self.assertEqual(connector.credential_state, "partial")
+
+    def test_legacy_credentials_remain_fallback_when_scoped_pair_absent(self):
+        with patch.dict(
+            os.environ,
+            {
+                "EBAY_CLIENT_ID": "legacy-id",
+                "EBAY_CLIENT_SECRET": "legacy-secret",
+                "EBAY_PRODUCTION_CLIENT_ID": "",
+                "EBAY_PRODUCTION_CLIENT_SECRET": "",
+            },
+            clear=False,
+        ):
+            connector = EbayBrowseConnector(environment="production")
+        self.assertEqual(connector.client_id, "legacy-id")
+        self.assertEqual(connector.client_secret, "legacy-secret")
+        self.assertEqual(connector.credential_state, "present")
+
     def test_live_kill_switch_fails_closed_before_network(self):
         opener = Mock()
         with patch.dict(os.environ, {"MUSE_SOURCE_EBAY_BROWSE_HK_DISABLED": "true"}, clear=False):

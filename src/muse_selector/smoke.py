@@ -7,7 +7,7 @@ import json
 import os
 from typing import Any, Mapping
 
-from .connectors.ebay import _allowed_pagination_url
+from .connectors.ebay import _allowed_pagination_url, credential_state as ebay_credential_state
 from .contracts import RESULT_SCHEMA_VERSION
 from .pipeline import run_search
 
@@ -46,8 +46,13 @@ def summarize(payload: Mapping[str, Any]) -> dict[str, Any]:
         "dropped_count": len(payload.get("dropped") or []),
         "source_metadata": _safe_source_metadata(payload.get("source_metadata")),
     }
-    credential_count = sum(bool(os.getenv(name)) for name in ("EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET"))
-    summary["credential_state"] = {0: "missing", 1: "partial", 2: "present"}[credential_count]
+    metadata = payload.get("source_metadata")
+    selected_environment = metadata.get("environment") if isinstance(metadata, Mapping) else None
+    if selected_environment not in {"production", "sandbox"}:
+        selected_environment = os.getenv("EBAY_ENVIRONMENT", "production")
+    if selected_environment not in {"production", "sandbox"}:
+        selected_environment = "production"
+    summary["credential_state"] = ebay_credential_state(str(selected_environment))
     if payload.get("ok"):
         observed = {
             str(item.get("observed_at"))
