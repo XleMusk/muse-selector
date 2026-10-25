@@ -163,6 +163,17 @@ class SelectorStore:
                     last_refreshed_at TEXT,
                     last_change_summary_json TEXT
                 );
+                CREATE TABLE IF NOT EXISTS watch_changes (
+                    change_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    watch_id TEXT NOT NULL REFERENCES watches(watch_id) ON DELETE CASCADE,
+                    observed_at TEXT NOT NULL,
+                    run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+                    changed INTEGER NOT NULL CHECK (changed IN (0, 1)),
+                    summary_json TEXT NOT NULL,
+                    UNIQUE (watch_id, run_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_watch_changes_watch_id
+                    ON watch_changes(watch_id, change_id DESC);
                 """
             )
             # Migrate databases created before optimistic refresh validation
@@ -367,6 +378,59 @@ class SelectorStore:
             raise ValueError(f"watch has no completed run: {watch_id}")
         return self.replay_run(str(watch["last_run_id"]))
 
+    def list_watch_changes(
+        self,
+        watch_id: str,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+        include_payload: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Return the persisted distinct run checkpoints for a watch.
+
+        A refresh that observes the same deterministic run does not create a
+        duplicate history row.  This gives local consumers a compact,
+        restart-safe change feed while preserving replay through ``run_id``.
+        """
+
+        if limit <= 0 or limit > 1000:
+            raise ValueError("limit must be between 1 and 1000")
+        if offset < 0:
+            raise ValueError("offset must be non-negative")
+        if self.get_watch(watch_id) is None:
+            raise KeyError(f"unknown watch_id: {watch_id}")
+        with self._connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT change_id, watch_id, observed_at, run_id, changed, summary_json
+                FROM watch_changes
+                WHERE watch_id = ?
+                ORDER BY change_id DESC
+                LIMIT ? OFFSET ?
+                """,
+                (watch_id, int(limit), int(offset)),
+            ).fetchall()
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            try:
+                summary = json.loads(row["summary_json"])
+            except (TypeError, ValueError):
+                summary = None
+            item: dict[str, Any] = {
+                "change_id": int(row["change_id"]),
+                "watch_id": row["watch_id"],
+                "observed_at": row["observed_at"],
+                "run_id": row["run_id"],
+                "changed": bool(row["changed"]),
+                "change_summary": summary,
+            }
+            if include_payload:
+                payload = self.get_run(str(row["run_id"]))
+                if payload is not None:
+                    item["payload"] = payload
+            result.append(item)
+        return result
+
     def refresh_watch(self, watch_id: str) -> dict[str, Any]:
         with self._connection() as conn:
             row = conn.execute("SELECT * FROM watches WHERE watch_id = ?", (watch_id,)).fetchone()
@@ -421,9 +485,18 @@ class SelectorStore:
                 }
 
             run_id, inserted = self._save_run_connection(conn, payload_dict, run_id, serialized)
+            observed_at = _now()
             conn.execute(
                 "UPDATE watches SET last_run_id = ?, last_refreshed_at = ?, last_change_summary_json = ? WHERE watch_id = ?",
-                (run_id, _now(), encoded_change_summary, watch_id),
+                (run_id, observed_at, encoded_change_summary, watch_id),
+            )
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO watch_changes(
+                    watch_id, observed_at, run_id, changed, summary_json
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (watch_id, observed_at, run_id, int(inserted), encoded_change_summary),
             )
         return {
             "watch_id": watch_id,

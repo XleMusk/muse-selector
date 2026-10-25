@@ -36,6 +36,7 @@ muse-zhuanzhuan-smoke --query "ThinkPad X1 Carbon，16GB，电池健康良好，
 ```powershell
 python -m pip install --no-deps -e D:\muse
 muse-selector --help
+muse-selector --version
 ```
 
 安装后可以用离线 doctor 检查 Python、包导入和 fixture 端到端契约。它不会联网；凭据只输出 `missing`、`partial` 或 `present` 状态，不会输出凭据值：
@@ -43,6 +44,8 @@ muse-selector --help
 ```powershell
 muse-doctor --fixture D:\muse\tests\fixtures\ebay_hk_sample.json
 ```
+
+doctor JSON 带有固定的 `schema_version`（当前为 `muse.doctor.v1`）和 `runtime` 段，记录实际运行的包版本、Python 版本、解释器、平台和可执行文件路径，便于 CI 或问题报告确认命令实际使用的环境。这些字段不包含凭据。也可以运行 `muse-doctor --version` 单独确认 doctor 入口版本。
 
 省略 `--fixture` 时只检查本地 Python 和包导入，适合在已安装 wheel 或脱离源码目录的环境中快速确认命令入口。fixture 不存在、格式错误或结果契约不满足时返回退出码 `2`，成功返回 `0`。
 
@@ -123,9 +126,11 @@ python -m muse_selector.web `
 
 Invoke-RestMethod "http://127.0.0.1:8765/api/watch?watch_id=mini_pc_hk"
 Invoke-RestMethod "http://127.0.0.1:8765/api/watches"
+Invoke-RestMethod "http://127.0.0.1:8765/api/watch/changes?watch_id=mini_pc_hk&include_payload=1"
 ```
 
 `/api/watch` 只读取单个 watch 元数据和最新已保存结果，`/api/watches` 返回全部 watch 元数据；两个端点都不会刷新来源、调用连接器或写入 SQLite。watch 元数据中的 `last_change_summary` 是最近一次刷新相对于上一个检查点的新增、移除、内容变化和状态变化摘要，即使观察进程已经退出也可以恢复。未绑定 `--db` 或 watch 不存在时返回结构化 `watch_unavailable` / `watch_not_found`。
+`/api/watch/changes` 返回该 watch 的持久化检查点历史（按最新在前排序），每个事件带 `run_id`、`changed`、摘要和观测时间；追加 `include_payload=1` 可在同一个只读响应中带出可重放的 run payload。支持 `limit`（1–1000）和 `offset` 分页，服务重启后仍可继续读取，重复刷新同一个 deterministic run 不会制造重复历史行。
 
 运行离线回归：
 
@@ -198,9 +203,10 @@ muse-watch --db "D:\muse\data\selector.sqlite3" --action update --watch-id "mini
 muse-watch --db "D:\muse\data\selector.sqlite3" --action replay --watch-id "mini_pc_hk"
 muse-watch --db "D:\muse\data\selector.sqlite3" --action status --watch-id "mini_pc_hk"
 muse-watch --db "D:\muse\data\selector.sqlite3" --action list
+muse-watch --db "D:\muse\data\selector.sqlite3" --action changes --watch-id "mini_pc_hk" --include-payload
 ```
 
-这些 action 只读写本地 SQLite 状态；`replay`、`status` 和 `list` 不会调用连接器，`status` 会返回观察任务元数据和最新已保存结果，`list` 返回全部观察任务，`update` 会保留旧 run 供重放。已有 fixture 观察任务可用 `--action update --live` 清除 fixture，原地切换到实时只读 API。
+这些 action 只读写本地 SQLite 状态；`replay`、`status`、`list` 和 `changes` 不会调用连接器，`status` 会返回观察任务元数据和最新已保存结果，`list` 返回全部观察任务，`changes` 返回历史检查点并可用 `--include-payload` 导出可重放 payload，`update` 会保留旧 run 供重放。已有 fixture 观察任务可用 `--action update --live` 清除 fixture，原地切换到实时只读 API。
 
 回归集覆盖预算、地区、必选规格、陈旧/冲突证据、缺失 URL、账号策略阻断、提示注入、SSRF 和重放稳定性。fixture 中的价格和库存是测试数据，不能当作当前市场报价。
 回归产物 `examples/regression_result.json` 同时记录 `hard_constraint_violation_rate`；当前验收值必须为 `0.0`。
@@ -234,6 +240,10 @@ $env:EBAY_CLIENT_ID = "<sandbox-app-id>"
 $env:EBAY_CLIENT_SECRET = "<sandbox-cert-id>"
 muse-live-smoke --environment sandbox --query "香港 RTX 4070 显卡，预算 HKD 9000"
 ```
+
+`SearchSpec.budget_min` 和 `budget_max` 会映射到 Browse API 的 `filter=price:[min..max]`，并同时发送
+`priceCurrency=HKD`；只有上限或下限时，另一侧保持开放。连接器仍会在收到响应后执行本地预算硬过滤，避免运费、税费或
+缺失价格造成边界误判。没有预算字段时不会添加价格过滤。
 
 省略 `EBAY_ENVIRONMENT` 或设置为 `production` 时使用 `api.ebay.com`；`sandbox` 会严格锁定到 `api.sandbox.ebay.com`。
 

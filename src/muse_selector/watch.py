@@ -35,7 +35,11 @@ def _refresh_with_environment(store: SelectorStore, watch_id: str, environment: 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run a read-only Muse Selector watch")
     parser.add_argument("--db", default="data/selector.sqlite3")
-    parser.add_argument("--action", choices=("refresh", "pause", "resume", "update", "replay", "status", "list"), default="refresh")
+    parser.add_argument(
+        "--action",
+        choices=("refresh", "pause", "resume", "update", "replay", "status", "list", "changes"),
+        default="refresh",
+    )
     parser.add_argument("--query", default=None)
     fixture_group = parser.add_mutually_exclusive_group()
     fixture_group.add_argument("--fixture", default=None, help="offline fixture; omit for live read-only API")
@@ -47,12 +51,21 @@ def main() -> int:
     parser.add_argument("--environment", choices=("sandbox", "production"), default=None)
     parser.add_argument("--watch-id", default=None)
     parser.add_argument("--interval-seconds", type=int, default=None)
+    parser.add_argument("--limit", type=int, default=100, help="maximum change events for --action changes")
+    parser.add_argument("--offset", type=int, default=0, help="change event offset for --action changes")
+    parser.add_argument("--include-payload", action="store_true", help="include replayable payloads for --action changes")
     parser.add_argument("--once", action="store_true", help="refresh once and exit")
     args = parser.parse_args()
     if args.interval_seconds is not None and args.interval_seconds <= 0:
         parser.error("--interval-seconds must be positive")
     if args.live and args.action != "update":
         parser.error("--live is only valid with --action update")
+    if args.limit <= 0 or args.limit > 1000:
+        parser.error("--limit must be between 1 and 1000")
+    if args.offset < 0:
+        parser.error("--offset must be non-negative")
+    if args.include_payload and args.action != "changes":
+        parser.error("--include-payload is only valid with --action changes")
 
     store = SelectorStore(Path(args.db))
     if args.action == "list":
@@ -72,6 +85,22 @@ def main() -> int:
             parser.error("--watch-id is required for --action " + args.action)
         if args.once:
             parser.error("--once is only valid with --action refresh")
+        if args.action == "changes":
+            result = {
+                "action": "changes",
+                "watch_id": args.watch_id,
+                "read_only": True,
+                "changes": store.list_watch_changes(
+                    args.watch_id,
+                    limit=args.limit,
+                    offset=args.offset,
+                    include_payload=args.include_payload,
+                ),
+                "limit": args.limit,
+                "offset": args.offset,
+            }
+            print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+            return 0
         if args.action == "pause":
             store.pause_watch(args.watch_id)
             result = {"action": "pause", "watch": store.get_watch(args.watch_id)}

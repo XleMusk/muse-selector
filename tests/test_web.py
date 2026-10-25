@@ -234,6 +234,54 @@ class WebTests(unittest.TestCase):
                 server.server_close()
                 thread.join(timeout=2)
 
+    def test_watch_changes_endpoint_reads_history_and_replays_payload(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            watch_id = store.add_watch(
+                "香港预算 HKD 7000 以内的迷你主机",
+                FIXTURE,
+                watch_id="watch_changes_web",
+            )
+            refreshed = store.refresh_watch(watch_id)
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE, store))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with patch("muse_selector.web.run_search", side_effect=AssertionError("changes endpoint refreshed")):
+                    with urlopen(
+                        f"http://127.0.0.1:{server.server_port}/api/watch/changes?watch_id={watch_id}&include_payload=1",
+                        timeout=2,
+                    ) as response:
+                        payload = json.loads(response.read().decode("utf-8"))
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["status"], "watch_changes_ready")
+                self.assertEqual(payload["changes"][0]["run_id"], refreshed["run_id"])
+                self.assertEqual(payload["changes"][0]["payload"], refreshed["payload"])
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
+    def test_watch_changes_endpoint_reports_invalid_and_missing_watch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE, store))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with self.assertRaises(HTTPError) as invalid_error:
+                    urlopen(f"http://127.0.0.1:{server.server_port}/api/watch/changes?watch_id=missing&limit=0", timeout=2)
+                self.assertEqual(invalid_error.exception.code, 400)
+                self.assertEqual(json.loads(invalid_error.exception.read().decode("utf-8"))["status"], "invalid_query")
+                with self.assertRaises(HTTPError) as missing_error:
+                    urlopen(f"http://127.0.0.1:{server.server_port}/api/watch/changes?watch_id=missing", timeout=2)
+                self.assertEqual(missing_error.exception.code, 404)
+                self.assertEqual(json.loads(missing_error.exception.read().decode("utf-8"))["status"], "watch_not_found")
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
     def test_watches_endpoint_without_db_is_structured_unavailable(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
         thread = threading.Thread(target=server.serve_forever, daemon=True)

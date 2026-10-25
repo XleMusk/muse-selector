@@ -298,6 +298,79 @@ def make_handler(
                     result["payload"] = store.replay_run(str(run_id))
                 self._send_json(200, result)
                 return
+            if parsed.path == "/api/watch/changes":
+                params = parse_qs(parsed.query)
+                watch_id = params.get("watch_id", [""])[0].strip()
+                if not watch_id:
+                    self._send_json(
+                        400,
+                        {
+                            "ok": False,
+                            "status": "invalid_query",
+                            "message": "watch_id is required",
+                            "read_only": True,
+                        },
+                    )
+                    return
+                if store is None:
+                    self._send_json(
+                        503,
+                        {
+                            "ok": False,
+                            "status": "watch_unavailable",
+                            "message": "start the web view with --db to expose persisted watch changes",
+                            "read_only": True,
+                        },
+                    )
+                    return
+                try:
+                    limit = int(params.get("limit", ["100"])[0])
+                    offset = int(params.get("offset", ["0"])[0])
+                    if limit <= 0 or limit > 1000 or offset < 0:
+                        raise ValueError
+                except (TypeError, ValueError):
+                    self._send_json(
+                        400,
+                        {
+                            "ok": False,
+                            "status": "invalid_query",
+                            "message": "limit must be 1..1000 and offset must be non-negative",
+                            "read_only": True,
+                        },
+                    )
+                    return
+                include_payload = params.get("include_payload", [""])[0].lower() in {"1", "true", "yes"}
+                try:
+                    changes = store.list_watch_changes(
+                        watch_id,
+                        limit=limit,
+                        offset=offset,
+                        include_payload=include_payload,
+                    )
+                except KeyError:
+                    self._send_json(
+                        404,
+                        {
+                            "ok": False,
+                            "status": "watch_not_found",
+                            "message": f"unknown watch_id: {watch_id}",
+                            "read_only": True,
+                        },
+                    )
+                    return
+                self._send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "status": "watch_changes_ready",
+                        "read_only": True,
+                        "watch_id": watch_id,
+                        "limit": limit,
+                        "offset": offset,
+                        "changes": changes,
+                    },
+                )
+                return
             if parsed.path == "/api/search":
                 query = parse_qs(parsed.query).get("q", [""])[0]
                 raw_limit = parse_qs(parsed.query).get("limit", ["10"])[0]

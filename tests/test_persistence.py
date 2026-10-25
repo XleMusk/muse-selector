@@ -243,6 +243,37 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(store.list_watches()[0]["last_run_id"], first["run_id"])
             self.assertEqual(store.get_watch(watch_id)["last_change_summary"], second["change_summary"])
 
+    def test_watch_change_history_is_distinct_and_replayable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            watch_id = store.add_watch(
+                "香港预算 HKD 7000 以内的迷你主机",
+                FIXTURE,
+                watch_id="watch_history",
+            )
+            first = store.refresh_watch(watch_id)
+            store.refresh_watch(watch_id)
+            store.update_watch(watch_id, query="香港 RTX 4070 显卡，预算 HKD 9000")
+            second = store.refresh_watch(watch_id)
+
+            changes = store.list_watch_changes(watch_id, include_payload=True)
+            self.assertEqual([item["run_id"] for item in changes], [second["run_id"], first["run_id"]])
+            self.assertEqual(changes[0]["change_summary"], second["change_summary"])
+            self.assertEqual(changes[0]["payload"], second["payload"])
+            self.assertEqual(changes[1]["payload"], first["payload"])
+            self.assertEqual(len(store.list_watch_changes(watch_id)), 2)
+
+    def test_watch_change_history_paginates_and_rejects_invalid_bounds(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            watch_id = store.add_watch("香港预算 HKD 7000 以内的迷你主机", FIXTURE, watch_id="watch_page")
+            store.refresh_watch(watch_id)
+            with self.assertRaises(ValueError):
+                store.list_watch_changes(watch_id, limit=0)
+            with self.assertRaises(ValueError):
+                store.list_watch_changes(watch_id, offset=-1)
+            self.assertEqual(len(store.list_watch_changes(watch_id, limit=1, offset=1)), 0)
+
     def test_live_watch_unavailable_is_saved_as_read_only_state(self):
         with tempfile.TemporaryDirectory() as directory:
             store = SelectorStore(Path(directory) / "selector.sqlite3")

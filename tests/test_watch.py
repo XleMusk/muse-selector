@@ -46,6 +46,14 @@ class WatchTests(unittest.TestCase):
             self.assertTrue(status["read_only"])
             self.assertEqual(status["watch"]["last_run_id"], first["run_id"])
             self.assertEqual(status["payload"]["status"], "complete")
+            code, changes = invoke(
+                "--db", str(db), "--action", "changes", "--watch-id", "watch_cli", "--include-payload"
+            )
+            self.assertEqual(code, 0)
+            self.assertTrue(changes["read_only"])
+            self.assertEqual(len(changes["changes"]), 1)
+            self.assertEqual(changes["changes"][0]["run_id"], first["run_id"])
+            self.assertEqual(changes["changes"][0]["payload"]["status"], "complete")
             code, listed = invoke("--db", str(db), "--action", "list")
             self.assertEqual(code, 0)
             self.assertTrue(listed["read_only"])
