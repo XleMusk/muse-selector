@@ -35,7 +35,7 @@ def _refresh_with_environment(store: SelectorStore, watch_id: str, environment: 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run a read-only Muse Selector watch")
     parser.add_argument("--db", default="data/selector.sqlite3")
-    parser.add_argument("--action", choices=("refresh", "pause", "resume", "update", "replay"), default="refresh")
+    parser.add_argument("--action", choices=("refresh", "pause", "resume", "update", "replay", "status"), default="refresh")
     parser.add_argument("--query", default=None)
     fixture_group = parser.add_mutually_exclusive_group()
     fixture_group.add_argument("--fixture", default=None, help="offline fixture; omit for live read-only API")
@@ -68,6 +68,17 @@ def main() -> int:
             result = {"action": "resume", "watch": store.get_watch(args.watch_id)}
         elif args.action == "replay":
             result = {"action": "replay", "watch_id": args.watch_id, "payload": store.replay_watch(args.watch_id)}
+        elif args.action == "status":
+            watch = store.get_watch(args.watch_id)
+            if watch is None:
+                raise KeyError(f"unknown watch_id: {args.watch_id}")
+            result = {
+                "action": "status",
+                "watch": watch,
+                "read_only": True,
+            }
+            if watch.get("last_run_id"):
+                result["payload"] = store.replay_run(str(watch["last_run_id"]))
         else:
             if args.query is None and args.fixture is None and not args.live and args.interval_seconds is None:
                 parser.error("--action update requires --query, --fixture or --interval-seconds")
