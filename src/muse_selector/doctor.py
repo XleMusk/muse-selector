@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .connectors.ebay import credential_state as ebay_credential_state
+from .connectors.ebay import credential_env_names, credential_state as ebay_credential_state
 from .pipeline import run_search
 
 
@@ -68,13 +68,19 @@ def _ebay_target(environment: str | None = None) -> dict[str, Any]:
             "environment": "invalid",
             "api_host": None,
             "token_path": "/identity/v1/oauth2/token",
+            "credential_env": None,
             "read_only": True,
         }
     host = "api.ebay.com" if selected == "production" else "api.sandbox.ebay.com"
+    client_id_var, client_secret_var = credential_env_names(selected)
     return {
         "environment": selected,
         "api_host": host,
         "token_path": "/identity/v1/oauth2/token",
+        "credential_env": {
+            "scoped": [client_id_var, client_secret_var],
+            "legacy_fallback": ["EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET"],
+        },
         "read_only": True,
     }
 

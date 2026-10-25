@@ -35,6 +35,10 @@ class DoctorTests(unittest.TestCase):
                 "environment": "production",
                 "api_host": "api.ebay.com",
                 "token_path": "/identity/v1/oauth2/token",
+                "credential_env": {
+                    "scoped": ["EBAY_PRODUCTION_CLIENT_ID", "EBAY_PRODUCTION_CLIENT_SECRET"],
+                    "legacy_fallback": ["EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET"],
+                },
                 "read_only": True,
             },
         )
@@ -46,6 +50,7 @@ class DoctorTests(unittest.TestCase):
             report = run_doctor(FIXTURE, environment="sandbox")
             self.assertEqual(report["ebay_target"]["environment"], "sandbox")
             self.assertEqual(report["ebay_target"]["api_host"], "api.sandbox.ebay.com")
+            self.assertEqual(report["ebay_target"]["credential_env"]["scoped"][0], "EBAY_SANDBOX_CLIENT_ID")
             self.assertEqual(os.environ["EBAY_ENVIRONMENT"], "production")
 
     def test_environment_specific_credentials_drive_selected_state(self):

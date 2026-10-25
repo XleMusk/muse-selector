@@ -11,7 +11,11 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from .connectors.ebay import EbayBrowseConnector, credential_state as ebay_credential_state
+from .connectors.ebay import (
+    EbayBrowseConnector,
+    credential_env_names,
+    credential_state as ebay_credential_state,
+)
 from .contracts import RESULT_SCHEMA_VERSION
 from .pipeline import _allowed_source_url, run_search
 from .persistence import SelectorStore
@@ -94,6 +98,13 @@ def capability_snapshot() -> dict[str, Any]:
     """Return local source readiness without issuing any network request."""
 
     selected_environment = str(os.environ.get("EBAY_ENVIRONMENT", "production")).strip().lower()
+    credential_env = None
+    if selected_environment in {"production", "sandbox"}:
+        client_id_var, client_secret_var = credential_env_names(selected_environment)
+        credential_env = {
+            "scoped": [client_id_var, client_secret_var],
+            "legacy_fallback": ["EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET"],
+        }
     credential_state = (
         ebay_credential_state(selected_environment)
         if selected_environment in {"production", "sandbox"}
@@ -107,6 +118,7 @@ def capability_snapshot() -> dict[str, Any]:
         "environment": selected_environment if selected_environment in {"production", "sandbox"} else "unknown",
         "api_host": None,
         "token_path": None,
+        "credential_env": credential_env,
         "status": "unavailable",
     }
     try:
@@ -117,6 +129,10 @@ def capability_snapshot() -> dict[str, Any]:
                 "credential_state": connector.credential_state,
                 "api_host": urlparse(connector.config.api_base).hostname,
                 "token_path": urlparse(connector.config.token_url).path,
+                "credential_env": {
+                    "scoped": list(credential_env_names(connector.config.environment)),
+                    "legacy_fallback": ["EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET"],
+                },
                 "status": "disabled" if connector._kill_switch_active() else "ready" if connector.live_enabled else "credential_unavailable",
             }
         )

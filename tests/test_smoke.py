@@ -40,6 +40,7 @@ class SmokeTests(unittest.TestCase):
         self.assertEqual(summary["source_metadata"]["total"], 42)
         self.assertEqual(summary["source_metadata"]["limit"], 20)
         self.assertEqual(summary["source_metadata"]["environment"], "sandbox")
+        self.assertEqual(summary["credential_env"]["scoped"][0], "EBAY_SANDBOX_CLIENT_ID")
         self.assertNotIn("ignored", summary["source_metadata"])
 
     def test_summary_drops_untrusted_pagination_links(self):
@@ -73,7 +74,9 @@ class SmokeTests(unittest.TestCase):
         })
         self.assertEqual(summary["observed_at_samples"], ["2026-10-24T04:00:00Z"])
         self.assertIn(summary["credential_state"], {"missing", "partial", "present"})
-        self.assertNotIn("client_secret", json.dumps(summary))
+        serialized = json.dumps(summary)
+        self.assertNotIn("client_secret", serialized)
+        self.assertNotIn("test-secret-value", serialized)
 
     def test_no_credentials_is_source_unavailable(self):
         output = io.StringIO()

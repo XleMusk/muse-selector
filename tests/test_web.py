@@ -176,6 +176,7 @@ class WebTests(unittest.TestCase):
         self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["environment"], "sandbox")
         self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["api_host"], "api.sandbox.ebay.com")
         self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["token_path"], "/identity/v1/oauth2/token")
+        self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["credential_env"]["scoped"][0], "EBAY_SANDBOX_CLIENT_ID")
         self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["credential_state"], "missing")
         self.assertEqual(snapshot["sources"]["xianyu.partner.v1"]["status"], "link_only")
         self.assertEqual(snapshot["sources"]["zhuanzhuan.recommerce.mcp.v1"]["status"], "auxiliary_only")
@@ -194,6 +195,7 @@ class WebTests(unittest.TestCase):
         ):
             snapshot = capability_snapshot()
         self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["credential_state"], "present")
+        self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["credential_env"]["scoped"][1], "EBAY_SANDBOX_CLIENT_SECRET")
         self.assertEqual(snapshot["sources"]["ebay.browse.hk.v1"]["status"], "ready")
 
     def test_capability_endpoint_does_not_require_network_or_credentials(self):

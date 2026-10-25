@@ -276,6 +276,7 @@ muse-live-smoke --environment sandbox --query "香港 RTX 4070 显卡，预算 H
 `EBAY_PRODUCTION_CLIENT_ID` / `EBAY_PRODUCTION_CLIENT_SECRET` 与
 `EBAY_SANDBOX_CLIENT_ID` / `EBAY_SANDBOX_CLIENT_SECRET`。如果选定环境没有专用变量，才回退到兼容用的
 `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET`；一旦专用变量只设置了一半，系统保持 `partial`，不会与另一组凭据拼接。
+`muse-doctor`、`muse-live-smoke` 和 `/api/capabilities` 会报告当前选用的变量名与 fallback 规则，但不会输出任何凭据值。
 
 `SearchSpec.budget_min` 和 `budget_max` 会映射到 Browse API 的 `filter=price:[min..max]`，并同时发送
 `priceCurrency=HKD`；只有上限或下限时，另一侧保持开放。连接器仍会在收到响应后执行本地预算硬过滤，避免运费、税费或

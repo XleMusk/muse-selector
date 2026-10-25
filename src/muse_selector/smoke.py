@@ -7,7 +7,11 @@ import json
 import os
 from typing import Any, Mapping
 
-from .connectors.ebay import _allowed_pagination_url, credential_state as ebay_credential_state
+from .connectors.ebay import (
+    _allowed_pagination_url,
+    credential_env_names,
+    credential_state as ebay_credential_state,
+)
 from .contracts import RESULT_SCHEMA_VERSION
 from .pipeline import run_search
 
@@ -53,6 +57,11 @@ def summarize(payload: Mapping[str, Any]) -> dict[str, Any]:
     if selected_environment not in {"production", "sandbox"}:
         selected_environment = "production"
     summary["credential_state"] = ebay_credential_state(str(selected_environment))
+    client_id_var, client_secret_var = credential_env_names(str(selected_environment))
+    summary["credential_env"] = {
+        "scoped": [client_id_var, client_secret_var],
+        "legacy_fallback": ["EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET"],
+    }
     if payload.get("ok"):
         observed = {
             str(item.get("observed_at"))
