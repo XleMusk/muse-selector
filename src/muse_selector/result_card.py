@@ -239,6 +239,9 @@ def render_comparison(payload: Mapping[str, Any]) -> str:
         for key in ("access_mode", "status", "environment")
         if source_capability.get(key)
     ) or "unknown"
+    source_metadata = payload.get("source_metadata") if isinstance(payload.get("source_metadata"), Mapping) else {}
+    latency_ms = source_metadata.get("latency_ms")
+    latency_label = f"{float(latency_ms):.3f} ms" if isinstance(latency_ms, (int, float)) and latency_ms >= 0 else "unknown"
     lines = [
         "# Muse Selector 比较表",
         "",
@@ -246,6 +249,7 @@ def render_comparison(payload: Mapping[str, Any]) -> str:
         f"地区/币种：{_table_untrusted(spec.get('region') or 'unknown')} / {_table_untrusted(spec.get('currency') or 'unknown')}",
         f"来源：{_table_untrusted(payload.get('source') or 'unknown')}（保留来源顺序，不在客户端重排）",
         f"来源能力：{_table_untrusted(capability_label)}",
+        f"来源请求耗时：{_table_untrusted(latency_label)}",
         "只读状态：true",
         "",
         "| 来源顺序 | 商品 | 实体标识 | 成本 | 证据覆盖 | 观测时间 | 状态/成色 | 配送 | 保修 | 风险 | 来源能力 | 来源 |",
