@@ -37,11 +37,17 @@ jobs:
           muse-watch --db "$watch_db" --query "香港预算 HKD 7000 以内的迷你主机" --fixture tests/fixtures/ebay_hk_sample.json --once > watch_second.json
           python -c "import json; a=json.load(open('watch_first.json', encoding='utf-8')); b=json.load(open('watch_second.json', encoding='utf-8')); assert a['schema_version'] == 'muse.selector.v1'; assert b['schema_version'] == 'muse.selector.v1'; assert a['changed'] is True; assert b['changed'] is False; assert a['run_id'] == b['run_id']"
           set +e
-          env -u EBAY_CLIENT_ID -u EBAY_CLIENT_SECRET muse-live-smoke --query "香港 RTX 4070 显卡，预算 HKD 9000" > live_smoke.json
+          env -u EBAY_PRODUCTION_CLIENT_ID -u EBAY_PRODUCTION_CLIENT_SECRET -u EBAY_SANDBOX_CLIENT_ID -u EBAY_SANDBOX_CLIENT_SECRET -u EBAY_CLIENT_ID -u EBAY_CLIENT_SECRET muse-live-smoke --query "香港 RTX 4070 显卡，预算 HKD 9000" > live_smoke.json
           smoke_status=$?
           set -e
           test "$smoke_status" -eq 2
           python -c "import json; p=json.load(open('live_smoke.json', encoding='utf-8')); assert p['schema_version'] == 'muse.selector.v1'; assert p['status'] == 'source_unavailable'; assert p['read_only'] is True; assert p['credential_state'] == 'missing'"
+          set +e
+          env -u EBAY_PRODUCTION_CLIENT_ID -u EBAY_PRODUCTION_CLIENT_SECRET -u EBAY_SANDBOX_CLIENT_ID -u EBAY_SANDBOX_CLIENT_SECRET -u EBAY_CLIENT_ID -u EBAY_CLIENT_SECRET muse-live-smoke --environment sandbox --query "香港 RTX 4070 显卡，预算 HKD 9000" > live_smoke_sandbox.json
+          sandbox_smoke_status=$?
+          set -e
+          test "$sandbox_smoke_status" -eq 2
+          python -c "import json; p=json.load(open('live_smoke_sandbox.json', encoding='utf-8')); assert p['schema_version'] == 'muse.selector.v1'; assert p['status'] == 'source_unavailable'; assert p['read_only'] is True; assert p['credential_state'] == 'missing'; assert p['credential_env']['scoped'][0] == 'EBAY_SANDBOX_CLIENT_ID'; assert p['source_metadata']['environment'] == 'sandbox'"
           set +e
           muse-selector --query "国内预算 CNY 8000 以内的二手迷你主机" --format json > domestic_result.json
           domestic_status=$?
