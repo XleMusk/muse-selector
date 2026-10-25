@@ -10,6 +10,7 @@ import re
 from decimal import Decimal
 from typing import Any
 
+from .category_registry import resolve_product_category
 from .contracts import SearchSpec
 
 
@@ -160,8 +161,13 @@ def parse_query(text: str) -> SearchSpec:
                 budget_max = _money_amount(money_suffix.group("amount"))
 
     category = "computers_hardware"
-    if any(token in lowered for token in ("显卡", "gpu", "显存")):
-        category = "computers_hardware"
+    product_type = resolve_product_category(text)
+    clarification_fields: list[str] = []
+    if budget_max is None:
+        clarification_fields.append("budget_max")
+    parse_confidence = 0.9 if product_type != "general_hardware" and clarification_fields else 1.0
+    if product_type == "general_hardware":
+        parse_confidence = 0.8
     return SearchSpec(
         query=text.strip(),
         category=category,
@@ -173,6 +179,9 @@ def parse_query(text: str) -> SearchSpec:
         condition="unknown" if any(token in lowered for token in ("二手", "不限成色")) else "new",
         max_delivery_days=max_delivery_days,
         sources=("xianyu.partner.v1", "zhuanzhuan.recommerce.mcp.v1") if domestic else ("ebay.browse.hk.v1",),
+        product_type=product_type,
+        parse_confidence=parse_confidence,
+        clarification_fields=tuple(clarification_fields),
     )
 
 

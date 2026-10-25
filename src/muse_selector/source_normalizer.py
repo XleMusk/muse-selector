@@ -7,6 +7,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
+from .category_registry import get_category_schema
 from .contracts import (
     ALLOWED_SOURCE_IDS,
     ALLOWED_STATUSES,
@@ -71,7 +72,11 @@ def extract_delivery_max_days(shipping: Any, observed_at: str | None) -> int | N
     return min(candidates) if candidates else None
 
 
-def normalize_source_row(row: Mapping[str, Any]) -> tuple[Listing | None, list[Evidence], str | None]:
+def normalize_source_row(
+    row: Mapping[str, Any],
+    *,
+    product_type: str = "general_hardware",
+) -> tuple[Listing | None, list[Evidence], str | None]:
     """Validate and normalize one external row without performing I/O."""
 
     if not row.get("listing_id"):
@@ -142,6 +147,9 @@ def normalize_source_row(row: Mapping[str, Any]) -> tuple[Listing | None, list[E
                 field=str(item.get("field") or "unknown"),
                 value=value,
                 observed_at=str(item.get("observed_at") or "unknown"),
+                extraction_method=str(item.get("extraction_method") or "source_json"),
+                raw_field=str(item.get("raw_field") or item.get("field") or "unknown"),
+                normalization_rule=str(item.get("normalization_rule") or "source_field"),
                 status=status,
                 confidence=1.0 if status == "confirmed" else 0.5,
             )
@@ -154,6 +162,17 @@ def normalize_source_row(row: Mapping[str, Any]) -> tuple[Listing | None, list[E
     delivery_max_days = extract_delivery_max_days(shipping, observed_at)
     raw_specs = row.get("specs")
     source_specs = dict(raw_specs) if isinstance(raw_specs, Mapping) else {}
+    category_attributes: dict[str, Any] = {}
+    try:
+        registered_attributes = {item.name for item in get_category_schema(product_type).attributes}
+    except ValueError:
+        registered_attributes = set()
+    for key in registered_attributes:
+        if key in source_specs:
+            category_attributes[key] = source_specs[key]
+    for key, value in extract_specs(str(row.get("title") or "")).items():
+        if key in registered_attributes:
+            category_attributes[key] = value
     confirmed_fields = {
         item.field for item in evidence if item.status == "confirmed" and item.field in KEY_EVIDENCE_FIELDS
     }
@@ -180,6 +199,7 @@ def normalize_source_row(row: Mapping[str, Any]) -> tuple[Listing | None, list[E
             **source_specs,
             **({"delivery_max_days": delivery_max_days} if delivery_max_days is not None else {}),
         },
+        category_attributes=category_attributes,
         product_id=str(row.get("product_id")) if row.get("product_id") not in (None, "") else None,
         evidence_ids=tuple(item.evidence_id for item in evidence),
         source_observed_at=observed_at,

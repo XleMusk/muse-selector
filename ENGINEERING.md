@@ -8,6 +8,8 @@
 
 外部 JSON 只能停留在连接器边界，进入搜索管线前必须标准化成领域对象。缺失值保持 `unknown` 或 `None`，不通过默认值伪造事实。新增来源优先增加适配器和契约测试，新增品类优先增加品类规则；游戏账号保持独立领域，不塞进电子产品商品模型。
 
+来源能力统一使用 `SourceCapability` 描述，访问模式只能是 `official_api`、`authorized_partner`、`user_link` 或 `local_fixture`。品类字段统一登记在 `category_registry.py`；手机、笔记本和显卡的专属属性进入 `category_attributes`，未知字段不能自动成为硬条件。
+
 ## 修改方式
 
 一次修改只解决一个可观察的问题。行为保持重构、业务修复和新功能分开提交。先读调用方和相关测试，写清楚要保持的契约，再做最小改动。纯计算与网络、时间、数据库 I/O 分开；时间和外部依赖通过参数或端口进入。公共函数的名字要说明动作，例如 `parse`、`normalize`、`validate`、`load`、`save`、`refresh`，避免无语义的 `process`、`handle` 和 `manage`。

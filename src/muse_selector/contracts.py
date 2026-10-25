@@ -29,6 +29,7 @@ ALLOWED_REGIONS = {"HK", "CN"}
 REGION_CURRENCY = {"HK": "HKD", "CN": "CNY"}
 DOMESTIC_SOURCE_IDS = {"zhuanzhuan.recommerce.mcp.v1", "xianyu.partner.v1"}
 ALLOWED_SOURCE_IDS = {"ebay.browse.hk.v1", *DOMESTIC_SOURCE_IDS}
+SOURCE_ACCESS_MODES = {"official_api", "authorized_partner", "user_link", "local_fixture"}
 
 
 def _now_iso() -> str:
@@ -88,6 +89,10 @@ class SearchSpec:
     sources: tuple[str, ...] = ()
     risk_tolerance: str = "standard"
     allow_account_listings: bool = False
+    product_type: str = "general_hardware"
+    parse_confidence: float = 1.0
+    unparsed_fragments: tuple[str, ...] = ()
+    clarification_fields: tuple[str, ...] = ()
     schema_version: str = SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -101,6 +106,10 @@ class SearchSpec:
             raise ValueError(f"currency must be {REGION_CURRENCY[self.region]} for region {self.region}")
         if self.condition not in ALLOWED_CONDITION:
             raise ValueError(f"condition must be one of {sorted(ALLOWED_CONDITION)}")
+        parse_confidence = float(self.parse_confidence)
+        if not math.isfinite(parse_confidence) or not 0 <= parse_confidence <= 1:
+            raise ValueError("parse_confidence must be a finite value between 0 and 1")
+        object.__setattr__(self, "parse_confidence", round(parse_confidence, 4))
         min_value = _decimal(self.budget_min, "budget_min")
         max_value = _decimal(self.budget_max, "budget_max")
         object.__setattr__(self, "budget_min", min_value)
@@ -114,6 +123,8 @@ class SearchSpec:
         object.__setattr__(self, "required_specs", _copy_map(self.required_specs))
         object.__setattr__(self, "preferred_specs", _copy_map(self.preferred_specs))
         object.__setattr__(self, "sources", tuple(self.sources or ()))
+        object.__setattr__(self, "unparsed_fragments", tuple(str(item) for item in self.unparsed_fragments or ()))
+        object.__setattr__(self, "clarification_fields", tuple(str(item) for item in self.clarification_fields or ()))
         unsupported_sources = sorted({str(source) for source in self.sources if not isinstance(source, str) or source not in ALLOWED_SOURCE_IDS})
         if unsupported_sources:
             raise ValueError(f"unsupported source(s): {unsupported_sources}")
@@ -129,7 +140,8 @@ class SearchSpec:
         for key in ("budget_min", "budget_max"):
             if result[key] is not None:
                 result[key] = str(result[key])
-        result["sources"] = list(result["sources"])
+        for key in ("sources", "unparsed_fragments", "clarification_fields"):
+            result[key] = list(result[key])
         return result
 
 
@@ -142,6 +154,9 @@ class Evidence:
     value: Any
     observed_at: str = dataclass_field(default_factory=_now_iso)
     quote: str | None = None
+    extraction_method: str = "source_json"
+    raw_field: str | None = None
+    normalization_rule: str | None = None
     status: str = "confirmed"
     confidence: float = 1.0
     schema_version: str = SCHEMA_VERSION
@@ -159,7 +174,39 @@ class Evidence:
 
 
 @dataclass(frozen=True)
+class ProductModel:
+    """Identity and stable specifications shared by listing instances."""
+
+    product_model_id: str
+    category: str
+    brand: str | None = None
+    model: str | None = None
+    mpn: str | None = None
+    gtin: str | None = None
+    official_attributes: Mapping[str, Any] = dataclass_field(default_factory=dict)
+    evidence_ids: tuple[str, ...] = ()
+    schema_version: str = SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        if not self.product_model_id or not self.category:
+            raise ValueError("product_model_id and category are required")
+        object.__setattr__(self, "official_attributes", _copy_map(self.official_attributes))
+        object.__setattr__(self, "evidence_ids", tuple(self.evidence_ids or ()))
+
+    def to_dict(self) -> dict[str, Any]:
+        result = asdict(self)
+        result["evidence_ids"] = list(result["evidence_ids"])
+        return result
+
+
+@dataclass(frozen=True)
 class Product:
+    """Backward-compatible product identity contract.
+
+    New code should use :class:`ProductModel`; this name remains stable for
+    saved v1 payloads and existing callers.
+    """
+
     product_id: str
     brand: str | None = None
     model: str | None = None
@@ -191,6 +238,7 @@ class Listing:
     stock_status: str = "unknown"
     condition: str = "unknown"
     specs: Mapping[str, Any] = dataclass_field(default_factory=dict)
+    category_attributes: Mapping[str, Any] = dataclass_field(default_factory=dict)
     product_id: str | None = None
     evidence_ids: tuple[str, ...] = ()
     source_observed_at: str = dataclass_field(default_factory=_now_iso)
@@ -213,6 +261,7 @@ class Listing:
         for key in ("price", "shipping_cost", "tax"):
             object.__setattr__(self, key, _decimal(getattr(self, key), key))
         object.__setattr__(self, "specs", _copy_map(self.specs))
+        object.__setattr__(self, "category_attributes", _copy_map(self.category_attributes))
         object.__setattr__(self, "evidence_ids", tuple(self.evidence_ids or ()))
         object.__setattr__(self, "risk_flags", tuple(self.risk_flags or ()))
         coverage = float(self.evidence_coverage)
@@ -283,6 +332,7 @@ class Listing:
             stock_status=stock_map.get(str(stock).upper(), str(stock).lower()),
             condition=condition_map.get(str(condition).upper(), str(condition).lower()),
             specs=_copy_map(raw.get("specs")),
+            category_attributes=_copy_map(raw.get("category_attributes")),
             product_id=raw.get("product_id"),
             evidence_ids=tuple(evidence_ids or raw.get("evidence_ids", ())),
             source_observed_at=str(observed),
@@ -326,6 +376,43 @@ class Listing:
         result["evidence_coverage"] = self.evidence_coverage
         result["evidence_ids"] = list(result["evidence_ids"])
         result["risk_flags"] = list(result["risk_flags"])
+        result["category_attributes"] = dict(result["category_attributes"])
+        return result
+
+
+@dataclass(frozen=True)
+class ListingInstance:
+    """A concrete source listing linked to an optional product model."""
+
+    listing: Listing
+    product_model_id: str | None = None
+    category_attributes: Mapping[str, Any] = dataclass_field(default_factory=dict)
+    schema_version: str = SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.listing, Listing):
+            raise ValueError("listing must be a Listing instance")
+        object.__setattr__(self, "category_attributes", _copy_map(self.category_attributes))
+
+    @classmethod
+    def from_listing(
+        cls,
+        listing: Listing,
+        *,
+        product_model_id: str | None = None,
+        category_attributes: Mapping[str, Any] | None = None,
+    ) -> "ListingInstance":
+        return cls(
+            listing,
+            product_model_id=product_model_id or listing.product_id,
+            category_attributes=category_attributes or listing.category_attributes or listing.specs,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        result = self.listing.to_dict()
+        result["product_model_id"] = self.product_model_id
+        result["category_attributes"] = dict(self.category_attributes)
+        result["listing_instance_schema_version"] = self.schema_version
         return result
 
 
@@ -359,5 +446,50 @@ class PolicyRecord:
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
         for key in ("allowed_regions", "allowed_fields", "write_actions"):
+            result[key] = list(result[key])
+        return result
+
+
+@dataclass(frozen=True)
+class SourceCapability:
+    """Declared read-only capability and status of one external source."""
+
+    source_id: str
+    display_name: str
+    category: str
+    access_mode: str
+    read_only: bool = True
+    listing_search: bool = False
+    status: str = "unavailable"
+    allowed_regions: tuple[str, ...] = ()
+    allowed_fields: tuple[str, ...] = ()
+    capabilities: tuple[str, ...] = ()
+    write_actions: tuple[str, ...] = ()
+    authorization_evidence_url: str | None = None
+    retention_days: int | None = None
+    cache_ttl_minutes: int | None = None
+    schema_version: str = SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        if not self.source_id or not self.display_name or not self.category:
+            raise ValueError("source_id, display_name and category are required")
+        if self.access_mode not in SOURCE_ACCESS_MODES:
+            raise ValueError(f"access_mode must be one of {sorted(SOURCE_ACCESS_MODES)}")
+        if not self.read_only or self.write_actions:
+            raise ValueError("MVP source capabilities must be read-only")
+        if self.authorization_evidence_url is not None:
+            _http_url(self.authorization_evidence_url, "authorization_evidence_url")
+        object.__setattr__(self, "allowed_regions", tuple(self.allowed_regions or ()))
+        object.__setattr__(self, "allowed_fields", tuple(self.allowed_fields or ()))
+        object.__setattr__(self, "capabilities", tuple(self.capabilities or ()))
+        object.__setattr__(self, "write_actions", tuple(self.write_actions or ()))
+        for name in ("retention_days", "cache_ttl_minutes"):
+            value = getattr(self, name)
+            if value is not None and (not isinstance(value, int) or isinstance(value, bool) or value < 0):
+                raise ValueError(f"{name} must be a non-negative integer")
+
+    def to_dict(self) -> dict[str, Any]:
+        result = asdict(self)
+        for key in ("allowed_regions", "allowed_fields", "capabilities", "write_actions"):
             result[key] = list(result[key])
         return result

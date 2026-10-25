@@ -330,11 +330,14 @@ $env:MUSE_SOURCE_EBAY_BROWSE_HK_DISABLED = "1"
 ## 代码结构
 
 - `scope_decision.md`：香港/HKD、电脑硬件、eBay HK 只读首版范围与降级决策。
-- `src/muse_selector/contracts.py`：`SearchSpec`、`Listing`、`Product`、`Evidence`、`PolicyRecord`。
-- `src/muse_selector/query_parser.py`：只解析用户明确写出的预算和硬件规格。
+- `src/muse_selector/contracts.py`：`SearchSpec`、`ProductModel`、`Listing`/`ListingInstance`、`Evidence`、`SourceCapability` 和 `PolicyRecord`。
+- `src/muse_selector/category_registry.py`：手机、笔记本和显卡的品类属性注册表，声明类型、单位、硬条件和证据要求。
+- `src/muse_selector/source_capabilities.py`：eBay、闲鱼、转转和本地 fixture 的来源能力注册表。
+- `src/muse_selector/query_parser.py`：只解析用户明确写出的预算、品类和硬件规格，并保留解析置信度与待澄清字段。
 - `src/muse_selector/connectors/ebay.py`：fixture/官方 Browse API 只读连接器。
 - `src/muse_selector/connectors/zhuanzhuan.py`：转转官方 MCP 估价/回收入口只读连接器。
-- `src/muse_selector/pipeline.py`：解析、来源查询、规范化、硬过滤和结果卡。
+- `src/muse_selector/pipeline.py`：解析、来源查询、硬过滤和结果卡编排。
+- `src/muse_selector/source_normalizer.py`：来源行、证据和品类属性的纯标准化。
 - `src/muse_selector/result_card.py`：JSON/Markdown 结果卡。
 - `tests/fixtures/search_queries_v1.json`：20 条可解析的首版 SearchSpec 样例。
 - `tests/`：契约、连接器、端到端结果卡和离线回归。

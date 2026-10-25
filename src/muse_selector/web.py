@@ -18,6 +18,7 @@ from .connectors.ebay import (
 )
 from .contracts import RESULT_SCHEMA_VERSION
 from .pipeline import run_search
+from .source_capabilities import source_capability_registry
 from .url_policy import is_allowed_market_url
 from .persistence import SelectorStore
 
@@ -144,17 +145,25 @@ def capability_snapshot(environment: str | None = None) -> dict[str, Any]:
         if selected_environment in {"production", "sandbox"}
         else "missing"
     )
-    ebay: dict[str, Any] = {
-        "source_id": "ebay.browse.hk.v1",
-        "read_only": True,
-        "listing_search": True,
-        "credential_state": credential_state,
-        "environment": selected_environment if selected_environment in {"production", "sandbox"} else "unknown",
-        "api_host": None,
-        "token_path": None,
-        "credential_env": credential_env,
-        "status": "unavailable",
-    }
+    source_registry = source_capability_registry()
+    sources: dict[str, dict[str, Any]] = {}
+    for source_id, capability in source_registry.items():
+        source = capability.to_dict()
+        if len(capability.allowed_regions) == 1:
+            region = capability.allowed_regions[0]
+            source["region"] = region
+            source["currency"] = {"HK": "HKD", "CN": "CNY"}.get(region)
+        sources[source_id] = source
+    ebay = sources["ebay.browse.hk.v1"]
+    ebay.update(
+        {
+            "credential_state": credential_state,
+            "environment": selected_environment if selected_environment in {"production", "sandbox"} else "unknown",
+            "api_host": None,
+            "token_path": None,
+            "credential_env": credential_env,
+        }
+    )
     try:
         connector = EbayBrowseConnector(
             environment=selected_environment if selected_environment in {"production", "sandbox"} else None
@@ -178,26 +187,7 @@ def capability_snapshot(environment: str | None = None) -> dict[str, Any]:
         "schema_version": RESULT_SCHEMA_VERSION,
         "ok": True,
         "read_only": True,
-        "sources": {
-            "ebay.browse.hk.v1": ebay,
-            "xianyu.partner.v1": {
-                "source_id": "xianyu.partner.v1",
-                "read_only": True,
-                "listing_search": False,
-                "region": "CN",
-                "currency": "CNY",
-                "status": "link_only",
-            },
-            "zhuanzhuan.recommerce.mcp.v1": {
-                "source_id": "zhuanzhuan.recommerce.mcp.v1",
-                "read_only": True,
-                "listing_search": False,
-                "region": "CN",
-                "currency": "CNY",
-                "status": "auxiliary_only",
-                "capabilities": ["recycle_valuation", "open_recycle_entry"],
-            },
-        },
+        "sources": sources,
     }
 
 

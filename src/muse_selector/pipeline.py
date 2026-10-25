@@ -226,7 +226,7 @@ def run_search(
     dropped: list[dict[str, str]] = []
     for source_rank, row in enumerate(rows, 1):
         try:
-            listing, evidence, reason = _to_listing(row)
+            listing, evidence, reason = _to_listing(row, product_type=spec.product_type)
         except (TypeError, ValueError, OverflowError):
             # A live source can return a syntactically valid JSON object with
             # a value that violates our strict Listing contract (for example
@@ -251,6 +251,7 @@ def run_search(
                 stock_status=listing.stock_status,
                 condition=listing.condition,
                 specs=listing.specs,
+                category_attributes=listing.category_attributes,
                 product_id=listing.product_id,
                 evidence_ids=listing.evidence_ids,
                 source_observed_at=listing.source_observed_at,
