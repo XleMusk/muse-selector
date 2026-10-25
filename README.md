@@ -107,10 +107,12 @@ python -m muse_selector `
 本地结果页（默认只读）：
 
 ```powershell
-python -m muse_selector.web `
+muse-selector-web `
   --fixture "D:\muse\tests\fixtures\ebay_hk_sample.json" `
   --port 8765
 ```
+
+也可以使用 `python -m muse_selector.web` 直接从源码启动同一个入口。
 
 实时只读结果页可以显式选择 eBay 环境；进程退出后不会修改当前 PowerShell 会话的 `EBAY_ENVIRONMENT`：
 

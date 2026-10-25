@@ -26,6 +26,7 @@ jobs:
           python -m pip install --no-deps -e .
           muse-selector --help
           muse-selector --version
+          muse-selector-web --help
           muse-doctor --version
           muse-doctor --fixture tests/fixtures/ebay_hk_sample.json > doctor.json
           python -c "import json; p=json.load(open('doctor.json', encoding='utf-8')); assert p['ok'] is True; assert p['read_only'] is True; assert p['schema_version'] == 'muse.doctor.v1'; assert p['runtime']['package_version']; assert p['runtime']['python_version']; assert p['ebay_target']['environment'] == 'production'; assert p['ebay_target']['api_host'] == 'api.ebay.com'; assert all(c['ok'] for c in p['checks'])"
