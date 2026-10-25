@@ -18,7 +18,7 @@
 | SQLite 持久化和观察任务 | `src/muse_selector/persistence.py`、`src/muse_selector/watch.py`、`tests/test_persistence.py`、`tests/test_watch.py` | 已实际运行 |
 | Watch 变化检查点历史与本地重放读取 | `watch_changes` 表、`muse-watch --action changes`、`/api/watch/changes`、`tests/test_persistence.py`、`tests/test_web.py` | 已实际运行 |
 | 离线回归和硬约束 | `tests/regression_harness.py`、`examples/regression_result.json` | `ok=true`；`hard_constraint_violation_rate=0.0` |
-| 凭据泄露、SSRF、越权来源、跨租户页面、重复副作用 | 连接器/管线/Web/SQLite 测试集；本地 Web 仅 loopback | 已通过 |
+| 凭据泄露、SSRF、分页元数据越界、越权来源、跨租户页面、重复副作用 | 连接器/管线/Web/SQLite 测试集；分页 `href`/`next`/`prev` 仅接受官方 eBay Browse 搜索端点；本地 Web 仅 loopback | 已通过 |
 | 账号登录、购买、转移、代打、支付和平台控制绕过 | `src/muse_selector/query_parser.py`、`scope_decision.md` | 已排除并阻断 |
 | GitHub 主线自动验证 | `.github/workflows/ci.yml` | 最新 CI 通过 |
 | CN/CNY 国内市场 SearchSpec 与来源路由 | `src/muse_selector/contracts.py`、`src/muse_selector/query_parser.py`、`src/muse_selector/pipeline.py`、`tests/test_query_parser.py`、`tests/test_pipeline.py` | 契约和 fail-closed 路由已通过；官方挂牌搜索连接器待授权 |

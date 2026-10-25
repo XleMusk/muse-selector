@@ -35,6 +35,25 @@ class SmokeTests(unittest.TestCase):
         self.assertEqual(summary["source_metadata"]["environment"], "sandbox")
         self.assertNotIn("ignored", summary["source_metadata"])
 
+    def test_summary_drops_untrusted_pagination_links(self):
+        summary = summarize({
+            "ok": True,
+            "source_metadata": {
+                "href": "https://evil.example/buy/browse/v1/item_summary/search?q=mini%20pc",
+                "next": "https://api.ebay.com/other-endpoint?offset=20",
+                "prev": "https://api.ebay.com/buy/browse/v1/item_summary/search?offset=0",
+            },
+            "recommended": [],
+            "rejected": [],
+            "dropped": [],
+        })
+        self.assertIsNone(summary["source_metadata"]["href"])
+        self.assertIsNone(summary["source_metadata"]["next"])
+        self.assertEqual(
+            summary["source_metadata"]["prev"],
+            "https://api.ebay.com/buy/browse/v1/item_summary/search?offset=0",
+        )
+
     def test_summary_contains_no_credentials(self):
         summary = summarize({
             "ok": True,

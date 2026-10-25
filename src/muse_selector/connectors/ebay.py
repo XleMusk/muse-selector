@@ -35,6 +35,39 @@ class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
         return None
 
 
+_OFFICIAL_API_HOSTS = frozenset({"api.ebay.com", "api.sandbox.ebay.com"})
+_BROWSE_SEARCH_PATH = "/buy/browse/v1/item_summary/search"
+
+
+def _allowed_pagination_url(value: Any) -> bool:
+    """Accept only official eBay Browse search links from response metadata.
+
+    ``href``, ``next`` and ``prev`` are observability fields. They must never
+    become an SSRF or evidence-boundary escape if an upstream response is
+    malformed or compromised, even though this connector does not follow them.
+    """
+
+    if not isinstance(value, str) or not value or any(
+        ord(char) < 0x20 or ord(char) == 0x7F for char in value
+    ):
+        return False
+    try:
+        parsed = urllib.parse.urlparse(value)
+        port = parsed.port
+    except ValueError:
+        return False
+    return (
+        parsed.scheme == "https"
+        and (parsed.hostname or "").lower() in _OFFICIAL_API_HOSTS
+        and parsed.username is None
+        and parsed.password is None
+        and port in (None, 443)
+        and parsed.path == _BROWSE_SEARCH_PATH
+        and not parsed.params
+        and not parsed.fragment
+    )
+
+
 @dataclass(frozen=True)
 class EbayConnectorConfig:
     marketplace_id: str = "EBAY_HK"
@@ -177,7 +210,7 @@ class EbayBrowseConnector:
         metadata = cls._empty_source_metadata()
         for field in ("href", "next", "prev"):
             value = payload.get(field)
-            metadata[field] = value if isinstance(value, str) and value else None
+            metadata[field] = value if _allowed_pagination_url(value) else None
         for field in ("total", "limit", "offset"):
             value = payload.get(field)
             metadata[field] = value if isinstance(value, int) and not isinstance(value, bool) else None

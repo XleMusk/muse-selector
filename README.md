@@ -72,6 +72,20 @@ python -m muse_selector `
   --format json
 ```
 
+实时 eBay Browse 查询可以用 `--offset` 读取指定的单页；`--limit` 仍是结果卡上限，来源请求至少保留连接器默认的 20 条以避免硬过滤过早截断。`offset` 必须是非负整数，命令只读取这一页，不会自动跟随 `next` 或继续分页：
+
+```powershell
+$env:EBAY_CLIENT_ID = "<official-app-id>"
+$env:EBAY_CLIENT_SECRET = "<official-cert-id>"
+python -m muse_selector `
+  --query "香港 RTX 4070 显卡，预算 HKD 9000" `
+  --limit 10 `
+  --offset 40 `
+  --format json
+```
+
+返回 JSON 的 `source_metadata.offset`、`limit`、`total`、`next` 和 `prev` 字段会标识实际收到的 Browse 页。fixture 模式也接受同样的参数，但 fixture 没有请求页语义时这些来源元数据保持其原始值。
+
 比较 Artifact（保留来源顺序、实体标识、成本、证据覆盖率和风险）：
 
 ```powershell
@@ -254,7 +268,7 @@ muse-live-smoke --environment sandbox --query "香港 RTX 4070 显卡，预算 H
 muse-live-smoke --query "香港 RTX 4070 显卡，预算 HKD 9000"
 ```
 
-成功时 smoke 还会输出 eBay 返回的来源页元数据（`href`、`total`、`limit`、`offset` 和分页链接），用于确认真实响应页已被抓取；它不会自动跟随 `next`。
+成功时 smoke 还会输出 eBay 返回的来源页元数据（`href`、`total`、`limit`、`offset` 和分页链接），用于确认真实响应页已被抓取；分页链接只保留官方 eBay Browse 搜索端点（生产或 Sandbox API 域名、固定搜索路径），其他值会被丢弃；它不会自动跟随 `next`。
 
 实时连接器只对明确的瞬态 HTTP 状态 `429`、`500`、`502`、`503`、`504` 做有限重试；默认最多重试 2 次并使用短退避。可用 `EBAY_MAX_RETRIES` 和 `EBAY_RETRY_BACKOFF_SECONDS` 调整，认证、参数和其他 4xx 错误不会重试，也不会自动分页或跟随重定向。
 如果响应提供合法的 `Retry-After`，连接器会优先采用并将等待时间限制在 30 秒；缺失或非法时回退到指数退避。

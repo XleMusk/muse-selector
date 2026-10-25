@@ -33,6 +33,7 @@ def main() -> int:
     parser.add_argument("--query", required=True, help="natural-language hardware query")
     parser.add_argument("--fixture", default=None, help="offline eBay response fixture; omit to use live read-only API")
     parser.add_argument("--limit", type=int, default=10)
+    parser.add_argument("--offset", type=int, default=0, help="single Browse page offset; no automatic pagination")
     parser.add_argument("--environment", choices=("sandbox", "production"), default=None)
     parser.add_argument("--format", choices=("json", "markdown", "comparison"), default="markdown")
     args = parser.parse_args()
@@ -41,7 +42,7 @@ def main() -> int:
     try:
         if args.environment is not None:
             os.environ["EBAY_ENVIRONMENT"] = args.environment
-        payload = run_search(args.query, fixture, limit=args.limit)
+        payload = run_search(args.query, fixture, limit=args.limit, offset=args.offset)
     finally:
         if previous_environment is None:
             os.environ.pop("EBAY_ENVIRONMENT", None)

@@ -7,6 +7,7 @@ import json
 import os
 from typing import Any, Mapping
 
+from .connectors.ebay import _allowed_pagination_url
 from .pipeline import run_search
 
 
@@ -18,7 +19,7 @@ def _safe_source_metadata(value: Any) -> dict[str, Any] | None:
     result: dict[str, Any] = {}
     for field in ("href", "next", "prev"):
         item = value.get(field)
-        if isinstance(item, str) and item:
+        if _allowed_pagination_url(item):
             result[field] = item
         else:
             result[field] = None
@@ -64,13 +65,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="One-shot live read-only eBay smoke check")
     parser.add_argument("--query", required=True, help="explicit Hong Kong hardware query with a budget")
     parser.add_argument("--limit", type=int, default=10)
+    parser.add_argument("--offset", type=int, default=0, help="single Browse page offset; no automatic pagination")
     parser.add_argument("--environment", choices=("sandbox", "production"), default=None)
     args = parser.parse_args()
     previous_environment = os.environ.get("EBAY_ENVIRONMENT")
     try:
         if args.environment is not None:
             os.environ["EBAY_ENVIRONMENT"] = args.environment
-        payload = run_search(args.query, fixture_path=None, limit=args.limit)
+        payload = run_search(args.query, fixture_path=None, limit=args.limit, offset=args.offset)
     finally:
         if previous_environment is None:
             os.environ.pop("EBAY_ENVIRONMENT", None)

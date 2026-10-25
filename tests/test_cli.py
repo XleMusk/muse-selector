@@ -71,6 +71,42 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertEqual(json.loads(output)["source_metadata"]["environment"], "sandbox")
 
+    def test_offset_is_forwarded_as_single_browse_page_control(self):
+        payload = {
+            "ok": False,
+            "status": "source_unavailable",
+            "message": "offline test",
+            "read_only": True,
+            "recommended": [],
+            "rejected": [],
+            "dropped": [],
+        }
+        with patch("muse_selector.cli.run_search", return_value=payload) as search:
+            code, output = self._run(
+                "--query", "香港预算 HKD 7000 以内的迷你主机",
+                "--limit", "7",
+                "--offset", "40",
+                "--format", "json",
+            )
+        self.assertEqual(code, 2)
+        self.assertIn("offline test", output)
+        search.assert_called_once_with(
+            "香港预算 HKD 7000 以内的迷你主机",
+            None,
+            limit=7,
+            offset=40,
+        )
+
+    def test_negative_offset_returns_read_only_invalid_query(self):
+        code, output = self._run(
+            "--query", "香港预算 HKD 7000 以内的迷你主机",
+            "--offset", "-1",
+            "--format", "json",
+        )
+        self.assertEqual(code, 2)
+        self.assertEqual(json.loads(output)["status"], "invalid_query")
+        self.assertIn("offset must be a non-negative integer", output)
+
 
 if __name__ == "__main__":
     unittest.main()

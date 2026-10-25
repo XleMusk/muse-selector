@@ -232,7 +232,13 @@ def _to_listing(row: dict[str, Any]) -> tuple[Listing | None, list[Evidence], st
     return listing, evidence, None
 
 
-def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int = 10) -> dict[str, Any]:
+def run_search(
+    query: str,
+    fixture_path: str | Path | None = None,
+    *,
+    limit: int = 10,
+    offset: int = 0,
+) -> dict[str, Any]:
     """Run a fully offline search and return serializable result cards."""
 
     try:
@@ -266,6 +272,18 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
             "ok": False,
             "status": "invalid_query",
             "message": "limit must be a positive integer",
+            "search_spec": spec.to_dict(),
+            "recommended": [],
+            "rejected": [],
+            "dropped": [],
+            "source": "policy.guard",
+            "read_only": True,
+        }
+    if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
+        return {
+            "ok": False,
+            "status": "invalid_query",
+            "message": "offset must be a non-negative integer",
             "search_spec": spec.to_dict(),
             "recommended": [],
             "rejected": [],
@@ -323,6 +341,9 @@ def run_search(query: str, fixture_path: str | Path | None = None, *, limit: int
         ):
             default_source_limit = 20
         connector_spec["limit"] = min(200, max(limit, default_source_limit))
+        # Browse pagination is an explicit single-page control.  The
+        # connector never follows ``next`` and never synthesizes later pages.
+        connector_spec["offset"] = offset
         rows = connector.search(connector_spec)
     except (ConnectorUnavailable, ValueError) as exc:
         source_metadata = connector.source_metadata if "connector" in locals() else None

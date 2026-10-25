@@ -76,6 +76,27 @@ class EbayBrowseConnectorTests(unittest.TestCase):
         self.assertEqual(rows[0]["source_metadata"], expected)
         self.assertEqual(connector.source_metadata, expected)
 
+    def test_response_metadata_drops_non_official_or_non_browse_links(self):
+        data = {
+            "href": "https://evil.example/buy/browse/v1/item_summary/search?q=mini%20pc",
+            "next": "https://api.ebay.com/other-endpoint?offset=2",
+            "prev": "https://user:secret@api.ebay.com/buy/browse/v1/item_summary/search?offset=0",
+            "total": 9,
+            "limit": 1,
+            "offset": 1,
+            "itemSummaries": [{"itemId": "x", "title": "Mini PC"}],
+        }
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "fixture.json"
+            p.write_text(json.dumps(data), encoding="utf-8")
+            connector = EbayBrowseConnector(fixture_path=p)
+            rows = connector.search({"query": "mini pc"})
+        self.assertEqual(
+            rows[0]["source_metadata"],
+            {"href": None, "next": None, "prev": None, "total": 9, "limit": 1, "offset": 1},
+        )
+        self.assertEqual(connector.source_metadata["href"], None)
+
     def test_non_object_fixture_fails_closed(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "fixture.json"

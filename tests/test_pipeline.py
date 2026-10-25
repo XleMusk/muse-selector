@@ -158,6 +158,29 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("positive integer", payload["message"])
         self.assertTrue(payload["read_only"])
 
+    def test_negative_offset_is_a_read_only_invalid_query(self):
+        payload = run_search("香港预算 HKD 7000 以内的迷你主机", FIXTURE, offset=-1)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["status"], "invalid_query")
+        self.assertIn("offset must be a non-negative integer", payload["message"])
+        self.assertTrue(payload["read_only"])
+
+    def test_offset_is_forwarded_to_one_source_page_without_following_next(self):
+        with patch("muse_selector.pipeline.EbayBrowseConnector") as connector_type:
+            connector_type.return_value.search.return_value = []
+            payload = run_search(
+                "香港预算 HKD 7000 以内的迷你主机",
+                limit=7,
+                offset=40,
+            )
+        self.assertTrue(payload["ok"])
+        connector_type.return_value.search.assert_called_once()
+        search_spec = connector_type.return_value.search.call_args.args[0]
+        self.assertEqual(search_spec["offset"], 40)
+        # ``limit`` remains the result-card cap; the connector keeps its
+        # existing minimum source page size for recall.
+        self.assertEqual(search_spec["limit"], 20)
+
     def test_explicit_unbounded_budget_can_search_fixture(self):
         payload = run_search("香港 USB4 扩展坞，双 4K、100W PD，价格不限", FIXTURE)
         self.assertTrue(payload["ok"])
