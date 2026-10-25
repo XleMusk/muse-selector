@@ -8,6 +8,7 @@ import os
 import sys
 from pathlib import Path
 
+from . import __version__
 from .pipeline import run_search
 from .result_card import render_comparison, render_markdown
 
@@ -28,6 +29,7 @@ def _configure_console_encoding() -> None:
 def main() -> int:
     _configure_console_encoding()
     parser = argparse.ArgumentParser(description="Read-only Hong Kong hardware search")
+    parser.add_argument("--version", action="version", version=f"muse-selector {__version__}")
     parser.add_argument("--query", required=True, help="natural-language hardware query")
     parser.add_argument("--fixture", default=None, help="offline eBay response fixture; omit to use live read-only API")
     parser.add_argument("--limit", type=int, default=10)

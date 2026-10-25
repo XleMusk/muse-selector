@@ -16,10 +16,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from . import __version__
 from .pipeline import run_search
 
 
 DEFAULT_QUERY = "香港预算 HKD 7000 以内的迷你主机"
+DOCTOR_SCHEMA_VERSION = "muse.doctor.v1"
 
 
 def _check(name: str, ok: bool, detail: str, *, skipped: bool = False) -> dict[str, Any]:
@@ -37,6 +39,18 @@ def _credential_state() -> dict[str, str]:
     return {
         "ebay": state("EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET"),
         "zhuanzhuan": "present" if bool(os.getenv("ZHUANZHUAN_MCP_TOKEN")) else "missing",
+    }
+
+
+def _runtime_info() -> dict[str, str]:
+    """Return stable, credential-free information about the running CLI."""
+
+    return {
+        "package_version": __version__,
+        "python_version": platform.python_version(),
+        "python_implementation": platform.python_implementation(),
+        "platform": platform.platform(aliased=True),
+        "executable": str(Path(sys.executable).resolve()),
     }
 
 
@@ -92,9 +106,11 @@ def run_doctor(
 
     ok = all(item["ok"] for item in checks if not item.get("skipped"))
     return {
+        "schema_version": DOCTOR_SCHEMA_VERSION,
         "ok": ok,
         "status": "healthy" if ok else "unhealthy",
         "read_only": True,
+        "runtime": _runtime_info(),
         "checks": checks,
         "credential_state": _credential_state(),
     }
@@ -102,6 +118,7 @@ def run_doctor(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Offline Muse Selector installation and fixture diagnostics")
+    parser.add_argument("--version", action="version", version=f"muse-doctor {__version__}")
     parser.add_argument("--fixture", default=None, help="optional offline eBay fixture to validate")
     parser.add_argument("--query", default=DEFAULT_QUERY, help="query used for the optional fixture check")
     parser.add_argument("--limit", type=int, default=10)

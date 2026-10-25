@@ -31,6 +31,11 @@ class CliTests(unittest.TestCase):
         self.assertIn("Mini PC Ryzen 7", output)
         self.assertIn("来源观测时间", output)
 
+    def test_version_command_reports_package_version(self):
+        with self.assertRaises(SystemExit) as raised:
+            self._run("--version")
+        self.assertEqual(raised.exception.code, 0)
+
     def test_fixture_comparison_artifact_preserves_source_order(self):
         code, output = self._run(
             "--query", "香港预算 HKD 30000 以内的电脑",

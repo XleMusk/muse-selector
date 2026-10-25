@@ -22,6 +22,12 @@ class DoctorTests(unittest.TestCase):
         self.assertTrue(report["ok"])
         self.assertEqual(report["status"], "healthy")
         self.assertTrue(report["read_only"])
+        self.assertEqual(report["schema_version"], "muse.doctor.v1")
+        self.assertEqual(
+            set(report["runtime"]),
+            {"package_version", "python_version", "python_implementation", "platform", "executable"},
+        )
+        self.assertTrue(report["runtime"]["package_version"])
         self.assertEqual(report["credential_state"], {"ebay": "missing", "zhuanzhuan": "missing"})
         fixture_check = next(item for item in report["checks"] if item["name"] == "fixture_pipeline")
         self.assertTrue(fixture_check["ok"])
@@ -47,6 +53,12 @@ class DoctorTests(unittest.TestCase):
         report = json.loads(output.getvalue())
         self.assertFalse(report["ok"])
         self.assertEqual(report["status"], "unhealthy")
+
+    def test_version_command_reports_package_version(self):
+        with self.assertRaises(SystemExit) as raised:
+            with patch.object(sys, "argv", ["muse-doctor", "--version"]):
+                main()
+        self.assertEqual(raised.exception.code, 0)
 
 
 if __name__ == "__main__":
