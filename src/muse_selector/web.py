@@ -13,6 +13,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .connectors.ebay import EbayBrowseConnector
 from .pipeline import _allowed_source_url, run_search
+from .persistence import SelectorStore
 
 
 def _text(value: Any) -> str:
@@ -211,7 +212,10 @@ def render_html(payload: dict[str, Any], query: str) -> str:
 {body}</body></html>"""
 
 
-def make_handler(fixture_path: str | Path | None = None) -> type[BaseHTTPRequestHandler]:
+def make_handler(
+    fixture_path: str | Path | None = None,
+    store: SelectorStore | None = None,
+) -> type[BaseHTTPRequestHandler]:
     """Create a request handler bound to one fixture or source configuration."""
     fixture = str(fixture_path) if fixture_path is not None else None
 
@@ -224,6 +228,53 @@ def make_handler(fixture_path: str | Path | None = None) -> type[BaseHTTPRequest
             if parsed.path == "/api/capabilities":
                 content = json.dumps(capability_snapshot(), ensure_ascii=False, sort_keys=True).encode("utf-8")
                 self._send(200, "application/json; charset=utf-8", content)
+                return
+            if parsed.path == "/api/watch":
+                watch_id = parse_qs(parsed.query).get("watch_id", [""])[0].strip()
+                if not watch_id:
+                    self._send_json(
+                        400,
+                        {
+                            "ok": False,
+                            "status": "invalid_query",
+                            "message": "watch_id is required",
+                            "read_only": True,
+                        },
+                    )
+                    return
+                if store is None:
+                    self._send_json(
+                        503,
+                        {
+                            "ok": False,
+                            "status": "watch_unavailable",
+                            "message": "start the web view with --db to expose persisted watch snapshots",
+                            "read_only": True,
+                        },
+                    )
+                    return
+                watch = store.get_watch(watch_id)
+                if watch is None:
+                    self._send_json(
+                        404,
+                        {
+                            "ok": False,
+                            "status": "watch_not_found",
+                            "message": f"unknown watch_id: {watch_id}",
+                            "read_only": True,
+                        },
+                    )
+                    return
+                result: dict[str, Any] = {
+                    "ok": True,
+                    "status": "watch_ready",
+                    "read_only": True,
+                    "watch": watch,
+                }
+                run_id = watch.get("last_run_id")
+                if run_id:
+                    result["payload"] = store.replay_run(str(run_id))
+                self._send_json(200, result)
                 return
             if parsed.path == "/api/search":
                 query = parse_qs(parsed.query).get("q", [""])[0]
@@ -251,15 +302,25 @@ def make_handler(fixture_path: str | Path | None = None) -> type[BaseHTTPRequest
             self.end_headers()
             self.wfile.write(content)
 
+        def _send_json(self, status: int, payload: dict[str, Any]) -> None:
+            content = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+            self._send(status, "application/json; charset=utf-8", content)
+
         def log_message(self, format: str, *args: Any) -> None:
             return
 
     return Handler
 
 
-def serve(fixture_path: str | Path | None = None, host: str = "127.0.0.1", port: int = 8765) -> None:
+def serve(
+    fixture_path: str | Path | None = None,
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    db_path: str | Path | None = None,
+) -> None:
     host = _validate_bind_host(host)
-    server = ThreadingHTTPServer((host, port), make_handler(fixture_path))
+    store = SelectorStore(db_path) if db_path is not None else None
+    server = ThreadingHTTPServer((host, port), make_handler(fixture_path, store))
     print(f"Muse Selector read-only web view: http://{host}:{server.server_port}/")
     try:
         server.serve_forever()
@@ -275,12 +336,13 @@ def main() -> int:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--environment", choices=("sandbox", "production"), default=None)
+    parser.add_argument("--db", default=None, help="local SQLite database for read-only /api/watch snapshots")
     args = parser.parse_args()
     previous_environment = os.environ.get("EBAY_ENVIRONMENT")
     try:
         if args.environment is not None:
             os.environ["EBAY_ENVIRONMENT"] = args.environment
-        serve(Path(args.fixture) if args.fixture else None, args.host, args.port)
+        serve(Path(args.fixture) if args.fixture else None, args.host, args.port, Path(args.db) if args.db else None)
     finally:
         if previous_environment is None:
             os.environ.pop("EBAY_ENVIRONMENT", None)

@@ -105,6 +105,19 @@ Invoke-RestMethod "http://127.0.0.1:8765/api/capabilities"
 
 返回只包含 `configured`、`partial` 或 `missing` 等凭据状态，不返回任何凭据值，也不会发起 eBay 或国内平台请求。
 
+如果要让本地页面读取已经保存的观察任务快照，可额外绑定 SQLite 文件：
+
+```powershell
+python -m muse_selector.web `
+  --fixture "D:\muse\tests\fixtures\ebay_hk_sample.json" `
+  --db "D:\muse\data\selector.sqlite3" `
+  --port 8765
+
+Invoke-RestMethod "http://127.0.0.1:8765/api/watch?watch_id=mini_pc_hk"
+```
+
+`/api/watch` 只读取 watch 元数据和最新已保存结果，不会刷新来源、不调用连接器，也不会写入 SQLite；未绑定 `--db` 或 watch 不存在时返回结构化 `watch_unavailable` / `watch_not_found`。
+
 运行离线回归：
 
 ```powershell

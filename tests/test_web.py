@@ -2,13 +2,16 @@ import json
 import os
 import sys
 import threading
+import tempfile
 import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.request import urlopen
 from unittest.mock import patch
 
 from muse_selector.web import capability_snapshot, main, make_handler, render_html, serve
+from muse_selector.persistence import SelectorStore
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -170,6 +173,73 @@ class WebTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join(timeout=2)
+
+    def test_watch_endpoint_returns_saved_snapshot_without_refreshing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            watch_id = store.add_watch(
+                "香港预算 HKD 7000 以内的迷你主机",
+                FIXTURE,
+                watch_id="watch_web",
+            )
+            refreshed = store.refresh_watch(watch_id)
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE, store))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with patch("muse_selector.web.run_search", side_effect=AssertionError("watch endpoint refreshed")):
+                    with urlopen(
+                        f"http://127.0.0.1:{server.server_port}/api/watch?watch_id={watch_id}",
+                        timeout=2,
+                    ) as response:
+                        self.assertEqual(response.headers.get_content_type(), "application/json")
+                        payload = json.loads(response.read().decode("utf-8"))
+                self.assertTrue(payload["ok"])
+                self.assertTrue(payload["read_only"])
+                self.assertEqual(payload["status"], "watch_ready")
+                self.assertEqual(payload["watch"]["last_run_id"], refreshed["run_id"])
+                self.assertEqual(payload["payload"], refreshed["payload"])
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
+    def test_watch_endpoint_reports_structured_unavailable_and_not_found(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with self.assertRaises(HTTPError) as unavailable_error:
+                urlopen(
+                    f"http://127.0.0.1:{server.server_port}/api/watch?watch_id=missing",
+                    timeout=2,
+                )
+            self.assertEqual(getattr(unavailable_error.exception, "code", None), 503)
+            body = unavailable_error.exception.read().decode("utf-8")
+            self.assertEqual(json.loads(body)["status"], "watch_unavailable")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE, store))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with self.assertRaises(HTTPError) as not_found_error:
+                    urlopen(
+                        f"http://127.0.0.1:{server.server_port}/api/watch?watch_id=missing",
+                        timeout=2,
+                    )
+                self.assertEqual(getattr(not_found_error.exception, "code", None), 404)
+                body = not_found_error.exception.read().decode("utf-8")
+                self.assertEqual(json.loads(body)["status"], "watch_not_found")
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
 
     def test_local_server_json_search_endpoint_reuses_read_only_pipeline(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
