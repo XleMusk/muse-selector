@@ -77,6 +77,35 @@ class WebTests(unittest.TestCase):
         self.assertNotIn("javascript:alert(1)", page)
         self.assertIn("href=' #'".replace(" ", ""), page)
 
+    def test_render_shows_safe_link_only_entries(self):
+        payload = {
+            "ok": False,
+            "status": "source_unavailable",
+            "message": "官方挂牌搜索尚未接入",
+            "link_only": [
+                {
+                    "source_id": "xianyu.partner.v1",
+                    "display_name": "闲鱼",
+                    "status": "link_only",
+                    "entry_url": "https://www.goofish.com/",
+                    "manual_query": "国内 RTX 4070",
+                    "instruction": "请手动搜索",
+                    "read_only": True,
+                },
+                {
+                    "source_id": "bad",
+                    "display_name": "bad",
+                    "entry_url": "javascript:alert(1)",
+                    "manual_query": "unsafe",
+                },
+            ],
+        }
+        page = render_html(payload, "国内 RTX 4070")
+        self.assertIn("人工接管入口", page)
+        self.assertIn("https://www.goofish.com/", page)
+        self.assertIn("国内 RTX 4070", page)
+        self.assertNotIn("javascript:alert(1)", page)
+
     def test_local_server_health_and_result_page(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
         thread = threading.Thread(target=server.serve_forever, daemon=True)

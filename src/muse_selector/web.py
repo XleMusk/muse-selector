@@ -32,6 +32,33 @@ def _safe_href(value: Any) -> str:
     return candidate if _allowed_source_url(candidate) else "#"
 
 
+def _safe_manual_href(value: Any) -> str:
+    """Allow only the registered domestic platform entry domains."""
+
+    candidate = str(value or "")
+    try:
+        parsed = urlparse(candidate)
+        port = parsed.port
+    except ValueError:
+        return "#"
+    if (
+        parsed.scheme != "https"
+        or (parsed.hostname or "").lower() not in {
+            "goofish.com",
+            "www.goofish.com",
+            "zhuanzhuan.com",
+            "www.zhuanzhuan.com",
+        }
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
+        or parsed.fragment
+        or any(ord(char) < 0x20 or ord(char) == 0x7F for char in candidate)
+    ):
+        return "#"
+    return candidate
+
+
 def _validate_bind_host(host: str) -> str:
     """Keep the local result page on loopback to prevent cross-tenant reads."""
 
@@ -43,9 +70,31 @@ def _validate_bind_host(host: str) -> str:
 def render_html(payload: dict[str, Any], query: str) -> str:
     """Render a safe, source-visible result page from a pipeline payload."""
     if not payload.get("ok"):
+        link_only = payload.get("link_only") or []
+        entry_cards = []
+        for entry in link_only:
+            if not isinstance(entry, dict):
+                continue
+            href = _safe_manual_href(entry.get("entry_url"))
+            entry_cards.append(
+                "<article class='card'>"
+                f"<h2>{_text(entry.get('display_name') or entry.get('source_id') or '官方入口')}</h2>"
+                f"<p>状态：<code>{_text(entry.get('status') or 'link_only')}</code> · 只读：{_text(entry.get('read_only', True))}</p>"
+                f"<p>手动查询：<code>{_text(entry.get('manual_query') or query)}</code></p>"
+                f"<p>{_text(entry.get('instruction') or '请在官方平台内手动完成查询。')}</p>"
+                f"<p><a rel='noreferrer' target='_blank' href='{_text(href)}'>打开官方入口</a></p>"
+                "</article>"
+            )
+        manual_section = (
+            "<section class='manual-entry'><h2>人工接管入口</h2>"
+            f"<div class='cards'>{''.join(entry_cards)}</div></section>"
+            if entry_cards
+            else ""
+        )
         body = (
             "<section class='notice danger'><strong>"
             f"{_text(payload.get('status'))}</strong><p>{_text(payload.get('message', '请求被阻止'))}</p></section>"
+            f"{manual_section}"
         )
     else:
         spec = payload.get("search_spec") or {}
