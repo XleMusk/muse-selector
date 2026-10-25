@@ -6,6 +6,7 @@ import argparse
 import json
 
 from .connectors.zhuanzhuan import ConnectorUnavailable, ZhuanzhuanMcpConnector
+from .contracts import ZHUANZHUAN_SMOKE_SCHEMA_VERSION
 
 
 def main() -> int:
@@ -25,6 +26,7 @@ def main() -> int:
             )
     except (ConnectorUnavailable, ValueError) as exc:
         result = {
+            "schema_version": ZHUANZHUAN_SMOKE_SCHEMA_VERSION,
             "source_id": connector.source_id,
             "capability": "recycle_valuation",
             "ok": False,
@@ -32,6 +34,8 @@ def main() -> int:
             "message": str(exc),
             "read_only": True,
         }
+    else:
+        result = {"schema_version": ZHUANZHUAN_SMOKE_SCHEMA_VERSION, **result}
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0 if result.get("ok") else 2
 

@@ -9,7 +9,16 @@ import os
 import time
 from pathlib import Path
 
+from .contracts import RESULT_SCHEMA_VERSION
 from .persistence import SelectorStore
+
+
+def _print_result(result: dict) -> None:
+    """Print one versioned, read-only watch action envelope."""
+
+    body = dict(result)
+    body.setdefault("schema_version", RESULT_SCHEMA_VERSION)
+    print(json.dumps(body, ensure_ascii=False, indent=2, sort_keys=True))
 
 
 def default_watch_id(query: str, fixture: str | Path | None = None) -> str:
@@ -78,7 +87,7 @@ def main() -> int:
             "read_only": True,
             "watches": store.list_watches(),
         }
-        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        _print_result(result)
         return 0
     if args.action != "refresh":
         if not args.watch_id:
@@ -99,7 +108,7 @@ def main() -> int:
                 "limit": args.limit,
                 "offset": args.offset,
             }
-            print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+            _print_result(result)
             return 0
         if args.action == "pause":
             store.pause_watch(args.watch_id)
@@ -133,7 +142,7 @@ def main() -> int:
             if args.interval_seconds is not None:
                 kwargs["interval_seconds"] = args.interval_seconds
             result = {"action": "update", "watch": store.update_watch(args.watch_id, **kwargs)}
-        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        _print_result(result)
         return 0
 
     if not args.watch_id and not args.query:
@@ -156,7 +165,7 @@ def main() -> int:
 
     while True:
         result = _refresh_with_environment(store, watch_id, args.environment)
-        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        _print_result(result)
         if args.once:
             return 0 if result["payload"].get("ok") else 2
         time.sleep(interval_seconds)

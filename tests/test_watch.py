@@ -41,6 +41,7 @@ class WatchTests(unittest.TestCase):
             )
             self.assertEqual(code, 0)
             self.assertTrue(first["changed"])
+            self.assertEqual(first["schema_version"], "muse.selector.v1")
             code, status = invoke("--db", str(db), "--action", "status", "--watch-id", "watch_cli")
             self.assertEqual(code, 0)
             self.assertTrue(status["read_only"])

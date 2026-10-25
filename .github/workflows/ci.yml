@@ -34,7 +34,7 @@ jobs:
           watch_db="$RUNNER_TEMP/muse-watch.sqlite3"
           muse-watch --db "$watch_db" --query "香港预算 HKD 7000 以内的迷你主机" --fixture tests/fixtures/ebay_hk_sample.json --once > watch_first.json
           muse-watch --db "$watch_db" --query "香港预算 HKD 7000 以内的迷你主机" --fixture tests/fixtures/ebay_hk_sample.json --once > watch_second.json
-          python -c "import json; a=json.load(open('watch_first.json', encoding='utf-8')); b=json.load(open('watch_second.json', encoding='utf-8')); assert a['changed'] is True; assert b['changed'] is False; assert a['run_id'] == b['run_id']"
+          python -c "import json; a=json.load(open('watch_first.json', encoding='utf-8')); b=json.load(open('watch_second.json', encoding='utf-8')); assert a['schema_version'] == 'muse.selector.v1'; assert b['schema_version'] == 'muse.selector.v1'; assert a['changed'] is True; assert b['changed'] is False; assert a['run_id'] == b['run_id']"
           set +e
           env -u EBAY_CLIENT_ID -u EBAY_CLIENT_SECRET muse-live-smoke --query "香港 RTX 4070 显卡，预算 HKD 9000" > live_smoke.json
           smoke_status=$?
