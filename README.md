@@ -139,7 +139,7 @@ eBay Browse API 的官方要求不允许合作方在客户端重新排序搜索�
 
 ## 可选 eBay 只读 API
 
-没有凭据时连接器会 fail-closed，只能使用 fixture。拿到 eBay 官方应用凭据后，仍然只调用 Browse API 的搜索接口：
+没有凭据或 eBay Buy API 生产访问批准时连接器会 fail-closed，只能使用 fixture。拿到官方 Production 应用凭据并完成 eBay 要求的生产访问流程后，仍然只调用 Browse API 的搜索接口：
 
 ```powershell
 $env:EBAY_CLIENT_ID = "<official-app-id>"

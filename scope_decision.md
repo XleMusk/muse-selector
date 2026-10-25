@@ -13,7 +13,7 @@
 - 地区：香港（`HK`）。
 - 币种：港币（`HKD`）。
 - 品类：电脑、笔记本、迷你主机、显卡、扩展坞和其他硬件配件。
-- 首个来源：eBay Browse API 的 `EBAY_HK` 市场，连接器标识为 `ebay.browse.hk.v1`。
+- 已验证基线来源：eBay Browse API 的 `EBAY_HK` 市场，连接器标识为 `ebay.browse.hk.v1`。
 - 允许的网络动作：OAuth client-credentials 取应用访问令牌，以及 `item_summary/search` 的只读 `GET`。
 - 结果要求：来源 URL、来源标识、抓取/观测时间、字段级证据、成本状态、风险和只读状态必须可追溯。
 
@@ -54,4 +54,4 @@ python -m unittest discover -s tests -p "test_*.py" -v
 python tests/regression_harness.py
 ```
 
-当前验收还需要真实 eBay 官方应用凭据才能证明实时 API 成功响应；没有凭据时不得伪造 live 成功。
+当前验收需要 eBay Buy API 生产访问批准、正式协议和官方 Production 应用凭据，才能证明实时 API 成功响应；Production keyset 本身不等于生产访问权限。没有这些条件时不得伪造 live 成功。

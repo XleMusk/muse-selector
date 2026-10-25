@@ -7,7 +7,7 @@
 | 目标要求 | 当前证据 | 状态 |
 | --- | --- | --- |
 | 香港/HKD/电脑硬件 `SearchSpec` | `src/muse_selector/contracts.py`、`src/muse_selector/query_parser.py`、`tests/fixtures/search_queries_v1.json`、`tests/test_query_parser.py` | 已通过 |
-| eBay HK 官方只读连接器 | `data/source_registry.yaml`、`src/muse_selector/connectors/ebay.py`、`tests/test_ebay_connector.py` | 已通过 |
+| eBay HK 官方只读连接器 | `data/source_registry.yaml`、`src/muse_selector/connectors/ebay.py`、`tests/test_ebay_connector.py` | 连接器契约已通过；生产访问批准和凭据待完成 |
 | OAuth/Browse 失败关闭与端点锁定 | `tests/test_ebay_live_adapter.py`、`tests/test_ebay_connector.py` | 已通过 |
 | 实时字段适配、抓取时间和结束 listing 过滤 | `tests/test_ebay_live_adapter.py`、`tests/test_ebay_connector.py`、`src/muse_selector/filtering.py` | 适配逻辑已通过；已依据 `itemEndDate` 与 live 观测时间硬过滤；真实 API 待凭据 |
 | 来源、时间、字段证据、风险结果卡 | `src/muse_selector/result_card.py`、`src/muse_selector/web.py`、`tests/test_pipeline.py`、`tests/test_web.py` | 已通过 |
@@ -23,7 +23,7 @@
 
 ## 当前外部验收门
 
-香港 eBay 基线需要官方应用凭据 `EBAY_CLIENT_ID` 和 `EBAY_CLIENT_SECRET` 才能运行真实一次性 smoke：
+香港 eBay 基线需要 eBay Buy API 生产访问批准/协议以及官方 Production 应用凭据 `EBAY_CLIENT_ID` 和 `EBAY_CLIENT_SECRET` 才能运行真实一次性 smoke：
 
 ```powershell
 $env:EBAY_CLIENT_ID = "<official-app-id>"
@@ -31,6 +31,6 @@ $env:EBAY_CLIENT_SECRET = "<official-cert-id>"
 muse-live-smoke --query "香港 RTX 4070 显卡，预算 HKD 9000"
 ```
 
-没有凭据时，预期结果是 `source_unavailable`、`read_only=true`、退出码 `2`。在凭据注入前，不把 fixture 或模拟 opener 宣称为实时市场成功。
+没有凭据或生产访问尚未开通时，预期结果是 `source_unavailable`、`read_only=true`、退出码 `2`。在生产批准、凭据和真实响应都验证前，不把 fixture 或模拟 opener 宣称为实时市场成功。
 
 中国大陆挂牌搜索还需要闲鱼或其他国内平台提供明确的官方搜索权限/合作方接口。转转当前官方能力是估价和回收入口，不能作为挂牌搜索验收门；取得 Token 后可单独验证估价辅助链路。

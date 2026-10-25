@@ -16,13 +16,15 @@ sources:
     credentials_from_environment:
       - EBAY_CLIENT_ID
       - EBAY_CLIENT_SECRET
+    production_access_status: partner_approval_pending
     default_policy: allow_read_only
     retention_days: 30
     cache_ttl_minutes: 15
     kill_switch: source_ebay_browse_hk
     notes: >-
-      Search-only adapter. Review current eBay API License Agreement and Buy
-      API requirements before production release.
+      Search-only adapter. Browse API production use is subject to eBay Buy
+      API production access approval, Partner Network terms, and the current
+      API License Agreement.
 
   - source_id: xianyu.partner.v1
     display_name: 闲鱼官方合作方能力（待搜索权限）
