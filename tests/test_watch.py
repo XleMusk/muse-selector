@@ -162,6 +162,28 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual(listed["watches"], [])
 
+    def test_cli_events_reads_deduplicated_local_threshold_events(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / "watch.sqlite3"
+
+            def invoke(*args):
+                output = io.StringIO()
+                with patch.object(sys, "argv", ["muse-watch", *args]), contextlib.redirect_stdout(output):
+                    code = main()
+                return code, json.loads(output.getvalue())
+
+            code, refreshed = invoke(
+                "--db", str(db), "--action", "refresh", "--watch-id", "threshold_cli",
+                "--query", "香港预算 HKD 7000 以内的迷你主机", "--fixture", str(FIXTURE),
+                "--price-max", "7000", "--stock-required", "--once",
+            )
+            self.assertEqual(code, 0)
+            self.assertEqual({event["event_type"] for event in refreshed["events"]}, {"price_max_reached", "stock_available"})
+            code, events = invoke("--db", str(db), "--action", "events", "--watch-id", "threshold_cli")
+            self.assertEqual(code, 0)
+            self.assertEqual(len(events["events"]), 2)
+            self.assertTrue(events["read_only"])
+
     def test_cli_refresh_environment_selects_sandbox(self):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / "watch.sqlite3"
@@ -176,6 +198,25 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(code, 2)
             payload = json.loads(output.getvalue())
             self.assertEqual(payload["payload"]["source_metadata"]["environment"], "sandbox")
+
+    def test_cli_events_reads_local_threshold_events_without_refreshing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / "watch.sqlite3"
+            output = io.StringIO()
+            with patch.object(sys, "argv", [
+                "muse-watch", "--db", str(db), "--action", "refresh", "--watch-id", "watch_events",
+                "--query", "香港预算 HKD 7000 以内的迷你主机", "--fixture", str(FIXTURE),
+                "--price-max", "7000", "--stock-required", "--once",
+            ]), contextlib.redirect_stdout(output):
+                self.assertEqual(main(), 0)
+            output = io.StringIO()
+            with patch.object(sys, "argv", [
+                "muse-watch", "--db", str(db), "--action", "events", "--watch-id", "watch_events",
+            ]), contextlib.redirect_stdout(output):
+                self.assertEqual(main(), 0)
+            result = json.loads(output.getvalue())
+            self.assertEqual(result["schema_version"], "muse.selector.v1")
+            self.assertEqual(len(result["events"]), 2)
 
     def test_cli_status_reports_missing_checkpoint_without_traceback(self):
         with tempfile.TemporaryDirectory() as directory:

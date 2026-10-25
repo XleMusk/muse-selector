@@ -28,6 +28,7 @@ W2 的真实生产授权是唯一外部门。没有 keyset 时只完成合同、
 | W7 观察任务增强 | P5 + P8 | 价格/库存/配送阈值、SQLite 本地事件 outbox、事件去重键、异常自动暂停 | 相同 `watch_id + event_key` 只产生一次事件；重启后可恢复；通知先保留为本地读取，不连接邮件、短信或平台写接口 |
 
 已有 `watch_changes`、`last_change_summary` 和本地重放作为基础，先扩展状态和事件契约，再考虑任何外部通知。
+当前已完成第一步：`watch_events` 持久化了 `price_max`、`stock_required`、`max_delivery_days` 的本地阈值事件，并通过 CLI `events` 和 Web `/api/watch/events` 只读读取；下一步仍是异常自动暂停和更完整的阈值跨越语义。
 
 ### Wave C：结果层、只读浏览器和红队恢复
 

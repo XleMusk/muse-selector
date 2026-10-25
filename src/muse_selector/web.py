@@ -434,6 +434,29 @@ def make_handler(
                     },
                 )
                 return
+            if parsed.path == "/api/watch/events":
+                params = parse_qs(parsed.query)
+                watch_id = params.get("watch_id", [""])[0].strip()
+                if not watch_id:
+                    self._send_json(400, {"ok": False, "status": "invalid_query", "message": "watch_id is required", "read_only": True})
+                    return
+                if store is None:
+                    self._send_json(503, {"ok": False, "status": "watch_unavailable", "message": "start the web view with --db to expose persisted watch events", "read_only": True})
+                    return
+                try:
+                    limit = int(params.get("limit", ["100"])[0])
+                    offset = int(params.get("offset", ["0"])[0])
+                    if limit <= 0 or limit > 1000 or offset < 0:
+                        raise ValueError
+                    events = store.list_watch_events(watch_id, limit=limit, offset=offset)
+                except ValueError:
+                    self._send_json(400, {"ok": False, "status": "invalid_query", "message": "limit must be 1..1000 and offset must be non-negative", "read_only": True})
+                    return
+                except KeyError:
+                    self._send_json(404, {"ok": False, "status": "watch_not_found", "message": f"unknown watch_id: {watch_id}", "read_only": True})
+                    return
+                self._send_json(200, {"ok": True, "status": "watch_events_ready", "read_only": True, "watch_id": watch_id, "limit": limit, "offset": offset, "events": events})
+                return
             if parsed.path == "/api/search":
                 params = parse_qs(parsed.query)
                 query = params.get("q", [""])[0]

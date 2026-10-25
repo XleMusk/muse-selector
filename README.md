@@ -170,6 +170,7 @@ Invoke-RestMethod "http://127.0.0.1:8765/api/watch/changes?watch_id=mini_pc_hk&i
 
 `/api/watch` 只读取单个 watch 元数据和最新已保存结果，`/api/watches` 返回全部 watch 元数据；两个端点都不会刷新来源、调用连接器或写入 SQLite。watch 元数据中的 `last_change_summary` 是最近一次刷新相对于上一个检查点的新增、移除、内容变化和状态变化摘要，即使观察进程已经退出也可以恢复。未绑定 `--db` 或 watch 不存在时返回结构化 `watch_unavailable` / `watch_not_found`。
 `/api/watch/changes` 返回该 watch 的持久化检查点历史（按最新在前排序），每个事件带 `run_id`、`changed`、摘要和观测时间；追加 `include_payload=1` 可在同一个只读响应中带出可重放的 run payload。支持 `limit`（1–1000）和 `offset` 分页，服务重启后仍可继续读取，重复刷新同一个 deterministic run 不会制造重复历史行。
+观察任务也可以保存 `price_max`、`stock_required`、`max_delivery_days` 三类本地阈值；刷新时产生 SQLite `watch_events`，相同 `watch_id + event_key` 只保留一次。CLI 使用 `muse-watch --action events` 读取，Web 使用 `/api/watch/events` 读取；这些事件不发送外部通知，也不调用来源写接口。
 
 运行离线回归：
 

@@ -64,7 +64,7 @@ def main() -> int:
     parser.add_argument("--db", default="data/selector.sqlite3")
     parser.add_argument(
         "--action",
-        choices=("refresh", "pause", "resume", "update", "replay", "status", "list", "changes"),
+        choices=("refresh", "pause", "resume", "update", "replay", "status", "list", "changes", "events"),
         default="refresh",
     )
     parser.add_argument("--query", default=None)
@@ -81,6 +81,10 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=100, help="maximum change events for --action changes")
     parser.add_argument("--offset", type=int, default=0, help="change event offset for --action changes")
     parser.add_argument("--include-payload", action="store_true", help="include replayable payloads for --action changes")
+    parser.add_argument("--price-max", default=None, help="local price threshold for --action refresh/update")
+    parser.add_argument("--stock-required", action="store_true", help="emit local events when a card is in stock")
+    parser.add_argument("--max-delivery-days", type=int, default=None, help="local delivery threshold for --action refresh/update")
+    parser.add_argument("--clear-thresholds", action="store_true", help="clear local watch thresholds on update")
     parser.add_argument("--once", action="store_true", help="refresh once and exit")
     args = parser.parse_args()
     if args.interval_seconds is not None and args.interval_seconds <= 0:
@@ -93,6 +97,15 @@ def main() -> int:
         parser.error("--offset must be non-negative")
     if args.include_payload and args.action != "changes":
         parser.error("--include-payload is only valid with --action changes")
+    if args.clear_thresholds and args.action != "update":
+        parser.error("--clear-thresholds is only valid with --action update")
+    thresholds = {}
+    if args.price_max is not None:
+        thresholds["price_max"] = args.price_max
+    if args.stock_required:
+        thresholds["stock_required"] = True
+    if args.max_delivery_days is not None:
+        thresholds["max_delivery_days"] = args.max_delivery_days
 
     store = SelectorStore(Path(args.db))
     if args.action == "list":
@@ -131,6 +144,20 @@ def main() -> int:
                 "offset": args.offset,
             }
             _print_result(result)
+            return 0
+        if args.action == "events":
+            try:
+                events = store.list_watch_events(args.watch_id, limit=args.limit, offset=args.offset)
+            except KeyError as exc:
+                return _print_error("events", "watch_not_found", _exception_message(exc))
+            _print_result({
+                "action": "events",
+                "watch_id": args.watch_id,
+                "read_only": True,
+                "events": events,
+                "limit": args.limit,
+                "offset": args.offset,
+            })
             return 0
         if args.action == "pause":
             try:
@@ -186,6 +213,8 @@ def main() -> int:
                 kwargs["interval_seconds"] = args.interval_seconds
             if args.environment is not None:
                 kwargs["environment"] = args.environment
+            if args.clear_thresholds or thresholds:
+                kwargs["thresholds"] = {} if args.clear_thresholds else thresholds
             try:
                 updated_watch = store.update_watch(args.watch_id, **kwargs)
             except KeyError as exc:
@@ -216,6 +245,7 @@ def main() -> int:
             interval_seconds=interval_seconds,
             watch_id=watch_id,
             environment=selected_environment,
+            thresholds=thresholds or None,
         )
         existing = store.get_watch(watch_id)
     interval_seconds = args.interval_seconds or int(existing["interval_seconds"])

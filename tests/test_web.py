@@ -414,6 +414,57 @@ class WebTests(unittest.TestCase):
                 server.server_close()
                 thread.join(timeout=2)
 
+    def test_watch_events_endpoint_reads_local_threshold_events(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            watch_id = store.add_watch(
+                "香港预算 HKD 7000 以内的迷你主机",
+                FIXTURE,
+                watch_id="watch_events_web",
+                thresholds={"price_max": "7000", "stock_required": True},
+            )
+            store.refresh_watch(watch_id)
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE, store))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with urlopen(f"http://127.0.0.1:{server.server_port}/api/watch/events?watch_id={watch_id}", timeout=2) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(payload["status"], "watch_events_ready")
+                self.assertEqual(len(payload["events"]), 2)
+                self.assertTrue(payload["read_only"])
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
+    def test_watch_events_endpoint_reads_deduplicated_local_threshold_events(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            watch_id = store.add_watch(
+                "香港预算 HKD 7000 以内的迷你主机",
+                FIXTURE,
+                watch_id="watch_events_web",
+                thresholds={"price_max": "7000", "stock_required": True},
+            )
+            store.refresh_watch(watch_id)
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE, store))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with urlopen(
+                    f"http://127.0.0.1:{server.server_port}/api/watch/events?watch_id={watch_id}",
+                    timeout=2,
+                ) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(payload["schema_version"], RESULT_SCHEMA_VERSION)
+                self.assertEqual(payload["status"], "watch_events_ready")
+                self.assertEqual(len(payload["events"]), 2)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
     def test_local_server_json_search_endpoint_reuses_read_only_pipeline(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(FIXTURE))
         thread = threading.Thread(target=server.serve_forever, daemon=True)

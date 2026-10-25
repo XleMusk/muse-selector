@@ -78,6 +78,32 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(updated["environment"], "production")
             self.assertIsNone(updated["last_run_id"])
 
+    def test_watch_threshold_events_are_persisted_and_deduplicated(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            watch_id = store.add_watch(
+                "香港预算 HKD 7000 以内的迷你主机",
+                FIXTURE,
+                watch_id="watch_thresholds",
+                thresholds={"price_max": "7000", "stock_required": True},
+            )
+            first = store.refresh_watch(watch_id)
+            second = store.refresh_watch(watch_id)
+            self.assertEqual(len(first["events"]), 2)
+            self.assertEqual(second["events"], [])
+            self.assertEqual(store.get_watch(watch_id)["thresholds"], {"price_max": "7000.00", "stock_required": True})
+            events = store.list_watch_events(watch_id)
+            self.assertEqual(len(events), 2)
+            self.assertEqual({event["event_type"] for event in events}, {"price_max_reached", "stock_available"})
+
+    def test_watch_thresholds_reject_unknown_or_invalid_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            with self.assertRaisesRegex(ValueError, "unsupported watch threshold"):
+                store.add_watch("香港预算 HKD 7000 以内的迷你主机", FIXTURE, thresholds={"unknown": 1})
+            with self.assertRaisesRegex(ValueError, "price_max"):
+                store.add_watch("香港预算 HKD 7000 以内的迷你主机", FIXTURE, thresholds={"price_max": -1})
+
     def test_list_cards_preserves_source_rank_for_replay(self):
         with tempfile.TemporaryDirectory() as directory:
             store = SelectorStore(Path(directory) / "selector.sqlite3")
@@ -271,6 +297,22 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(len(store.list_cards(first["run_id"])), 1)
             self.assertEqual(store.list_watches()[0]["last_run_id"], first["run_id"])
             self.assertEqual(store.get_watch(watch_id)["last_change_summary"], second["change_summary"])
+
+    def test_watch_threshold_events_are_persisted_and_deduplicated(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(Path(directory) / "selector.sqlite3")
+            watch_id = store.add_watch(
+                "香港预算 HKD 7000 以内的迷你主机",
+                FIXTURE,
+                watch_id="watch_thresholds",
+                thresholds={"price_max": "7000", "stock_required": True},
+            )
+            first = store.refresh_watch(watch_id)
+            self.assertEqual({event["event_type"] for event in first["events"]}, {"price_max_reached", "stock_available"})
+            self.assertEqual(len(store.list_watch_events(watch_id)), 2)
+            second = store.refresh_watch(watch_id)
+            self.assertEqual(second["events"], [])
+            self.assertEqual(len(store.list_watch_events(watch_id)), 2)
 
     def test_watch_change_history_is_distinct_and_replayable(self):
         with tempfile.TemporaryDirectory() as directory:

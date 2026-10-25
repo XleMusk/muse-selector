@@ -16,7 +16,7 @@
 | 搜索/Smoke/Web 顶层结果契约版本 | `RESULT_SCHEMA_VERSION`、`tests/test_pipeline.py`、`tests/test_smoke.py`、`tests/test_web.py` | `muse.selector.v1` 已通过 |
 | 来源顺序与单页召回 | `src/muse_selector/pipeline.py`、`tests/test_ebay_live_adapter.py` | 已通过；不自动跟随 `next` |
 | CLI 和本地结果页 | `src/muse_selector/cli.py`、`src/muse_selector/web.py`、README 运行命令 | 已实际运行 |
-| SQLite 持久化和观察任务 | `src/muse_selector/persistence.py`、`src/muse_selector/watch.py`、`tests/test_persistence.py`、`tests/test_watch.py` | 已实际运行 |
+| SQLite 持久化和观察任务 | `src/muse_selector/persistence.py`、`src/muse_selector/watch.py`、`tests/test_persistence.py`、`tests/test_watch.py` | 已实际运行；本地价格/库存/配送阈值事件可去重读取 |
 | 单任务状态图与 checkpoint 重放 | `src/muse_selector/state_graph.py`、`tests/test_state_graph.py`、`.github/workflows/ci.yml` | 阶段状态、请求指纹和无连接器重放已通过 |
 | Watch 变化检查点历史与本地重放读取 | `watch_changes` 表、`muse-watch --action changes`、`/api/watch/changes`、`tests/test_persistence.py`、`tests/test_web.py` | 已实际运行 |
 | 离线回归、硬约束/排名和实体质量基线 | `tests/regression_harness.py`、`tests/fixtures/queries.json`、`examples/regression_result.json` | `ok=true`；`hard_constraint_violation_rate=0.0`；已输出 Precision@10、Recall@20、NDCG@10、Top-k Jaccard、显式实体键去重和 TTL 质量报告 |

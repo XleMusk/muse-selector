@@ -13,6 +13,7 @@ import sqlite3
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -28,6 +29,38 @@ def _now() -> str:
 
 def _canonical(value: Mapping[str, Any]) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _normalize_thresholds(value: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Normalize local watch thresholds without creating external side effects."""
+
+    if value is None:
+        return {}
+    if not isinstance(value, Mapping):
+        raise ValueError("watch thresholds must be an object")
+    allowed = {"price_max", "stock_required", "max_delivery_days"}
+    unknown = sorted(set(value) - allowed)
+    if unknown:
+        raise ValueError(f"unsupported watch threshold(s): {unknown}")
+    result: dict[str, Any] = {}
+    if "price_max" in value and value["price_max"] is not None:
+        try:
+            amount = Decimal(str(value["price_max"]))
+        except (InvalidOperation, ValueError) as exc:
+            raise ValueError("price_max must be a non-negative number") from exc
+        if not amount.is_finite() or amount < 0:
+            raise ValueError("price_max must be a non-negative number")
+        result["price_max"] = f"{amount.quantize(Decimal('0.01')):.2f}"
+    if "stock_required" in value:
+        if not isinstance(value["stock_required"], bool):
+            raise ValueError("stock_required must be boolean")
+        result["stock_required"] = value["stock_required"]
+    if "max_delivery_days" in value and value["max_delivery_days"] is not None:
+        days = value["max_delivery_days"]
+        if isinstance(days, bool) or not isinstance(days, int) or days < 0:
+            raise ValueError("max_delivery_days must be a non-negative integer")
+        result["max_delivery_days"] = days
+    return result
 
 
 def run_id_for_payload(payload: Mapping[str, Any]) -> str:
@@ -163,7 +196,8 @@ class SelectorStore:
                     created_at TEXT NOT NULL,
                     last_run_id TEXT,
                     last_refreshed_at TEXT,
-                    last_change_summary_json TEXT
+                    last_change_summary_json TEXT,
+                    thresholds_json TEXT NOT NULL DEFAULT '{}'
                 );
                 CREATE TABLE IF NOT EXISTS watch_changes (
                     change_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -176,6 +210,18 @@ class SelectorStore:
                 );
                 CREATE INDEX IF NOT EXISTS idx_watch_changes_watch_id
                     ON watch_changes(watch_id, change_id DESC);
+                CREATE TABLE IF NOT EXISTS watch_events (
+                    event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    watch_id TEXT NOT NULL REFERENCES watches(watch_id) ON DELETE CASCADE,
+                    observed_at TEXT NOT NULL,
+                    run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+                    event_key TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    UNIQUE (watch_id, event_key)
+                );
+                CREATE INDEX IF NOT EXISTS idx_watch_events_watch_id
+                    ON watch_events(watch_id, event_id DESC);
                 """
             )
             # Migrate databases created before optimistic refresh validation
@@ -187,6 +233,8 @@ class SelectorStore:
                 conn.execute("ALTER TABLE watches ADD COLUMN last_change_summary_json TEXT")
             if "environment" not in watch_columns:
                 conn.execute("ALTER TABLE watches ADD COLUMN environment TEXT NOT NULL DEFAULT 'production'")
+            if "thresholds_json" not in watch_columns:
+                conn.execute("ALTER TABLE watches ADD COLUMN thresholds_json TEXT NOT NULL DEFAULT '{}'")
             card_columns = {row["name"] for row in conn.execute("PRAGMA table_info(result_cards)")}
             if "source_rank" not in card_columns:
                 conn.execute("ALTER TABLE result_cards ADD COLUMN source_rank INTEGER NOT NULL DEFAULT 0")
@@ -258,6 +306,7 @@ class SelectorStore:
         interval_seconds: int = 900,
         watch_id: str | None = None,
         environment: str = "production",
+        thresholds: Mapping[str, Any] | None = None,
     ) -> str:
         if not query.strip():
             raise ValueError("watch query must be non-empty")
@@ -265,11 +314,12 @@ class SelectorStore:
             raise ValueError("interval_seconds must be positive")
         if environment not in {"production", "sandbox"}:
             raise ValueError("environment must be production or sandbox")
+        normalized_thresholds = _normalize_thresholds(thresholds)
         resolved_id = watch_id or f"watch_{uuid.uuid4().hex[:16]}"
         with self._connection() as conn:
             conn.execute(
-                "INSERT INTO watches(watch_id, query, fixture_path, environment, interval_seconds, enabled, revision, created_at) VALUES (?, ?, ?, ?, ?, 1, 0, ?)",
-                (resolved_id, query.strip(), str(fixture_path) if fixture_path is not None else None, environment, int(interval_seconds), _now()),
+                "INSERT INTO watches(watch_id, query, fixture_path, environment, interval_seconds, enabled, revision, created_at, thresholds_json) VALUES (?, ?, ?, ?, ?, 1, 0, ?, ?)",
+                (resolved_id, query.strip(), str(fixture_path) if fixture_path is not None else None, environment, int(interval_seconds), _now(), _canonical(normalized_thresholds)),
             )
         return resolved_id
 
@@ -297,6 +347,14 @@ class SelectorStore:
                 result["last_change_summary"] = None
         else:
             result["last_change_summary"] = None
+        encoded_thresholds = result.pop("thresholds_json", None)
+        if encoded_thresholds:
+            try:
+                result["thresholds"] = json.loads(encoded_thresholds)
+            except (TypeError, ValueError):
+                result["thresholds"] = {}
+        else:
+            result["thresholds"] = {}
         return result
 
     def get_watch(self, watch_id: str) -> dict[str, Any] | None:
@@ -333,6 +391,7 @@ class SelectorStore:
         fixture_path: str | Path | None | object = _UNSET,
         interval_seconds: int | None = None,
         environment: str | None = None,
+        thresholds: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Apply a user edit and clear the checkpoint when its input changes.
 
@@ -369,6 +428,10 @@ class SelectorStore:
             updates.append("environment = ?")
             values.append(environment)
             input_changed = input_changed or environment != current.get("environment", "production")
+        if thresholds is not None:
+            normalized_thresholds = _normalize_thresholds(thresholds)
+            updates.append("thresholds_json = ?")
+            values.append(_canonical(normalized_thresholds))
         if input_changed:
             updates.extend(["last_run_id = NULL", "last_refreshed_at = NULL", "last_change_summary_json = NULL"])
         if updates:
@@ -452,6 +515,84 @@ class SelectorStore:
             result.append(item)
         return result
 
+    @staticmethod
+    def _threshold_events(
+        payload: Mapping[str, Any],
+        thresholds: Mapping[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Derive local read-only threshold events from recommended cards."""
+
+        if not isinstance(payload, Mapping) or not isinstance(thresholds, Mapping):
+            return []
+        events: list[dict[str, Any]] = []
+        for card in payload.get("recommended") or []:
+            if not isinstance(card, Mapping) or not card.get("listing_id"):
+                continue
+            listing_id = str(card["listing_id"])
+            if thresholds.get("price_max") is not None:
+                try:
+                    price = Decimal(str(card.get("landed_cost")))
+                    maximum = Decimal(str(thresholds["price_max"]))
+                except (InvalidOperation, TypeError, ValueError):
+                    price = maximum = None
+                if price is not None and maximum is not None and price <= maximum:
+                    value = f"{price.quantize(Decimal('0.01')):.2f}"
+                    events.append({
+                        "event_key": f"price_max:{listing_id}:{thresholds['price_max']}:{value}",
+                        "event_type": "price_max_reached",
+                        "listing_id": listing_id,
+                        "details": {"landed_cost": value, "price_max": thresholds["price_max"]},
+                    })
+            if thresholds.get("stock_required") is True and card.get("stock_status") in {"in_stock", "preorder"}:
+                status = str(card.get("stock_status"))
+                events.append({
+                    "event_key": f"stock_required:{listing_id}:{status}",
+                    "event_type": "stock_available",
+                    "listing_id": listing_id,
+                    "details": {"stock_status": status},
+                })
+            if thresholds.get("max_delivery_days") is not None:
+                days = card.get("delivery_max_days")
+                if isinstance(days, int) and not isinstance(days, bool) and days <= int(thresholds["max_delivery_days"]):
+                    events.append({
+                        "event_key": f"delivery:{listing_id}:{thresholds['max_delivery_days']}:{days}",
+                        "event_type": "delivery_within_limit",
+                        "listing_id": listing_id,
+                        "details": {"delivery_max_days": days, "max_delivery_days": thresholds["max_delivery_days"]},
+                    })
+        return events
+
+    def list_watch_events(self, watch_id: str, *, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+        """Read the deduplicated local threshold event feed without refreshing."""
+
+        if limit <= 0 or limit > 1000:
+            raise ValueError("limit must be between 1 and 1000")
+        if offset < 0:
+            raise ValueError("offset must be non-negative")
+        if self.get_watch(watch_id) is None:
+            raise KeyError(f"unknown watch_id: {watch_id}")
+        with self._connection() as conn:
+            rows = conn.execute(
+                "SELECT event_id, watch_id, observed_at, run_id, event_key, event_type, payload_json FROM watch_events WHERE watch_id = ? ORDER BY event_id DESC LIMIT ? OFFSET ?",
+                (watch_id, int(limit), int(offset)),
+            ).fetchall()
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            try:
+                details = json.loads(row["payload_json"])
+            except (TypeError, ValueError):
+                details = None
+            result.append({
+                "event_id": int(row["event_id"]),
+                "watch_id": row["watch_id"],
+                "observed_at": row["observed_at"],
+                "run_id": row["run_id"],
+                "event_key": row["event_key"],
+                "event_type": row["event_type"],
+                "details": details,
+            })
+        return result
+
     def refresh_watch(self, watch_id: str, *, environment: str | None = None) -> dict[str, Any]:
         with self._connection() as conn:
             row = conn.execute("SELECT * FROM watches WHERE watch_id = ?", (watch_id,)).fetchone()
@@ -499,6 +640,32 @@ class SelectorStore:
                 previous_payload = json.loads(previous["payload_json"]) if previous else None
             change_summary = watch_change_summary(previous_payload, payload)
             encoded_change_summary = _canonical(change_summary)
+            try:
+                thresholds = json.loads(current["thresholds_json"] or "{}")
+            except (TypeError, ValueError):
+                thresholds = {}
+            threshold_events = self._threshold_events(payload, thresholds)
+
+            def persist_threshold_events(event_run_id: str, observed_at: str) -> list[dict[str, Any]]:
+                inserted_events: list[dict[str, Any]] = []
+                for event in threshold_events:
+                    details = dict(event.get("details") or {})
+                    cursor = conn.execute(
+                        "INSERT OR IGNORE INTO watch_events(watch_id, observed_at, run_id, event_key, event_type, payload_json) VALUES (?, ?, ?, ?, ?, ?)",
+                        (watch_id, observed_at, event_run_id, str(event["event_key"]), str(event["event_type"]), _canonical(details)),
+                    )
+                    if cursor.rowcount == 1:
+                        inserted_events.append({
+                            "watch_id": watch_id,
+                            "run_id": event_run_id,
+                            "event_key": event["event_key"],
+                            "event_type": event["event_type"],
+                            "listing_id": event.get("listing_id"),
+                            "details": details,
+                            "observed_at": observed_at,
+                        })
+                return inserted_events
+
             if previous_payload and watch_content_fingerprint(previous_payload) == watch_content_fingerprint(payload):
                 observed_at = _now()
                 conn.execute(
@@ -515,11 +682,13 @@ class SelectorStore:
                     """,
                     (watch_id, observed_at, str(previous_run_id), encoded_change_summary),
                 )
+                events = persist_threshold_events(str(previous_run_id), observed_at)
                 return {
                     "watch_id": watch_id,
                     "run_id": previous_run_id,
                     "changed": False,
                     "change_summary": change_summary,
+                    "events": events,
                     "payload": payload,
                 }
 
@@ -537,11 +706,13 @@ class SelectorStore:
                 """,
                 (watch_id, observed_at, run_id, int(inserted), encoded_change_summary),
             )
+            events = persist_threshold_events(run_id, observed_at)
         return {
             "watch_id": watch_id,
             "run_id": run_id,
             "changed": inserted,
             "change_summary": change_summary,
+            "events": events,
             "payload": payload,
         }
 
