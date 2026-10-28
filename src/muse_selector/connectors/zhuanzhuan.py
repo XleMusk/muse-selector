@@ -400,8 +400,10 @@ class ZhuanzhuanMcpConnector:
         product = data.get("product") if isinstance(data.get("product"), Mapping) else None
         price = data.get("price") if isinstance(data.get("price"), Mapping) else None
         handoff = data.get("handoff") if isinstance(data.get("handoff"), Mapping) else None
-        warnings = data.get("warnings") if isinstance(data.get("warnings"), list) else []
-        required_inputs = data.get("required_inputs") if isinstance(data.get("required_inputs"), list) else []
+        raw_warnings = data.get("warnings")
+        warnings: list[Any] = raw_warnings if isinstance(raw_warnings, list) else []
+        raw_required_inputs = data.get("required_inputs")
+        required_inputs: list[Any] = raw_required_inputs if isinstance(raw_required_inputs, list) else []
         return {
             "source_id": self.source_id,
             "capability": "recycle_valuation",

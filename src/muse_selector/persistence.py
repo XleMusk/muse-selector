@@ -568,6 +568,8 @@ class SelectorStore:
                 continue
             listing_id = str(card["listing_id"])
             if thresholds.get("price_max") is not None:
+                price: Decimal | None
+                maximum: Decimal | None
                 try:
                     price = Decimal(str(card.get("landed_cost")))
                     maximum = Decimal(str(thresholds["price_max"]))

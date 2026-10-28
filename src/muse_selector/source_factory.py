@@ -15,10 +15,9 @@ def build_source_connector(
 ) -> SourceConnector:
     """Build the default read-only eBay source adapter."""
 
-    connector_kwargs: dict[str, object] = {"fixture_path": fixture_path}
-    if environment is not None:
-        connector_kwargs["environment"] = environment
-    return EbayBrowseConnector(**connector_kwargs)
+    if environment is None:
+        return EbayBrowseConnector(fixture_path=fixture_path)
+    return EbayBrowseConnector(fixture_path=fixture_path, environment=environment)
 
 
 __all__ = ["build_source_connector"]

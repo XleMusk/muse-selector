@@ -139,7 +139,7 @@ def run_search(
     try:
         spec = parse_query(query)
     except PolicyBlockedError as exc:
-        policy = {
+        policy: dict[str, Any] = {
             "domain": getattr(exc, "domain", "policy"),
             "source_id": getattr(exc, "source_id", "policy.guard"),
             "reason_code": getattr(exc, "reason_code", "blocked_action"),

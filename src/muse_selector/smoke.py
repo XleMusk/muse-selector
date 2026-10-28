@@ -80,11 +80,12 @@ def summarize(payload: Mapping[str, Any]) -> dict[str, Any]:
             if item.get("observed_at")
         }
         summary["observed_at_samples"] = sorted(observed)[:5]
-        coverage = [
-            float(card.get("evidence_coverage"))
-            for card in payload.get("recommended") or []
-            if isinstance(card, Mapping) and isinstance(card.get("evidence_coverage"), (int, float))
-        ]
+        coverage: list[float] = []
+        for card in payload.get("recommended") or []:
+            if isinstance(card, Mapping):
+                evidence_coverage = card.get("evidence_coverage")
+                if isinstance(evidence_coverage, (int, float)):
+                    coverage.append(float(evidence_coverage))
         summary["evidence_coverage_min"] = min(coverage) if coverage else None
     else:
         summary["message"] = payload.get("message", "")

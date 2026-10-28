@@ -8,6 +8,7 @@ import json
 import os
 import time
 from pathlib import Path
+from typing import Any, cast
 
 from .contracts import RESULT_SCHEMA_VERSION
 from .persistence import SelectorStore
@@ -251,13 +252,15 @@ def main() -> int:
             thresholds=thresholds or None,
         )
         existing = store.get_watch(watch_id)
+    assert existing is not None
     interval_seconds = args.interval_seconds or int(existing["interval_seconds"])
 
     while True:
         result = _refresh_with_environment(store, watch_id, args.environment or existing.get("environment", "production"))
         _print_result(result)
         if args.once:
-            return 0 if result["payload"].get("ok") else 2
+            payload = cast(dict[str, Any], result["payload"])
+            return 0 if payload.get("ok") else 2
         time.sleep(interval_seconds)
 
 

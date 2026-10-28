@@ -577,8 +577,10 @@ class EbayBrowseConnector:
         source_metadata: Mapping[str, Any] | None = None,
         source_rank: int | None = None,
     ) -> dict[str, Any]:
-        price = item.get("price") if isinstance(item.get("price"), dict) else {}
-        seller = item.get("seller") if isinstance(item.get("seller"), dict) else {}
+        raw_price = item.get("price")
+        price = raw_price if isinstance(raw_price, Mapping) else {}
+        raw_seller = item.get("seller")
+        seller = raw_seller if isinstance(raw_seller, Mapping) else {}
         shipping = item.get("shippingOptions")
         if not isinstance(shipping, list):
             shipping = []
