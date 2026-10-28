@@ -10,6 +10,8 @@ from urllib.error import HTTPError
 from urllib.request import urlopen
 from unittest.mock import patch
 
+import muse_selector.web as web_module
+from muse_selector import web_views
 from muse_selector.web import capability_snapshot, main, make_handler, render_html, serve
 from muse_selector.contracts import RESULT_SCHEMA_VERSION
 from muse_selector.persistence import SelectorStore
@@ -20,6 +22,11 @@ FIXTURE = ROOT / "tests" / "fixtures" / "ebay_hk_sample.json"
 
 
 class WebTests(unittest.TestCase):
+    def test_rendering_is_extracted_with_web_compatibility_exports(self):
+        self.assertIs(render_html, web_views.render_html)
+        self.assertEqual(render_html.__module__, "muse_selector.web_views")
+        self.assertIs(web_module._text, web_views._text)
+
     def test_cli_environment_is_temporary_and_restored(self):
         with patch.dict(os.environ, {"EBAY_ENVIRONMENT": "production"}, clear=False):
             with patch("muse_selector.web.serve", side_effect=KeyboardInterrupt):
