@@ -2,7 +2,7 @@
 
 ## 目标和当前判断
 
-这份计划承接 `muse_like_execution_blueprint.md` 的 W2–W12，作为当前代码状态的单一执行记录。执行原则是：一条主关键路径、多个独立 Pod 并行、短提交持续合入；外部凭据等待期间继续完成所有本地工作，不把 fixture 或模拟响应写成实时成功。
+这份计划承接 `PROJECT_GOAL.md` 和 `muse_like_execution_blueprint.md`，作为当前代码状态的单一执行记录。执行原则是：一条主关键路径、多个独立 Pod 并行、短提交持续合入；外部凭据等待期间继续完成所有本地工作，不把 fixture 或模拟响应写成实时成功。
 
 截至 2026-10-28，仓库 `main` 的产品主线已切换为中国大陆二手电子产品与游戏账号只读发现；香港 eBay 只作为兼容基线保留。主线为 SearchSpec → 国内来源能力/人工入口 → 标准化证据 → 硬过滤与结果卡 → CLI/Web → SQLite watch/state replay。当前本地证据为 235 项测试通过，离线回归 `hard_constraint_violation_rate=0.0`，故障矩阵和合成指标均通过。
 
