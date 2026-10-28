@@ -197,7 +197,7 @@ def run_search_graph(
             raise ValueError("checkpoint must be an object")
         if checkpoint.get("execution_id") != execution_id:
             raise ValueError("checkpoint belongs to a different execution request")
-        if checkpoint.get("completed_stage") in {"fanout", "normalize", "filter", "rank"}:
+        if checkpoint.get("completed_stage") in {"fanout", "normalize", "filter", "rank", "verify"}:
             snapshots = checkpoint.get("stage_snapshots")
             completed_stage = str(checkpoint.get("completed_stage"))
             snapshot = snapshots.get(completed_stage) if isinstance(snapshots, Mapping) else None

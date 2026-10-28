@@ -252,6 +252,41 @@ def run_search(
         }
     source_id = resume_source_id or "ebay.browse.hk.v1"
     resume_mapping = resume_state if isinstance(resume_state, Mapping) else None
+    resumed_verify = resume_mapping is not None and resume_mapping.get("completed_stage") == "verify"
+    if resumed_verify:
+        assert resume_mapping is not None
+        raw_recommended = resume_mapping.get("recommended")
+        raw_matrix = resume_mapping.get("compatibility_matrix")
+        raw_rejected = resume_mapping.get("rejected")
+        raw_dropped = resume_mapping.get("dropped")
+        if (
+            not isinstance(raw_recommended, list)
+            or any(not isinstance(item, Mapping) for item in raw_recommended)
+            or not isinstance(raw_matrix, Mapping)
+            or not isinstance(raw_rejected, list)
+            or any(not isinstance(item, Mapping) for item in raw_rejected)
+            or not isinstance(raw_dropped, list)
+            or any(not isinstance(item, Mapping) for item in raw_dropped)
+        ):
+            raise ValueError("resume checkpoint verify snapshot is invalid")
+        raw_metadata = resume_mapping.get("source_metadata")
+        raw_capability = resume_mapping.get("source_capability")
+        return {
+            "schema_version": RESULT_SCHEMA_VERSION,
+            "ok": True,
+            "status": "complete",
+            "search_spec": spec.to_dict(),
+            "recommended": [dict(item) for item in raw_recommended],
+            "compatibility_matrix": dict(raw_matrix),
+            "ranking_policy": str(resume_mapping.get("ranking_policy") or "source_order_preserved"),
+            "rank_profile_id": str(resume_mapping.get("rank_profile_id") or SOURCE_ORDER_PROFILE.profile_id),
+            "rejected": [dict(item) for item in raw_rejected],
+            "dropped": [dict(item) for item in raw_dropped],
+            "source": source_id,
+            "source_metadata": dict(raw_metadata) if isinstance(raw_metadata, Mapping) else {},
+            "source_capability": dict(raw_capability) if isinstance(raw_capability, Mapping) else None,
+            "read_only": True,
+        }
     source_metadata: dict[str, Any] = {}
     resumed_source_capability: dict[str, Any] | None = None
     try:
@@ -512,7 +547,7 @@ def run_search(
                     "rejected": list(rejected),
                 },
             )
-    return {
+    result_payload = {
         "schema_version": RESULT_SCHEMA_VERSION,
         "ok": True,
         "status": "complete",
@@ -528,4 +563,21 @@ def run_search(
         "source_capability": resumed_source_capability or _source_capability(source_id, connector),
         "read_only": True,
     }
+    if stage_callback is not None:
+        stage_callback(
+            "verify",
+            {
+                "completed_stage": "verify",
+                "source_id": source_id,
+                "source_metadata": dict(source_metadata),
+                "source_capability": resumed_source_capability or _source_capability(source_id, connector),
+                "recommended": list(recommended_cards),
+                "compatibility_matrix": result_payload["compatibility_matrix"],
+                "ranking_policy": result_payload["ranking_policy"],
+                "rank_profile_id": result_payload["rank_profile_id"],
+                "rejected": list(rejected),
+                "dropped": list(dropped),
+            },
+        )
+    return result_payload
 
