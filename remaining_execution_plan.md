@@ -2,9 +2,19 @@
 
 ## 目标和当前判断
 
-这份计划承接 `muse_like_execution_blueprint.md` 的 W2–W12，不重新设计已经可运行的只读 MVP。执行原则是：一条主关键路径、多个独立 Pod 并行、每天合入主线、每个节点产出可运行 artifact；外部凭据等待期间继续完成所有本地工作。
+这份计划承接 `muse_like_execution_blueprint.md` 的 W2–W12，作为当前代码状态的单一执行记录。执行原则是：一条主关键路径、多个独立 Pod 并行、短提交持续合入；外部凭据等待期间继续完成所有本地工作，不把 fixture 或模拟响应写成实时成功。
 
-当前已经具备 W0/W1/W5 的完整主线，W2/W4 的核心连接器与硬过滤，W7/W9/W10 的部分能力。最新基线为 187 项测试通过、`hard_constraint_violation_rate=0.0`、CI 通过。仍未完成的重点是：W2 真实 eBay smoke、W3 质量报告、W6 完整状态图、W7 阈值事件、W8 只读浏览器、W9 兼容性矩阵和反馈、W10 故障演练、W11 灰度指标、W12 发布 Runbook。
+截至 2026-10-28，仓库 `main` 已形成可运行的香港 eBay 只读基线和中国大陆 fail-closed 路由：SearchSpec → 来源能力 → 连接器/人工入口 → 标准化证据 → 硬过滤与来源顺序 → 结果卡/兼容性 → CLI/Web → SQLite watch/state replay。当前本地证据为 229 项单元测试通过、离线回归 `hard_constraint_violation_rate=0.0`、故障矩阵和合成指标均通过，公开仓库最近 CI 为绿色。
+
+当前状态要按三类理解：
+
+| 范围 | 状态 | 说明 |
+|---|---|---|
+| 本地只读 MVP | 已完成 | CLI、loopback Web、eBay fixture/live 适配、结果卡、兼容性、watch、state replay、fault/metrics harness 可运行 |
+| 外部来源门 | 待外部条件 | eBay 生产批准/keyset/真实 smoke 尚未具备；中国大陆挂牌搜索暂无官方授权，国内结果保持 `source_unavailable` 或 `link_only` |
+| 扩展能力 | 部分完成 | W6 只有整包 checkpoint，W7 已有阈值事件去重和失败自动暂停但仍缺完整阈值跨越语义，W8 是只读 broker contract，W9 尚无反馈回放，W11 只有离线 synthetic，规模化存储/检索架构仍是后续阶段 |
+
+因此下一步不再重复已通过的本地门，而是按价值顺序处理：先修复真实用户输入的解析缺口并补上可复现的公开发行路径；随后推进 W7/W9 的低副作用本地能力；拿到官方授权后立即执行 eBay 或国内来源 smoke。W8 真实浏览器、FastAPI/Postgres/BM25/vector 等扩展不作为当前只读主线前置条件。
 
 ## 四波执行路线
 
@@ -25,10 +35,10 @@ W2 的真实生产授权是唯一外部门。没有 keyset 时只完成合同、
 | 工作包 | 主责 | 交付物 | 退出条件 |
 |---|---|---|---|
 | W6 单任务状态图 | P5 运行时 | `Parse → FanOut → Normalize → Filter → Rank → Verify → Present` 状态记录、checkpoint、暂停/恢复/重放 | 同一输入重放结果一致；崩溃后从最近 checkpoint 恢复；每个 stage 只有一个幂等 run；不依赖模型也能规则降级 |
-| W7 观察任务增强 | P5 + P8 | 价格/库存/配送阈值、SQLite 本地事件 outbox、事件去重键、异常自动暂停 | 相同 `watch_id + event_key` 只产生一次事件；重启后可恢复；通知先保留为本地读取，不连接邮件、短信或平台写接口 |
+| W7 观察任务增强 | P5 + P8 | 价格/库存/配送阈值、SQLite 本地事件 outbox、事件去重键、失败自动暂停 | 相同 `watch_id + event_key` 只产生一次事件；来源不可用、策略阻断或输入不完整时 watch 自动暂停；通知先保留为本地读取，不连接邮件、短信或平台写接口 |
 
 已有 `watch_changes`、`last_change_summary` 和本地重放作为基础，先扩展状态和事件契约，再考虑任何外部通知。
-当前已完成第一步：`watch_events` 持久化了 `price_max`、`stock_required`、`max_delivery_days` 的本地阈值事件，并通过 CLI `events` 和 Web `/api/watch/events` 只读读取；下一步仍是异常自动暂停和更完整的阈值跨越语义。
+当前已完成：`watch_events` 持久化了 `price_max`、`stock_required`、`max_delivery_days` 的本地阈值事件，并通过 CLI `events` 和 Web `/api/watch/events` 只读读取；来源不可用、策略阻断和需要补充条件的刷新会在同一事务中保存失败快照并自动暂停。剩余工作是更完整的阈值跨越语义和本地通知消费。
 
 ### Wave C：结果层、只读浏览器和红队恢复
 

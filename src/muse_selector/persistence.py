@@ -33,7 +33,7 @@ def _refresh_job(
     started_at: str,
     finished_at: str,
 ) -> RefreshJob:
-    failed_statuses = {"source_unavailable", "invalid_query", "policy_blocked"}
+    failed_statuses = {"source_unavailable", "invalid_query", "policy_blocked", "needs_clarification"}
     failed = payload.get("status") in failed_statuses
     return RefreshJob(
         job_id=f"{watch_id}:{revision}:{run_id}",
@@ -647,6 +647,12 @@ class SelectorStore:
         payload_dict = dict(payload)
         run_id = run_id_for_payload(payload_dict)
         serialized = _canonical(payload_dict)
+        auto_paused = payload_dict.get("status") in {
+            "source_unavailable",
+            "invalid_query",
+            "policy_blocked",
+            "needs_clarification",
+        }
 
         # Keep run insertion, result-card insertion and checkpoint advancement
         # in one transaction.  A process crash or a SQLite error during the
@@ -704,8 +710,8 @@ class SelectorStore:
             if previous_payload and watch_content_fingerprint(previous_payload) == watch_content_fingerprint(payload):
                 observed_at = _now()
                 conn.execute(
-                    "UPDATE watches SET last_refreshed_at = ?, last_change_summary_json = ? WHERE watch_id = ?",
-                    (observed_at, encoded_change_summary, watch_id),
+                    "UPDATE watches SET enabled = ?, last_refreshed_at = ?, last_change_summary_json = ? WHERE watch_id = ?",
+                    (0 if auto_paused else 1, observed_at, encoded_change_summary, watch_id),
                 )
                 # Backfill the first checkpoint for databases upgraded from a
                 # schema that had last_change_summary but no history table.
@@ -733,14 +739,15 @@ class SelectorStore:
                     "change_summary": change_summary,
                     "events": events,
                     "refresh_job": refresh_job.to_dict(),
+                    "auto_paused": auto_paused,
                     "payload": payload,
                 }
 
             run_id, inserted = self._save_run_connection(conn, payload_dict, run_id, serialized)
             observed_at = _now()
             conn.execute(
-                "UPDATE watches SET last_run_id = ?, last_refreshed_at = ?, last_change_summary_json = ? WHERE watch_id = ?",
-                (run_id, observed_at, encoded_change_summary, watch_id),
+                "UPDATE watches SET enabled = ?, last_run_id = ?, last_refreshed_at = ?, last_change_summary_json = ? WHERE watch_id = ?",
+                (0 if auto_paused else 1, run_id, observed_at, encoded_change_summary, watch_id),
             )
             conn.execute(
                 """
@@ -759,6 +766,7 @@ class SelectorStore:
             "change_summary": change_summary,
             "events": events,
             "refresh_job": refresh_job.to_dict(),
+            "auto_paused": auto_paused,
             "payload": payload,
         }
 
