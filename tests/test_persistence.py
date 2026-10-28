@@ -96,6 +96,71 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(len(events), 2)
             self.assertEqual({event["event_type"] for event in events}, {"price_max_reached", "stock_available"})
 
+    def test_watch_threshold_events_only_fire_on_crossing_and_reentry(self):
+        payloads = [
+            {
+                "ok": True,
+                "status": "complete",
+                "source": "fixture.local.v1",
+                "recommended": [{"listing_id": "item-1", "landed_cost": "7000.00", "stock_status": "in_stock"}],
+                "rejected": [],
+                "dropped": [],
+                "read_only": True,
+            },
+            {
+                "ok": True,
+                "status": "complete",
+                "source": "fixture.local.v1",
+                "recommended": [{"listing_id": "item-1", "landed_cost": "6500.00", "stock_status": "in_stock"}],
+                "rejected": [],
+                "dropped": [],
+                "read_only": True,
+            },
+            {
+                "ok": True,
+                "status": "complete",
+                "source": "fixture.local.v1",
+                "recommended": [{"listing_id": "item-1", "landed_cost": "8000.00", "stock_status": "out_of_stock"}],
+                "rejected": [],
+                "dropped": [],
+                "read_only": True,
+            },
+            {
+                "ok": True,
+                "status": "complete",
+                "source": "fixture.local.v1",
+                "recommended": [{"listing_id": "item-1", "landed_cost": "6500.00", "stock_status": "in_stock"}],
+                "rejected": [],
+                "dropped": [],
+                "read_only": True,
+            },
+        ]
+
+        with tempfile.TemporaryDirectory() as directory:
+            store = SelectorStore(
+                Path(directory) / "selector.sqlite3",
+                search_fn=lambda *_args, **_kwargs: payloads.pop(0),
+            )
+            watch_id = store.add_watch(
+                "国内预算 CNY 8000 以内的二手显卡",
+                watch_id="watch_crossing",
+                thresholds={"price_max": "7000", "stock_required": True},
+            )
+            first = store.refresh_watch(watch_id)
+            steady = store.refresh_watch(watch_id)
+            exited = store.refresh_watch(watch_id)
+            reentered = store.refresh_watch(watch_id)
+
+            self.assertEqual(len(first["events"]), 2)
+            self.assertEqual(steady["events"], [])
+            self.assertEqual(exited["events"], [])
+            self.assertEqual(len(reentered["events"]), 2)
+            self.assertNotEqual(
+                {event["event_key"] for event in first["events"]},
+                {event["event_key"] for event in reentered["events"]},
+            )
+            self.assertEqual(len(store.list_watch_events(watch_id)), 4)
+
     def test_watch_thresholds_reject_unknown_or_invalid_values(self):
         with tempfile.TemporaryDirectory() as directory:
             store = SelectorStore(Path(directory) / "selector.sqlite3")

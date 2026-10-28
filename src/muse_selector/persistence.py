@@ -17,6 +17,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
+from .feedback_contracts import FeedbackRecord
 from .watch_contracts import RefreshJob
 from .watch_contracts import WatchEvent, WatchSpec
 
@@ -254,6 +255,17 @@ class SelectorStore:
                 );
                 CREATE INDEX IF NOT EXISTS idx_watch_events_watch_id
                     ON watch_events(watch_id, event_id DESC);
+                CREATE TABLE IF NOT EXISTS feedback_events (
+                    feedback_id TEXT PRIMARY KEY,
+                    run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+                    listing_id TEXT NOT NULL,
+                    label TEXT NOT NULL,
+                    recorded_at TEXT NOT NULL,
+                    details_json TEXT NOT NULL,
+                    schema_version TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_feedback_events_run_id
+                    ON feedback_events(run_id, recorded_at DESC);
                 """
             )
             # Migrate databases created before optimistic refresh validation
@@ -329,6 +341,104 @@ class SelectorStore:
                 (run_id,),
             ).fetchall()
         return [json.loads(row["card_json"]) for row in rows]
+
+    def save_feedback(self, feedback: FeedbackRecord | Mapping[str, Any]) -> tuple[FeedbackRecord, bool]:
+        """Persist one local feedback record idempotently."""
+
+        record = feedback if isinstance(feedback, FeedbackRecord) else FeedbackRecord.from_mapping(feedback)
+        serialized = _canonical(record.details)
+        with self._connection() as conn:
+            cursor = conn.execute(
+                "INSERT OR IGNORE INTO feedback_events(feedback_id, run_id, listing_id, label, recorded_at, details_json, schema_version) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (record.feedback_id, record.run_id, record.listing_id, record.label, record.recorded_at, serialized, record.schema_version),
+            )
+            existing = conn.execute(
+                "SELECT run_id, listing_id, label, recorded_at, details_json, schema_version FROM feedback_events WHERE feedback_id = ?",
+                (record.feedback_id,),
+            ).fetchone()
+        if existing is None:  # pragma: no cover - INSERT OR IGNORE cannot omit a valid row
+            raise RuntimeError("feedback insert did not produce a row")
+        if (
+            existing["run_id"],
+            existing["listing_id"],
+            existing["label"],
+            existing["recorded_at"],
+            existing["details_json"],
+            existing["schema_version"],
+        ) != (
+            record.run_id,
+            record.listing_id,
+            record.label,
+            record.recorded_at,
+            serialized,
+            record.schema_version,
+        ):
+            raise ValueError("feedback_id already exists with different payload")
+        return record, cursor.rowcount == 1
+
+    def list_feedback(
+        self,
+        *,
+        run_id: str | None = None,
+        listing_id: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Read local feedback records in deterministic insertion order."""
+
+        if limit <= 0 or limit > 1000:
+            raise ValueError("limit must be between 1 and 1000")
+        if offset < 0:
+            raise ValueError("offset must be non-negative")
+        clauses: list[str] = []
+        values: list[Any] = []
+        if run_id is not None:
+            clauses.append("run_id = ?")
+            values.append(run_id)
+        if listing_id is not None:
+            clauses.append("listing_id = ?")
+            values.append(listing_id)
+        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        with self._connection() as conn:
+            rows = conn.execute(
+                "SELECT feedback_id, run_id, listing_id, label, recorded_at, details_json, schema_version FROM feedback_events"
+                + where
+                + " ORDER BY recorded_at, feedback_id LIMIT ? OFFSET ?",
+                (*values, int(limit), int(offset)),
+            ).fetchall()
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            try:
+                details = json.loads(row["details_json"])
+            except (TypeError, ValueError):
+                details = {}
+            result.append({
+                "feedback_id": row["feedback_id"],
+                "run_id": row["run_id"],
+                "listing_id": row["listing_id"],
+                "label": row["label"],
+                "recorded_at": row["recorded_at"],
+                "details": details,
+                "schema_version": row["schema_version"],
+            })
+        return result
+
+    def import_feedback_fixture(self, path: str | Path) -> dict[str, int | str]:
+        """Import a local JSON fixture into the feedback table."""
+
+        from .feedback_contracts import load_feedback_fixture
+
+        records = load_feedback_fixture(str(path))
+        inserted_count = 0
+        for record in records:
+            _, inserted = self.save_feedback(record)
+            inserted_count += int(inserted)
+        return {
+            "schema_version": "muse.selector.feedback.v1",
+            "event_count": len(records),
+            "inserted_count": inserted_count,
+            "existing_count": len(records) - inserted_count,
+        }
 
     def add_watch(
         self,
@@ -557,49 +667,80 @@ class SelectorStore:
     def _threshold_events(
         payload: Mapping[str, Any],
         thresholds: Mapping[str, Any],
+        previous_payload: Mapping[str, Any] | None = None,
+        transition_key: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Derive local read-only threshold events from recommended cards."""
+        """Derive events only when a card enters a configured threshold.
+
+        A changed value that remains inside the same threshold is not a new
+        event.  ``transition_key`` makes a later re-entry distinct from the
+        first entry while repeated refreshes of the same run remain idempotent.
+        """
 
         if not isinstance(payload, Mapping) or not isinstance(thresholds, Mapping):
             return []
+
+        def matching_states(candidate: Mapping[str, Any] | None) -> dict[str, dict[str, Any]]:
+            states: dict[str, dict[str, Any]] = {}
+            if not isinstance(candidate, Mapping):
+                return states
+            for card in candidate.get("recommended") or []:
+                if not isinstance(card, Mapping) or not card.get("listing_id"):
+                    continue
+                listing_id = str(card["listing_id"])
+                if thresholds.get("price_max") is not None:
+                    price: Decimal | None
+                    maximum: Decimal | None
+                    try:
+                        price = Decimal(str(card.get("landed_cost")))
+                        maximum = Decimal(str(thresholds["price_max"]))
+                    except (InvalidOperation, TypeError, ValueError):
+                        price = maximum = None
+                    if price is not None and maximum is not None and price <= maximum:
+                        value = f"{price.quantize(Decimal('0.01')):.2f}"
+                        state_key = f"price_max:{listing_id}:{thresholds['price_max']}"
+                        states[state_key] = {
+                            "event_type": "price_max_reached",
+                            "listing_id": listing_id,
+                            "details": {"landed_cost": value, "price_max": thresholds["price_max"]},
+                        }
+                if thresholds.get("stock_required") is True and card.get("stock_status") in {"in_stock", "preorder"}:
+                    status = str(card.get("stock_status"))
+                    state_key = f"stock_required:{listing_id}"
+                    states[state_key] = {
+                        "event_type": "stock_available",
+                        "listing_id": listing_id,
+                        "details": {"stock_status": status},
+                    }
+                if thresholds.get("max_delivery_days") is not None:
+                    days = card.get("delivery_max_days")
+                    if isinstance(days, int) and not isinstance(days, bool) and days <= int(thresholds["max_delivery_days"]):
+                        state_key = f"delivery:{listing_id}:{thresholds['max_delivery_days']}"
+                        states[state_key] = {
+                            "event_type": "delivery_within_limit",
+                            "listing_id": listing_id,
+                            "details": {
+                                "delivery_max_days": days,
+                                "max_delivery_days": thresholds["max_delivery_days"],
+                            },
+                        }
+            return states
+
+        current_states = matching_states(payload)
+        previous_states = matching_states(previous_payload)
         events: list[dict[str, Any]] = []
-        for card in payload.get("recommended") or []:
-            if not isinstance(card, Mapping) or not card.get("listing_id"):
+        for state_key, state in current_states.items():
+            if state_key in previous_states:
                 continue
-            listing_id = str(card["listing_id"])
-            if thresholds.get("price_max") is not None:
-                price: Decimal | None
-                maximum: Decimal | None
-                try:
-                    price = Decimal(str(card.get("landed_cost")))
-                    maximum = Decimal(str(thresholds["price_max"]))
-                except (InvalidOperation, TypeError, ValueError):
-                    price = maximum = None
-                if price is not None and maximum is not None and price <= maximum:
-                    value = f"{price.quantize(Decimal('0.01')):.2f}"
-                    events.append({
-                        "event_key": f"price_max:{listing_id}:{thresholds['price_max']}:{value}",
-                        "event_type": "price_max_reached",
-                        "listing_id": listing_id,
-                        "details": {"landed_cost": value, "price_max": thresholds["price_max"]},
-                    })
-            if thresholds.get("stock_required") is True and card.get("stock_status") in {"in_stock", "preorder"}:
-                status = str(card.get("stock_status"))
-                events.append({
-                    "event_key": f"stock_required:{listing_id}:{status}",
-                    "event_type": "stock_available",
-                    "listing_id": listing_id,
-                    "details": {"stock_status": status},
-                })
-            if thresholds.get("max_delivery_days") is not None:
-                days = card.get("delivery_max_days")
-                if isinstance(days, int) and not isinstance(days, bool) and days <= int(thresholds["max_delivery_days"]):
-                    events.append({
-                        "event_key": f"delivery:{listing_id}:{thresholds['max_delivery_days']}:{days}",
-                        "event_type": "delivery_within_limit",
-                        "listing_id": listing_id,
-                        "details": {"delivery_max_days": days, "max_delivery_days": thresholds["max_delivery_days"]},
-                    })
+            event_key = state_key
+            if transition_key:
+                event_key = f"{state_key}:{transition_key}"
+            events.append({
+                "event_key": event_key,
+                "event_type": state["event_type"],
+                "listing_id": state["listing_id"],
+                "details": state["details"],
+            })
         return events
 
     def list_watch_events(self, watch_id: str, *, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
@@ -698,7 +839,13 @@ class SelectorStore:
                 thresholds = json.loads(current["thresholds_json"] or "{}")
             except (TypeError, ValueError):
                 thresholds = {}
-            threshold_events = self._threshold_events(payload, thresholds)
+            transition_key = f"{previous_run_id or 'initial'}:{run_id}"
+            threshold_events = self._threshold_events(
+                payload,
+                thresholds,
+                previous_payload=previous_payload,
+                transition_key=transition_key,
+            )
 
             def persist_threshold_events(event_run_id: str, observed_at: str) -> list[dict[str, Any]]:
                 inserted_events: list[dict[str, Any]] = []
