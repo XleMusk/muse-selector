@@ -23,8 +23,10 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any, Mapping
 
+from ..ports import SourceUnavailable
 
-class ConnectorUnavailable(RuntimeError):
+
+class ConnectorUnavailable(SourceUnavailable):
     """Raised when the connector cannot run in the requested read-only mode."""
 
 

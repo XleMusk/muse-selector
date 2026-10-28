@@ -133,7 +133,7 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(payload["read_only"])
 
     def test_domestic_market_fails_closed_without_official_listing_search(self):
-        with patch("muse_selector.pipeline.EbayBrowseConnector") as connector_type:
+        with patch("muse_selector.pipeline.build_source_connector") as connector_type:
             payload = run_search("国内预算 CNY 8000 以内的二手迷你主机", FIXTURE)
         connector_type.assert_not_called()
         self.assertFalse(payload["ok"])
@@ -177,7 +177,7 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(payload["read_only"])
 
     def test_offset_is_forwarded_to_one_source_page_without_following_next(self):
-        with patch("muse_selector.pipeline.EbayBrowseConnector") as connector_type:
+        with patch("muse_selector.pipeline.build_source_connector") as connector_type:
             connector_type.return_value.search.return_value = []
             payload = run_search(
                 "香港预算 HKD 7000 以内的迷你主机",
@@ -326,7 +326,7 @@ class PipelineTests(unittest.TestCase):
                 for field in ("title", "url", "price", "condition", "seller", "shippingOptions")
             ],
         }
-        with patch("muse_selector.pipeline.EbayBrowseConnector") as connector_type:
+        with patch("muse_selector.pipeline.build_source_connector") as connector_type:
             connector_type.return_value.search.return_value = [live_row]
             payload = run_search("香港预算 HKD 7000 以内的迷你主机")
         self.assertTrue(payload["ok"])

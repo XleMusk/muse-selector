@@ -249,7 +249,7 @@ class EbayLiveAdapterTests(unittest.TestCase):
         def build_live_connector(*args, **kwargs):
             return EbayBrowseConnector(client_id="id", client_secret="secret", opener=opener)
 
-        with patch("muse_selector.pipeline.EbayBrowseConnector", side_effect=build_live_connector):
+        with patch("muse_selector.pipeline.build_source_connector", side_effect=build_live_connector):
             payload = run_search("香港预算 HKD 7000 以内的迷你主机")
 
         self.assertTrue(payload["ok"])
@@ -284,7 +284,7 @@ class EbayLiveAdapterTests(unittest.TestCase):
         self.assertTrue(row["specs"]["listing_ended"])
         self.assertTrue(any(item["field"] == "itemEndDate" for item in row["evidence"]))
 
-        with patch("muse_selector.pipeline.EbayBrowseConnector") as connector_type:
+        with patch("muse_selector.pipeline.build_source_connector") as connector_type:
             connector_type.return_value.search.return_value = [row]
             connector_type.return_value.source_metadata = {
                 "href": None, "next": None, "prev": None,

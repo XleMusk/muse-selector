@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import Any, Mapping, Protocol
 
 
+class SourceUnavailable(RuntimeError):
+    """Raised when a registered read-only source cannot serve a request."""
+
+
 class SourceConnector(Protocol):
     """Read-only source boundary used by the search application."""
 
@@ -49,4 +53,4 @@ class Clock(Protocol):
         ...
 
 
-__all__ = ["Clock", "SourceConnector", "SourceConnectorFactory", "WatchStore"]
+__all__ = ["Clock", "SourceConnector", "SourceConnectorFactory", "SourceUnavailable", "WatchStore"]
