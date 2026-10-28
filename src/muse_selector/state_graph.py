@@ -213,6 +213,17 @@ def run_search_graph(
                 resume_state=resume_state,
                 stage_callback=capture_stage,
             )
+        elif checkpoint.get("completed_stage") == "present":
+            snapshots = checkpoint.get("stage_snapshots")
+            present = snapshots.get("present") if isinstance(snapshots, Mapping) else None
+            present_payload = present.get("payload") if isinstance(present, Mapping) else None
+            if isinstance(present_payload, Mapping):
+                payload = dict(present_payload)
+            else:
+                payload_value = checkpoint.get("payload")
+                if not isinstance(payload_value, Mapping):
+                    raise ValueError("checkpoint payload is required")
+                payload = dict(payload_value)
         else:
             payload_value = checkpoint.get("payload")
             if not isinstance(payload_value, Mapping):
@@ -236,6 +247,13 @@ def run_search_graph(
                 for name, snapshot in stored_snapshots.items()
                 if isinstance(snapshot, Mapping)
             }
+    stage_snapshots.setdefault(
+        "present",
+        {
+            "completed_stage": "present",
+            "payload": dict(payload),
+        },
+    )
 
     payload_fingerprint = hashlib.sha256(_canonical(payload).encode("utf-8")).hexdigest()
     if checkpoint is not None:

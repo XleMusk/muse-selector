@@ -191,6 +191,24 @@ class StateGraphTests(unittest.TestCase):
         first_payload = {key: value for key, value in first.items() if key != "execution"}
         self.assertEqual(resumed_payload, first_payload)
 
+    def test_present_checkpoint_restores_without_pipeline(self):
+        first = run_search_graph("香港预算 HKD 7000 以内的迷你主机", FIXTURE)
+        partial = {
+            "execution_id": first["execution"]["execution_id"],
+            "completed_stage": "present",
+            "stage_snapshots": {"present": first["execution"]["checkpoint"]["stage_snapshots"]["present"]},
+        }
+        with patch("muse_selector.state_graph.run_search", side_effect=AssertionError("pipeline called")):
+            resumed = run_search_graph(
+                "香港预算 HKD 7000 以内的迷你主机",
+                FIXTURE,
+                checkpoint=partial,
+            )
+        self.assertTrue(resumed["execution"]["resumed_from_checkpoint"])
+        resumed_payload = {key: value for key, value in resumed.items() if key != "execution"}
+        first_payload = {key: value for key, value in first.items() if key != "execution"}
+        self.assertEqual(resumed_payload, first_payload)
+
     def test_cli_checkpoint_out_then_checkpoint_replays(self):
         import tempfile
         from unittest.mock import patch
