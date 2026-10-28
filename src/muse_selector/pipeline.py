@@ -7,7 +7,7 @@ from typing import Any, Callable, Mapping
 
 from .compatibility import build_compatibility_matrix
 from .contracts import RESULT_SCHEMA_VERSION, Evidence, Listing
-from .filtering import filter_listings
+from .filtering import FilterDecision, filter_listings
 from .link_only import build_link_only_plan
 from .ports import SourceConnector, SourceUnavailable, SourceConnectorFactory
 from .source_factory import build_source_connector
@@ -258,7 +258,8 @@ def run_search(
         resumed_stage = str(resume_mapping.get("completed_stage")) if resume_mapping is not None else None
         resumed_fanout = resumed_stage == "fanout"
         resumed_normalize = resumed_stage == "normalize"
-        if resumed_fanout or resumed_normalize:
+        resumed_filter = resumed_stage == "filter"
+        if resumed_fanout or resumed_normalize or resumed_filter:
             assert resume_mapping is not None
             if resumed_fanout:
                 raw_rows = resume_mapping.get("rows")
@@ -317,10 +318,10 @@ def run_search(
             "source_capability": _source_capability(source_id, connector),
             "read_only": True,
         }
-    if not (resume_mapping is not None and resume_mapping.get("completed_stage") in {"fanout", "normalize"}):
+    if not (resume_mapping is not None and resume_mapping.get("completed_stage") in {"fanout", "normalize", "filter"}):
         assert connector is not None
         source_metadata = dict(connector.source_metadata)
-    if stage_callback is not None and not resumed_normalize:
+    if stage_callback is not None and not (resumed_normalize or resumed_filter):
         stage_callback(
             "fanout",
             {
@@ -334,7 +335,7 @@ def run_search(
     evidence_by_id: dict[str, list[Evidence]] = {}
     source_rank_by_id: dict[str, int] = {}
     dropped: list[dict[str, str]] = []
-    if resumed_normalize:
+    if resumed_normalize or resumed_filter:
         assert resume_mapping is not None
         raw_listings = resume_mapping.get("listings")
         raw_evidence = resume_mapping.get("evidence_by_id")
@@ -352,7 +353,7 @@ def run_search(
         }
         source_rank_by_id = {str(key): int(value) for key, value in raw_ranks.items()}
         dropped = [dict(item) for item in raw_dropped if isinstance(item, Mapping)]
-    for source_rank, row in enumerate(rows if not resumed_normalize else [], 1):
+    for source_rank, row in enumerate(rows if not (resumed_normalize or resumed_filter) else [], 1):
         try:
             listing, evidence, reason = _to_listing(row, product_type=spec.product_type)
         except (TypeError, ValueError, OverflowError):
@@ -394,7 +395,7 @@ def run_search(
             if isinstance(item_rank, int) and not isinstance(item_rank, bool) and item_rank > 0
             else source_rank
         )
-    if stage_callback is not None and not resumed_normalize:
+    if stage_callback is not None and not (resumed_normalize or resumed_filter):
         stage_callback(
             "normalize",
             {
@@ -411,7 +412,51 @@ def run_search(
                 "dropped": list(dropped),
             },
         )
-    accepted, decisions = filter_listings(spec, listings)
+    if resumed_filter:
+        assert resume_mapping is not None
+        raw_decisions = resume_mapping.get("decisions")
+        accepted_ids_raw = resume_mapping.get("accepted_ids")
+        if not isinstance(raw_decisions, list) or not isinstance(accepted_ids_raw, list):
+            raise ValueError("resume checkpoint filter snapshot is invalid")
+        decisions = [
+            FilterDecision(
+                str(item.get("listing_id")),
+                bool(item.get("accepted")),
+                tuple(str(reason) for reason in item.get("reasons", ())),
+            )
+            for item in raw_decisions
+            if isinstance(item, Mapping)
+        ]
+        accepted_ids_resume = {str(item) for item in accepted_ids_raw}
+        accepted = [listing for listing in listings if listing.listing_id in accepted_ids_resume]
+    else:
+        accepted, decisions = filter_listings(spec, listings)
+        if stage_callback is not None:
+            stage_callback(
+                "filter",
+                {
+                    "completed_stage": "filter",
+                    "source_id": source_id,
+                    "source_metadata": dict(source_metadata),
+                    "source_capability": resumed_source_capability or _source_capability(source_id, connector),
+                    "listings": [listing.to_dict() for listing in listings],
+                    "evidence_by_id": {
+                        listing_id: [item.to_dict() for item in evidence]
+                        for listing_id, evidence in evidence_by_id.items()
+                    },
+                    "source_rank_by_id": dict(source_rank_by_id),
+                    "dropped": list(dropped),
+                    "accepted_ids": [item.listing_id for item in accepted],
+                    "decisions": [
+                        {
+                            "listing_id": item.listing_id,
+                            "accepted": item.accepted,
+                            "reasons": list(item.reasons),
+                        }
+                        for item in decisions
+                    ],
+                },
+            )
     # eBay's Buy API requirements prohibit partner-side re-sorting. Preserve
     # the source's best-match order and expose an explainable fit score instead.
     accepted = accepted[:limit]
