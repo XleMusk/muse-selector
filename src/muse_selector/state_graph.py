@@ -10,18 +10,24 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from .application import search as run_search
 from .contracts import RESULT_SCHEMA_VERSION
 
 STATE_GRAPH_SCHEMA_VERSION = "muse.selector.execution.v1"
+STAGE_CHECKPOINT_SCHEMA_VERSION = "muse.selector.stage-checkpoint.v1"
 STAGES = ("parse", "fanout", "normalize", "filter", "rank", "verify", "present")
 
 
 def _canonical(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _timestamp() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def execution_id_for_request(
@@ -56,6 +62,7 @@ def _stage_records(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
     failed = _failed_stage(payload)
     records: list[dict[str, Any]] = []
     failed_seen = False
+    completed_at = _timestamp()
     for name in STAGES:
         if failed_seen:
             status = "skipped"
@@ -64,8 +71,47 @@ def _stage_records(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
             failed_seen = True
         else:
             status = "complete"
-        records.append({"name": name, "status": status, "read_only": True})
+        records.append({
+            "name": name,
+            "status": status,
+            "read_only": True,
+            "completed_at": None if status == "skipped" else completed_at,
+        })
     return records
+
+
+def _stage_fingerprint(stages: Sequence[Mapping[str, Any]]) -> str:
+    stable_records = [
+        {"name": item.get("name"), "status": item.get("status"), "read_only": item.get("read_only")}
+        for item in stages
+    ]
+    return hashlib.sha256(_canonical(stable_records).encode("utf-8")).hexdigest()
+
+
+def _validate_checkpoint_stages(
+    stages: Any,
+    stored_fingerprint: Any,
+    payload: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    if not isinstance(stages, list) or len(stages) != len(STAGES):
+        raise ValueError("checkpoint stages are incomplete")
+    expected = _stage_records(payload)
+    for index, item in enumerate(stages):
+        if not isinstance(item, Mapping):
+            raise ValueError("checkpoint stages are invalid")
+        expected_item = expected[index]
+        for key in ("name", "status", "read_only"):
+            if item.get(key) != expected_item[key]:
+                raise ValueError("checkpoint stages do not match payload")
+        completed_at = item.get("completed_at")
+        if expected_item["status"] == "skipped":
+            if completed_at is not None:
+                raise ValueError("skipped checkpoint stages cannot have a completion timestamp")
+        elif not isinstance(completed_at, str) or not completed_at:
+            raise ValueError("completed checkpoint stages require a timestamp")
+    if stored_fingerprint != _stage_fingerprint([dict(item) for item in stages]):
+        raise ValueError("checkpoint stage fingerprint does not match stages")
+    return [dict(item) for item in stages]
 
 
 def run_search_graph(
@@ -110,17 +156,37 @@ def run_search_graph(
         )
 
     payload_fingerprint = hashlib.sha256(_canonical(payload).encode("utf-8")).hexdigest()
+    if checkpoint is not None:
+        stored_payload_fingerprint = checkpoint.get("payload_fingerprint")
+        if stored_payload_fingerprint is not None and stored_payload_fingerprint != payload_fingerprint:
+            raise ValueError("checkpoint payload fingerprint does not match payload")
+        if "stages" in checkpoint or "stage_fingerprint" in checkpoint:
+            stages = _validate_checkpoint_stages(
+                checkpoint.get("stages"),
+                checkpoint.get("stage_fingerprint"),
+                payload,
+            )
+        else:
+            # Checkpoints written before stage metadata was introduced remain
+            # replayable; the next returned checkpoint upgrades them.
+            stages = _stage_records(payload)
+    else:
+        stages = _stage_records(payload)
+    stage_fingerprint = _stage_fingerprint(stages)
     result = dict(payload)
     result["execution"] = {
         "schema_version": STATE_GRAPH_SCHEMA_VERSION,
         "execution_id": execution_id,
         "resumed_from_checkpoint": resumed,
         "current_stage": "present" if payload.get("ok") else (_failed_stage(payload) or "present"),
-        "stages": _stage_records(payload),
+        "stages": stages,
         "checkpoint": {
+            "schema_version": STAGE_CHECKPOINT_SCHEMA_VERSION,
             "execution_id": execution_id,
             "completed_stage": "present" if payload.get("ok") else (_failed_stage(payload) or "present"),
             "payload_fingerprint": payload_fingerprint,
+            "stages": stages,
+            "stage_fingerprint": stage_fingerprint,
             "payload": payload,
         },
         "read_only": True,
@@ -164,6 +230,7 @@ def run_state_graph(
 
 __all__ = [
     "STATE_GRAPH_SCHEMA_VERSION",
+    "STAGE_CHECKPOINT_SCHEMA_VERSION",
     "STAGES",
     "execution_id_for_request",
     "run_state_graph",

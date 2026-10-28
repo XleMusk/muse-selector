@@ -101,7 +101,7 @@ python -m muse_selector `
   --format json
 ```
 
-状态图入口会输出 `Parse → FanOut → Normalize → Filter → Rank → Verify → Present` 的阶段状态和可重放 checkpoint；重放 checkpoint 不会再次调用连接器：
+状态图入口会输出 `Parse → FanOut → Normalize → Filter → Rank → Verify → Present` 的阶段状态和可重放 checkpoint。checkpoint 现在包含 `muse.selector.stage-checkpoint.v1`、每个阶段的完成时间和稳定指纹；重放时会校验阶段列表与指纹，不会再次调用连接器：
 
 ```powershell
 muse-state-graph --query "香港预算 HKD 7000 以内的迷你主机" --fixture "D:\muse\tests\fixtures\ebay_hk_sample.json"
