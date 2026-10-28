@@ -4,13 +4,13 @@
 
 这份计划承接 `PROJECT_GOAL.md` 和 `muse_like_execution_blueprint.md`，作为当前代码状态的单一执行记录。执行原则是：一条主关键路径、多个独立 Pod 并行、短提交持续合入；外部凭据等待期间继续完成所有本地工作，不把 fixture 或模拟响应写成实时成功。
 
-截至 2026-10-28，仓库 `main` 的产品主线已切换为中国大陆二手电子产品与游戏账号只读发现；香港 eBay 只作为兼容基线保留。主线为 SearchSpec → 国内来源能力/人工入口 → 标准化证据 → 硬过滤与结果卡 → CLI/Web → SQLite watch/state replay。当前本地证据为 244 项测试通过，离线回归 `hard_constraint_violation_rate=0.0`，反馈回放无分歧，故障矩阵、指标测试、全量 mypy 和 GitHub CI 均通过。
+截至 2026-10-28，仓库 `main` 的产品主线已切换为中国大陆二手电子产品与游戏账号只读发现；香港 eBay 只作为兼容基线保留。主线为 SearchSpec → 国内来源能力/人工入口 → 标准化证据 → 硬过滤与结果卡 → CLI/Web → SQLite watch/state replay。当前本地证据为 246 项测试通过，离线回归 `hard_constraint_violation_rate=0.0`，反馈回放无分歧，故障矩阵、指标测试、全量 mypy 和 GitHub CI 均通过。
 
 当前状态要按三类理解：
 
 | 范围 | 状态 | 说明 |
 |---|---|---|
-| 本地只读 MVP | 已完成 | 国内 CN/CNY 路由、电子产品结果卡、游戏账号策略域和人工入口、loopback Web、watch、state replay、fault/metrics harness 可运行 |
+| 本地只读 MVP | 已完成 | 国内 CN/CNY 路由、显式注入的 `fixture.local.v1` 结果卡、游戏账号策略域和人工入口、loopback Web、watch、state replay、fault/metrics harness 可运行 |
 | 外部来源门 | 待外部条件 | 国内电子产品挂牌搜索和游戏账号挂牌搜索暂无登记的官方批量搜索授权，结果保持 `source_unavailable` 或 `link_only`；eBay 生产批准/keyset 只影响兼容基线 |
 | 扩展能力 | 部分完成 | W6 只有整包 checkpoint，W7 已完成阈值跨越、重新进入和幂等事件，W8 是只读 broker contract，W9 已有本地反馈记录与 fixture 回放，W11 只有离线 synthetic，规模化存储/检索架构仍是后续阶段 |
 

@@ -203,6 +203,22 @@ python tests/regression_harness.py
 python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
+国内结果层可以显式注入本地 CNY fixture 做离线回归；没有显式 connector 时，国内查询仍返回 `source_unavailable`，不会把 fixture 当成实时挂牌：
+
+```powershell
+$env:PYTHONPATH = "D:\muse\src"
+@'
+from muse_selector.connectors.local_fixture import LocalFixtureConnector
+from muse_selector.pipeline import run_search
+
+payload = run_search(
+    "国内预算 CNY 8000 以内的二手迷你主机",
+    connector=LocalFixtureConnector(r"D:\muse\tests\fixtures\domestic_cn_sample.json"),
+)
+print(payload["source"], payload["recommended"])
+'@ | python -
+```
+
 SQLite 观察任务示例：
 
 ```powershell
