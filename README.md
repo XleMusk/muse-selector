@@ -299,6 +299,7 @@ muse-watch --db "D:\muse\data\selector.sqlite3" --action consume-events --watch-
 同一回归产物还带有 `quality_report`：只使用来源明确提供的 GTIN、EPID、MPN、SKU 或品牌/型号做实体键，报告去重和 72 小时 TTL 统计；标题不会被用来猜测型号或实体身份。
 W10 故障矩阵可独立运行 `python tests/fault_harness.py`，覆盖 OAuth/429/坏响应/token 脱敏、损坏 checkpoint、重复观察事件、SSRF 和提示注入；输出 `muse.selector.faults.v1`，不联网、不接触凭据。
 W11 合成负载指标可运行 `python tests/metrics_harness.py`，输出 `muse.selector.metrics.v1`，记录 p50/p95、成功/失败率、硬约束违规率、checkpoint 重放稳定性和外部请求成本代理；fixture 模式的外部请求数必须为 0。
+W11 跨市场 shadow 评测可运行 `python tests/shadow_harness.py`，输出 `muse.selector.shadow.v1`，同时重放香港兼容 fixture 和中国大陆 CNY 本地 fixture，验证结果顺序、硬约束违规率、只读状态和外部请求数。
 逐项验收证据和唯一未验证的外部门见 [acceptance_matrix.md](acceptance_matrix.md)。
 未完成的 W2–W12 执行顺序、并行边界、角色分工和 Go/No-Go 条件见 [remaining_execution_plan.md](remaining_execution_plan.md)。
 启动、故障熔断、数据删除、事故响应和 Go/No-Go 操作见 [release_runbook.md](release_runbook.md)。
