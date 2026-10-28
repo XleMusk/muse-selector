@@ -49,6 +49,32 @@ def execution_id_for_request(
     return f"exec_{digest}"
 
 
+def save_checkpoint(path: str | Path, checkpoint: Mapping[str, Any]) -> None:
+    """Atomically persist one read-only execution checkpoint as JSON."""
+
+    if not isinstance(checkpoint, Mapping):
+        raise ValueError("checkpoint must be an object")
+    target = Path(path)
+    temporary = target.with_name(f".{target.name}.tmp")
+    temporary.write_text(
+        json.dumps(dict(checkpoint), ensure_ascii=False, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    temporary.replace(target)
+
+
+def load_checkpoint(path: str | Path) -> dict[str, Any]:
+    """Load one persisted checkpoint without contacting a source."""
+
+    try:
+        value = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"checkpoint must be readable JSON: {exc}") from exc
+    if not isinstance(value, dict):
+        raise ValueError("checkpoint must be an object")
+    return value
+
+
 def _failed_stage(payload: Mapping[str, Any]) -> str | None:
     status = payload.get("status")
     if status in {"policy_blocked", "invalid_query", "needs_clarification"}:
@@ -257,8 +283,10 @@ __all__ = [
     "STAGE_CHECKPOINT_SCHEMA_VERSION",
     "STAGES",
     "execution_id_for_request",
+    "load_checkpoint",
     "run_state_graph",
     "run_search_graph",
+    "save_checkpoint",
 ]
 
 
@@ -270,13 +298,14 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--offset", type=int, default=0)
     parser.add_argument("--checkpoint", default=None, help="JSON checkpoint file to replay")
+    parser.add_argument("--checkpoint-out", default=None, help="write the completed JSON checkpoint to this path")
     args = parser.parse_args()
     checkpoint = None
     if args.checkpoint:
         try:
-            checkpoint = json.loads(Path(args.checkpoint).read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-            parser.error(f"checkpoint must be readable JSON: {exc}")
+            checkpoint = load_checkpoint(args.checkpoint)
+        except ValueError as exc:
+            parser.error(str(exc))
     result = run_state_graph(
         args.query,
         Path(args.fixture) if args.fixture else None,
@@ -285,6 +314,11 @@ def main() -> int:
         offset=args.offset,
         checkpoint=checkpoint,
     )
+    if args.checkpoint_out:
+        try:
+            save_checkpoint(args.checkpoint_out, result["checkpoint"])
+        except (OSError, TypeError, ValueError) as exc:
+            parser.error(f"checkpoint output could not be written: {exc}")
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0 if result.get("payload", {}).get("ok") else 2
 

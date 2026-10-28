@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from muse_selector.state_graph import STAGE_CHECKPOINT_SCHEMA_VERSION, STATE_GRAPH_SCHEMA_VERSION, run_search_graph, run_state_graph
+from muse_selector.state_graph import STAGE_CHECKPOINT_SCHEMA_VERSION, STATE_GRAPH_SCHEMA_VERSION, load_checkpoint, run_search_graph, run_state_graph, save_checkpoint
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -69,6 +69,23 @@ class StateGraphTests(unittest.TestCase):
         replay = run_search_graph("香港预算 HKD 7000 以内的迷你主机", FIXTURE, checkpoint=checkpoint)
         self.assertTrue(replay["execution"]["resumed_from_checkpoint"])
         self.assertTrue(replay["execution"]["checkpoint"]["stages"])
+
+    def test_checkpoint_file_round_trip_replays_without_pipeline(self):
+        import tempfile
+
+        first = run_search_graph("香港预算 HKD 7000 以内的迷你主机", FIXTURE)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "checkpoint.json"
+            save_checkpoint(path, first["execution"]["checkpoint"])
+            persisted = load_checkpoint(path)
+            with patch("muse_selector.state_graph.run_search", side_effect=AssertionError("replay called pipeline")):
+                replay = run_search_graph(
+                    "香港预算 HKD 7000 以内的迷你主机",
+                    FIXTURE,
+                    checkpoint=persisted,
+                )
+        self.assertTrue(replay["execution"]["resumed_from_checkpoint"])
+        self.assertEqual(replay["recommended"], first["recommended"])
 
     def test_mismatched_checkpoint_fails_closed(self):
         first = run_search_graph("香港预算 HKD 7000 以内的迷你主机", FIXTURE)
