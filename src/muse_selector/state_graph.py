@@ -58,6 +58,21 @@ def _failed_stage(payload: Mapping[str, Any]) -> str | None:
     return None
 
 
+def _stage_projection(name: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Select the result fields owned by one observable execution stage."""
+
+    projections: dict[str, tuple[str, ...]] = {
+        "parse": ("status", "search_spec", "ask", "policy"),
+        "fanout": ("status", "source", "source_metadata", "source_capability"),
+        "normalize": ("status", "source", "dropped"),
+        "filter": ("status", "rejected"),
+        "rank": ("status", "recommended"),
+        "verify": ("status", "compatibility_matrix", "recommended"),
+        "present": tuple(payload.keys()),
+    }
+    return {field: payload.get(field) for field in projections[name] if field in payload}
+
+
 def _stage_records(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
     failed = _failed_stage(payload)
     records: list[dict[str, Any]] = []
@@ -71,18 +86,27 @@ def _stage_records(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
             failed_seen = True
         else:
             status = "complete"
+        stage_data_fingerprint = hashlib.sha256(
+            _canonical(_stage_projection(name, payload)).encode("utf-8")
+        ).hexdigest()
         records.append({
             "name": name,
             "status": status,
             "read_only": True,
             "completed_at": None if status == "skipped" else completed_at,
+            "data_fingerprint": stage_data_fingerprint,
         })
     return records
 
 
 def _stage_fingerprint(stages: Sequence[Mapping[str, Any]]) -> str:
     stable_records = [
-        {"name": item.get("name"), "status": item.get("status"), "read_only": item.get("read_only")}
+        {
+            "name": item.get("name"),
+            "status": item.get("status"),
+            "read_only": item.get("read_only"),
+            "data_fingerprint": item.get("data_fingerprint"),
+        }
         for item in stages
     ]
     return hashlib.sha256(_canonical(stable_records).encode("utf-8")).hexdigest()
@@ -100,7 +124,7 @@ def _validate_checkpoint_stages(
         if not isinstance(item, Mapping):
             raise ValueError("checkpoint stages are invalid")
         expected_item = expected[index]
-        for key in ("name", "status", "read_only"):
+        for key in ("name", "status", "read_only", "data_fingerprint"):
             if item.get(key) != expected_item[key]:
                 raise ValueError("checkpoint stages do not match payload")
         completed_at = item.get("completed_at")

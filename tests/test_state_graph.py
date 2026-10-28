@@ -26,6 +26,7 @@ class StateGraphTests(unittest.TestCase):
         self.assertTrue(execution["checkpoint"]["stage_fingerprint"])
         self.assertEqual(execution["stages"], execution["checkpoint"]["stages"])
         self.assertTrue(all(item["completed_at"] for item in execution["checkpoint"]["stages"]))
+        self.assertTrue(all(item["data_fingerprint"] for item in execution["checkpoint"]["stages"]))
         self.assertTrue(execution["read_only"])
 
     def test_checkpoint_replay_does_not_call_pipeline(self):
@@ -50,6 +51,13 @@ class StateGraphTests(unittest.TestCase):
         checkpoint = copy.deepcopy(first["execution"]["checkpoint"])
         checkpoint["stage_fingerprint"] = "tampered"
         with self.assertRaisesRegex(ValueError, "stage fingerprint"):
+            run_search_graph("香港预算 HKD 7000 以内的迷你主机", FIXTURE, checkpoint=checkpoint)
+
+    def test_checkpoint_rejects_tampered_stage_data(self):
+        first = run_search_graph("香港预算 HKD 7000 以内的迷你主机", FIXTURE)
+        checkpoint = copy.deepcopy(first["execution"]["checkpoint"])
+        checkpoint["stages"][1]["data_fingerprint"] = "tampered"
+        with self.assertRaisesRegex(ValueError, "checkpoint stages do not match payload"):
             run_search_graph("香港预算 HKD 7000 以内的迷你主机", FIXTURE, checkpoint=checkpoint)
 
     def test_legacy_checkpoint_without_stage_metadata_remains_replayable(self):
