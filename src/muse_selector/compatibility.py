@@ -42,13 +42,16 @@ def _evidence_for_field(card: Mapping[str, Any], field: str) -> list[Mapping[str
 def build_compatibility_matrix(payload: Mapping[str, Any]) -> dict[str, Any]:
     """Build a compatibility matrix without inferring missing specifications."""
 
-    spec = payload.get("search_spec") if isinstance(payload.get("search_spec"), Mapping) else {}
-    required = spec.get("required_specs") if isinstance(spec.get("required_specs"), Mapping) else {}
+    spec_value = payload.get("search_spec")
+    spec: Mapping[str, Any] = spec_value if isinstance(spec_value, Mapping) else {}
+    required_value = spec.get("required_specs")
+    required: Mapping[str, Any] = required_value if isinstance(required_value, Mapping) else {}
     items: list[dict[str, Any]] = []
     for card in payload.get("recommended") or []:
         if not isinstance(card, Mapping):
             continue
-        specs = card.get("specs") if isinstance(card.get("specs"), Mapping) else {}
+        specs_value = card.get("specs")
+        specs: Mapping[str, Any] = specs_value if isinstance(specs_value, Mapping) else {}
         requirements: list[dict[str, Any]] = []
         for field, expected in required.items():
             actual = specs.get(field)

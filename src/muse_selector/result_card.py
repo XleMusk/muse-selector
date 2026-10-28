@@ -156,13 +156,17 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
         return "\n".join(lines) + "\n"
 
     spec = payload["search_spec"]
-    source_capability = payload.get("source_capability") if isinstance(payload.get("source_capability"), Mapping) else {}
+    source_capability_value = payload.get("source_capability")
+    source_capability: Mapping[str, Any] = (
+        source_capability_value if isinstance(source_capability_value, Mapping) else {}
+    )
     capability_label = " / ".join(
         str(source_capability.get(key))
         for key in ("access_mode", "status", "environment")
         if source_capability.get(key)
     ) or "unknown"
-    source_metadata = payload.get("source_metadata") if isinstance(payload.get("source_metadata"), Mapping) else {}
+    source_metadata_value = payload.get("source_metadata")
+    source_metadata: Mapping[str, Any] = source_metadata_value if isinstance(source_metadata_value, Mapping) else {}
     latency_ms = source_metadata.get("latency_ms")
     lines = [
         "# Muse Selector 结果卡",
@@ -245,13 +249,17 @@ def render_comparison(payload: Mapping[str, Any]) -> str:
     if not payload.get("ok"):
         return render_markdown(payload)
     spec = payload.get("search_spec") or {}
-    source_capability = payload.get("source_capability") if isinstance(payload.get("source_capability"), Mapping) else {}
+    source_capability_value = payload.get("source_capability")
+    source_capability: Mapping[str, Any] = (
+        source_capability_value if isinstance(source_capability_value, Mapping) else {}
+    )
     capability_label = " / ".join(
         str(source_capability.get(key))
         for key in ("access_mode", "status", "environment")
         if source_capability.get(key)
     ) or "unknown"
-    source_metadata = payload.get("source_metadata") if isinstance(payload.get("source_metadata"), Mapping) else {}
+    source_metadata_value = payload.get("source_metadata")
+    source_metadata: Mapping[str, Any] = source_metadata_value if isinstance(source_metadata_value, Mapping) else {}
     latency_ms = source_metadata.get("latency_ms")
     latency_label = f"{float(latency_ms):.3f} ms" if isinstance(latency_ms, (int, float)) and latency_ms >= 0 else "unknown"
     lines = [

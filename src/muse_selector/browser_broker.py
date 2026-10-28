@@ -54,7 +54,7 @@ def _sanitize(value: Any, *, depth: int = 0) -> tuple[Any, int]:
     if depth > 20:
         return "[depth-limited]", 0
     if isinstance(value, Mapping):
-        result: dict[str, Any] = {}
+        mapping_result: dict[str, Any] = {}
         redacted = 0
         for raw_key, raw_value in value.items():
             key = str(raw_key)
@@ -62,17 +62,17 @@ def _sanitize(value: Any, *, depth: int = 0) -> tuple[Any, int]:
                 redacted += 1
                 continue
             clean_value, count = _sanitize(raw_value, depth=depth + 1)
-            result[key] = clean_value
+            mapping_result[key] = clean_value
             redacted += count
-        return result, redacted
+        return mapping_result, redacted
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
-        result: list[Any] = []
+        sequence_result: list[Any] = []
         redacted = 0
         for item in value:
             clean_value, count = _sanitize(item, depth=depth + 1)
-            result.append(clean_value)
+            sequence_result.append(clean_value)
             redacted += count
-        return result, redacted
+        return sequence_result, redacted
     return value, 0
 
 
