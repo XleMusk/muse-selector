@@ -28,7 +28,18 @@ KEY_EVIDENCE_FIELDS = ("title", "url", "price", "condition", "seller", "shipping
 ALLOWED_REGIONS = {"HK", "CN"}
 REGION_CURRENCY = {"HK": "HKD", "CN": "CNY"}
 DOMESTIC_SOURCE_IDS = {"zhuanzhuan.recommerce.mcp.v1", "xianyu.partner.v1"}
-ALLOWED_SOURCE_IDS = {"ebay.browse.hk.v1", *DOMESTIC_SOURCE_IDS}
+POLICY_SOURCE_IDS = {"game_accounts.policy.v1"}
+GAME_ACCOUNT_LINK_SOURCE_IDS = {
+    "game_accounts.5173.link.v1",
+    "game_accounts.taoshouyou.link.v1",
+    "game_accounts.jaoyimc.link.v1",
+}
+ALLOWED_SOURCE_IDS = {
+    "ebay.browse.hk.v1",
+    *DOMESTIC_SOURCE_IDS,
+    *POLICY_SOURCE_IDS,
+    *GAME_ACCOUNT_LINK_SOURCE_IDS,
+}
 SOURCE_ACCESS_MODES = {"official_api", "authorized_partner", "user_link", "local_fixture"}
 FILTER_OPERATORS = {"eq", "gte", "lte", "in", "contains", "exists"}
 UNKNOWN_POLICIES = {"reject", "allow", "flag"}
@@ -101,8 +112,8 @@ class SearchSpec:
     def __post_init__(self) -> None:
         if not isinstance(self.query, str) or not self.query.strip():
             raise ValueError("query must be non-empty")
-        if self.category != "computers_hardware":
-            raise ValueError("MVP category must be computers_hardware")
+        if self.category not in {"computers_hardware", "game_accounts"}:
+            raise ValueError("category must be computers_hardware or game_accounts")
         if self.region not in ALLOWED_REGIONS:
             raise ValueError(f"region must be one of {sorted(ALLOWED_REGIONS)}")
         if self.currency != REGION_CURRENCY[self.region]:

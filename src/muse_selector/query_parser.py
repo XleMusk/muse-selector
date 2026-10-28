@@ -15,7 +15,24 @@ from .contracts import SearchSpec
 
 
 class PolicyBlockedError(ValueError):
-    """Raised when a query requests a first-version blocked action/category."""
+    """Raised when a query requests a first-version blocked action/category.
+
+    Structured fields let the read-only pipeline report a domain-specific
+    policy decision without routing the request through a product connector.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        domain: str = "policy",
+        source_id: str = "policy.guard",
+        reason_code: str = "blocked_action",
+    ) -> None:
+        super().__init__(message)
+        self.domain = domain
+        self.source_id = source_id
+        self.reason_code = reason_code
 
 
 _MONEY_NUMBER = r"[\d,]+(?:\.\d+)?"
@@ -61,13 +78,16 @@ _DELIVERY_DAYS_RE = re.compile(
     re.I,
 )
 _UNBOUNDED_BUDGET_TOKENS = ("价格不限", "预算不限", "預算不限", "不限预算", "不限預算", "不设预算", "不設預算", "不限制预算", "不限制預算", "no budget limit", "unlimited budget")
-_ACCOUNT_POLICY_TOKENS = (
+_GAME_ACCOUNT_DOMAIN_TOKENS = (
     "游戏账号",
     "游戏账户",
     "游戏帐号",
     "游戏帐户",
     "遊戲帳號",
     "遊戲帳戶",
+    "game account",
+)
+_ACCOUNT_POLICY_TOKENS = (
     "账号转移",
     "账号转让",
     "账号交易",
@@ -99,13 +119,17 @@ _ACCOUNT_POLICY_TOKENS = (
     "代打",
     "代练",
     "代練",
-    "game account",
     "account transfer",
     "account sale",
     "account purchase",
     "account trading",
     "account boosting",
     "boosting service",
+)
+_ACCOUNT_ACTION_TOKENS = (
+    "登录", "登入", "密码", "cookie", "验证码", "支付", "购买", "購買", "出售", "轉售",
+    "转移", "轉移", "转让", "轉讓", "交易", "代打", "代练", "代練", "login", "password",
+    "payment", "purchase", "sale", "transfer", "trading", "boosting",
 )
 
 
@@ -134,11 +158,23 @@ def parse_query(text: str) -> SearchSpec:
     if not isinstance(text, str) or not text.strip():
         raise ValueError("query must be non-empty")
     lowered = text.lower()
+    game_account_query = any(token in lowered for token in _GAME_ACCOUNT_DOMAIN_TOKENS)
     explicit_domestic = any(token in lowered for token in ("中国大陆", "中国内地", "大陆", "国内", "人民币", "cny", "￥", "¥"))
     explicit_hk = any(token in lowered for token in ("香港", "港币", "港幣", "港元", "hkd", "hk$"))
-    domestic = explicit_domestic or (bool(re.search(rf"{_MONEY_VALUE}\s*元", text)) and not explicit_hk)
-    if any(token in lowered for token in _ACCOUNT_POLICY_TOKENS):
-        raise PolicyBlockedError("游戏账号登录、购买、转移和代打不在第一版范围内")
+    # Second-hand electronics are the domestic product line by default. An
+    # explicit Hong Kong marker still wins for historical HK use cases.
+    explicit_second_hand = any(
+        token in lowered for token in ("二手", "闲置", "中古", "used", "pre-owned", "preowned")
+    )
+    domestic = (explicit_domestic or explicit_second_hand or game_account_query or bool(re.search(rf"{_MONEY_VALUE}\s*元", text))) and not explicit_hk
+    account_action = any(token in lowered for token in (*_ACCOUNT_POLICY_TOKENS, *_ACCOUNT_ACTION_TOKENS))
+    if any(token in lowered for token in _ACCOUNT_POLICY_TOKENS) or (game_account_query and account_action):
+        raise PolicyBlockedError(
+            "游戏账号登录、购买、转移和代打不在第一版范围内",
+            domain="game_accounts",
+            source_id="game_accounts.policy.v1",
+            reason_code="account_transaction_blocked",
+        )
     if any(token in lowered for token in ("169.254.169.254", "127.0.0.1", "localhost", "metadata/latest")):
         raise PolicyBlockedError("blocked network target in query")
 
@@ -181,8 +217,8 @@ def parse_query(text: str) -> SearchSpec:
             if money_suffix:
                 budget_max = _money_amount(money_suffix.group("amount"), money_suffix.group("unit"))
 
-    category = "computers_hardware"
-    product_type = resolve_product_category(text)
+    category = "game_accounts" if game_account_query else "computers_hardware"
+    product_type = "game_account" if game_account_query else resolve_product_category(text)
     clarification_fields: list[str] = []
     if budget_max is None:
         clarification_fields.append("budget_max")
@@ -199,7 +235,13 @@ def parse_query(text: str) -> SearchSpec:
         required_specs=required,
         condition="unknown" if any(token in lowered for token in ("二手", "不限成色")) else "new",
         max_delivery_days=max_delivery_days,
-        sources=("xianyu.partner.v1", "zhuanzhuan.recommerce.mcp.v1") if domestic else ("ebay.browse.hk.v1",),
+        sources=(
+            "game_accounts.5173.link.v1",
+            "game_accounts.taoshouyou.link.v1",
+            "game_accounts.jaoyimc.link.v1",
+        ) if game_account_query else (
+            ("xianyu.partner.v1", "zhuanzhuan.recommerce.mcp.v1") if domestic else ("ebay.browse.hk.v1",)
+        ),
         product_type=product_type,
         parse_confidence=parse_confidence,
         clarification_fields=tuple(clarification_fields),

@@ -126,6 +126,18 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
             "",
             "只读状态：true",
         ]
+        policy = payload.get("policy") if isinstance(payload.get("policy"), Mapping) else None
+        if policy:
+            lines.extend(
+                [
+                    f"策略域：{_markdown_untrusted(policy.get('domain') or 'unknown')} / "
+                    f"{_markdown_untrusted(policy.get('source_id') or 'unknown')}",
+                    f"策略状态：{_markdown_untrusted(policy.get('status') or 'unknown')}；"
+                    f"link-only：{_markdown_untrusted(policy.get('link_only'))}",
+                    f"允许动作：{_markdown_untrusted(', '.join(policy.get('allowed_actions') or ()) or 'unknown')}",
+                    f"阻断动作：{_markdown_untrusted(', '.join(policy.get('blocked_actions') or ()) or 'unknown')}",
+                ]
+            )
         link_only = payload.get("link_only") or []
         if link_only:
             lines.extend(["", "## 可人工打开的平台入口", ""])

@@ -117,6 +117,16 @@ def run_search(
     try:
         spec = parse_query(query)
     except PolicyBlockedError as exc:
+        policy = {
+            "domain": getattr(exc, "domain", "policy"),
+            "source_id": getattr(exc, "source_id", "policy.guard"),
+            "reason_code": getattr(exc, "reason_code", "blocked_action"),
+            "status": "blocked",
+            "read_only": True,
+            "link_only": False,
+            "allowed_actions": ["read_policy"],
+            "blocked_actions": ["login", "purchase", "transfer", "boosting", "payment"],
+        }
         return {
             "schema_version": RESULT_SCHEMA_VERSION,
             "ok": False,
@@ -126,7 +136,11 @@ def run_search(
             "recommended": [],
             "rejected": [],
             "dropped": [],
+            # Keep the v1 envelope source stable; the domain-specific source
+            # identity is carried in ``policy.source_id`` for new clients.
             "source": "policy.guard",
+            "domain": policy["domain"],
+            "policy": policy,
             "read_only": True,
         }
     except ValueError as exc:
@@ -183,6 +197,33 @@ def run_search(
             "rejected": [],
             "dropped": [],
             "source": "policy.guard",
+            "read_only": True,
+        }
+    if spec.product_type == "game_account":
+        policy = {
+            "domain": "game_accounts",
+            "source_id": "game_accounts.policy.v1",
+            "reason_code": "manual_read_only_discovery",
+            "status": "link_only",
+            "read_only": True,
+            "link_only": True,
+            "allowed_actions": ["read_public_information"],
+            "blocked_actions": ["login", "purchase", "transfer", "boosting", "payment"],
+        }
+        return {
+            "schema_version": RESULT_SCHEMA_VERSION,
+            "ok": False,
+            "status": "source_unavailable",
+            "message": "游戏账号仅支持只读人工入口；系统不抓取挂牌，不处理登录、购买、转移、代打或支付。",
+            "search_spec": spec.to_dict(),
+            "recommended": [],
+            "rejected": [],
+            "dropped": [],
+            "source": policy["source_id"],
+            "source_capability": _source_capability(policy["source_id"]),
+            "link_only": build_link_only_plan(spec),
+            "domain": policy["domain"],
+            "policy": policy,
             "read_only": True,
         }
     if spec.region == "CN":
