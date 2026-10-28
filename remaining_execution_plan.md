@@ -4,7 +4,7 @@
 
 这份计划承接 `PROJECT_GOAL.md` 和 `muse_like_execution_blueprint.md`，作为当前代码状态的单一执行记录。执行原则是：一条主关键路径、多个独立 Pod 并行、短提交持续合入；外部凭据等待期间继续完成所有本地工作，不把 fixture 或模拟响应写成实时成功。
 
-截至 2026-10-28，仓库 `main` 的产品主线已切换为中国大陆二手电子产品与游戏账号只读发现；香港 eBay 只作为兼容基线保留。主线为 SearchSpec → 国内来源能力/人工入口 → 标准化证据 → 硬过滤与结果卡 → CLI/Web → SQLite watch/state replay。当前本地证据为 235 项测试通过，离线回归 `hard_constraint_violation_rate=0.0`，故障矩阵和合成指标均通过。
+截至 2026-10-28，仓库 `main` 的产品主线已切换为中国大陆二手电子产品与游戏账号只读发现；香港 eBay 只作为兼容基线保留。主线为 SearchSpec → 国内来源能力/人工入口 → 标准化证据 → 硬过滤与结果卡 → CLI/Web → SQLite watch/state replay。当前本地证据为 240 项测试通过，离线回归 `hard_constraint_violation_rate=0.0`，故障矩阵、指标测试、全量 mypy 和 GitHub CI 均通过。
 
 当前状态要按三类理解：
 
@@ -14,7 +14,7 @@
 | 外部来源门 | 待外部条件 | 国内电子产品挂牌搜索和游戏账号挂牌搜索暂无登记的官方批量搜索授权，结果保持 `source_unavailable` 或 `link_only`；eBay 生产批准/keyset 只影响兼容基线 |
 | 扩展能力 | 部分完成 | W6 只有整包 checkpoint，W7 已有阈值事件去重和失败自动暂停但仍缺完整阈值跨越语义，W8 是只读 broker contract，W9 尚无反馈回放，W11 只有离线 synthetic，规模化存储/检索架构仍是后续阶段 |
 
-因此下一步不再重复已通过的本地门，而是按价值顺序处理：组合根、搜索工厂、观察存储注入和来源能力契约的第一阶段已经完成；接下来拆 Web 视图/handler、清理兼容 patch 点，再补国内来源授权后的适配器，随后推进反馈回放、逐阶段 checkpoint 和本地 shadow 评测。eBay smoke、真实浏览器、FastAPI/Postgres/BM25/vector 等扩展不作为国内只读主线前置条件。
+因此下一步不再重复已通过的本地门，而是按价值顺序处理：组合根、搜索工厂、观察存储注入、来源能力契约和 Web 视图拆分已经完成；接下来清理兼容 patch 点、完成全仓格式/import 迁移，再补国内来源授权后的适配器，随后推进反馈回放、逐阶段 checkpoint 和本地 shadow 评测。eBay smoke、真实浏览器、FastAPI/Postgres/BM25/vector 等扩展不作为国内只读主线前置条件。
 
 ## Google 接手后的重构顺序
 
@@ -22,7 +22,7 @@
 
 第二步统一来源能力契约：`SourceCapability`、`PolicyRecord` 和 `data/source_registry.yaml` 已使用同一组访问模式、状态和来源 ID，并对历史别名做显式归一化。国内电子产品、游戏账号人工入口、转转估价和香港 eBay 兼容适配分别登记，不能由一个枚举混用。
 
-第三步再拆 Web 视图、handler 和能力查询，扩大 mypy 到全包，并逐模块修复导入排序和格式问题。格式迁移不改变结果契约，也不把 eBay fixture 改写成国内数据。
+第三步已拆出 Web 视图模块并扩大 mypy 到全包，32 个源文件当前通过。剩余格式/import 迁移不改变结果契约，也不把 eBay fixture 改写成国内数据。
 
 ## 四波执行路线
 

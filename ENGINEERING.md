@@ -35,8 +35,8 @@ python tests/regression_harness.py
 
 1. `pipeline.py` 的默认连接器构造已经移到 `source_factory.py` 和 `SearchApplication`；管线仍保留兼容桥，后续可在迁移完直接 patch 管线的测试后删除。
 2. `persistence.py` 已支持注入搜索 callable，旧调用方仍通过兼容桥运行；下一步清理剩余旧 patch 点。
-3. `web.py` 同时承担路由、HTML 模板和能力探测；下一步拆出纯视图函数和 handler，默认文案保持中国大陆主线。
+3. Web 纯渲染已经拆到 `web_views.py`，`web.py` 保留路由、handler 和能力探测；下一步只清理兼容导出和路由内部重复逻辑。
 4. `contracts.py`、YAML 和策略记录的来源能力枚举已经统一并保留旧值归一化；新增来源必须同时更新契约、注册表和定向测试。
-5. 全量 mypy、导入排序和格式检查先作为迁移报告，逐模块修复后再提升为 CI 阻断项，避免大范围无行为格式改动。
+5. 全量 mypy 已通过；导入排序和格式检查仍按模块迁移，完成后再提升为 CI 阻断项，避免大范围无行为格式改动。
 
 香港 eBay 代码、fixture 和兼容测试保留为适配器层资产；它们不决定产品默认地区、默认查询或国内领域模型。
