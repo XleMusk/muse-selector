@@ -259,7 +259,8 @@ def run_search(
         resumed_fanout = resumed_stage == "fanout"
         resumed_normalize = resumed_stage == "normalize"
         resumed_filter = resumed_stage == "filter"
-        if resumed_fanout or resumed_normalize or resumed_filter:
+        resumed_rank = resumed_stage == "rank"
+        if resumed_fanout or resumed_normalize or resumed_filter or resumed_rank:
             assert resume_mapping is not None
             if resumed_fanout:
                 raw_rows = resume_mapping.get("rows")
@@ -318,24 +319,24 @@ def run_search(
             "source_capability": _source_capability(source_id, connector),
             "read_only": True,
         }
-    if not (resume_mapping is not None and resume_mapping.get("completed_stage") in {"fanout", "normalize", "filter"}):
+    if not (resume_mapping is not None and resume_mapping.get("completed_stage") in {"fanout", "normalize", "filter", "rank"}):
         assert connector is not None
         source_metadata = dict(connector.source_metadata)
-    if stage_callback is not None and not (resumed_normalize or resumed_filter):
-        stage_callback(
-            "fanout",
-            {
-                "source_id": source_id,
-                "source_metadata": dict(source_metadata),
-                "source_capability": _source_capability(source_id, connector),
-                "rows": [dict(row) for row in rows],
-            },
-        )
+        if stage_callback is not None and not (resumed_normalize or resumed_filter or resumed_rank):
+            stage_callback(
+                "fanout",
+                {
+                    "source_id": source_id,
+                    "source_metadata": dict(source_metadata),
+                    "source_capability": _source_capability(source_id, connector),
+                    "rows": [dict(row) for row in rows],
+                },
+            )
     listings: list[Listing] = []
     evidence_by_id: dict[str, list[Evidence]] = {}
     source_rank_by_id: dict[str, int] = {}
     dropped: list[dict[str, str]] = []
-    if resumed_normalize or resumed_filter:
+    if resumed_normalize or resumed_filter or resumed_rank:
         assert resume_mapping is not None
         raw_listings = resume_mapping.get("listings")
         raw_evidence = resume_mapping.get("evidence_by_id")
@@ -353,7 +354,7 @@ def run_search(
         }
         source_rank_by_id = {str(key): int(value) for key, value in raw_ranks.items()}
         dropped = [dict(item) for item in raw_dropped if isinstance(item, Mapping)]
-    for source_rank, row in enumerate(rows if not (resumed_normalize or resumed_filter) else [], 1):
+    for source_rank, row in enumerate(rows if not (resumed_normalize or resumed_filter or resumed_rank) else [], 1):
         try:
             listing, evidence, reason = _to_listing(row, product_type=spec.product_type)
         except (TypeError, ValueError, OverflowError):
@@ -412,7 +413,19 @@ def run_search(
                 "dropped": list(dropped),
             },
         )
-    if resumed_filter:
+    if resumed_rank:
+        assert resume_mapping is not None
+        raw_cards = resume_mapping.get("recommended_cards")
+        raw_rejected = resume_mapping.get("rejected")
+        if not isinstance(raw_cards, list) or not all(isinstance(item, Mapping) for item in raw_cards):
+            raise ValueError("resume checkpoint rank cards are invalid")
+        if not isinstance(raw_rejected, list) or not all(isinstance(item, Mapping) for item in raw_rejected):
+            raise ValueError("resume checkpoint rank rejected records are invalid")
+        recommended_cards = [dict(item) for item in raw_cards]
+        rejected = [dict(item) for item in raw_rejected]
+        decisions = []
+        accepted = []
+    elif resumed_filter:
         assert resume_mapping is not None
         raw_decisions = resume_mapping.get("decisions")
         accepted_ids_raw = resume_mapping.get("accepted_ids")
@@ -459,26 +472,46 @@ def run_search(
             )
     # eBay's Buy API requirements prohibit partner-side re-sorting. Preserve
     # the source's best-match order and expose an explainable fit score instead.
-    accepted = accepted[:limit]
-    accepted_ids = {item.listing_id for item in accepted}
-    decision_by_id = {item.listing_id: item for item in decisions}
-    recommended_cards = []
-    for index, item in enumerate(accepted, 1):
-        fit_score, fit_breakdown = _fit_explanation(spec, item)
-        recommended_cards.append(
-            build_card(
-                item,
-                evidence_by_id[item.listing_id],
-                source_rank=source_rank_by_id[item.listing_id],
-                fit_score=fit_score,
-                fit_breakdown=fit_breakdown,
-            ).to_dict()
-        )
-    rejected = [
-        {"listing_id": item.listing_id, "reasons": list(decision_by_id[item.listing_id].reasons)}
-        for item in listings
-        if item.listing_id not in accepted_ids
-    ]
+    if not resumed_rank:
+        accepted = accepted[:limit]
+        accepted_ids = {item.listing_id for item in accepted}
+        decision_by_id = {item.listing_id: item for item in decisions}
+        recommended_cards = []
+        for index, item in enumerate(accepted, 1):
+            fit_score, fit_breakdown = _fit_explanation(spec, item)
+            recommended_cards.append(
+                build_card(
+                    item,
+                    evidence_by_id[item.listing_id],
+                    source_rank=source_rank_by_id[item.listing_id],
+                    fit_score=fit_score,
+                    fit_breakdown=fit_breakdown,
+                ).to_dict()
+            )
+        rejected = [
+            {"listing_id": item.listing_id, "reasons": list(decision_by_id[item.listing_id].reasons)}
+            for item in listings
+            if item.listing_id not in accepted_ids
+        ]
+        if stage_callback is not None:
+            stage_callback(
+                "rank",
+                {
+                    "completed_stage": "rank",
+                    "source_id": source_id,
+                    "source_metadata": dict(source_metadata),
+                    "source_capability": resumed_source_capability or _source_capability(source_id, connector),
+                    "listings": [listing.to_dict() for listing in listings],
+                    "evidence_by_id": {
+                        listing_id: [item.to_dict() for item in evidence]
+                        for listing_id, evidence in evidence_by_id.items()
+                    },
+                    "source_rank_by_id": dict(source_rank_by_id),
+                    "dropped": list(dropped),
+                    "recommended_cards": list(recommended_cards),
+                    "rejected": list(rejected),
+                },
+            )
     return {
         "schema_version": RESULT_SCHEMA_VERSION,
         "ok": True,

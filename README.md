@@ -101,7 +101,7 @@ python -m muse_selector `
   --format json
 ```
 
-状态图入口会输出 `Parse → FanOut → Normalize → Filter → Rank → Verify → Present` 的阶段状态和可重放 checkpoint。checkpoint 现在包含 `muse.selector.stage-checkpoint.v1`、每个阶段的完成时间和稳定指纹；`FanOut` 阶段保存原始只读 rows 和来源元数据，`Normalize` 阶段保存标准化 listings、证据和排序信息，`Filter` 阶段保存硬约束决策，来源请求、标准化或过滤中断后可从对应阶段继续处理。可用 `--checkpoint-out` 原子保存到本地 JSON，进程重启后通过 `--checkpoint` 重放，重放时会校验阶段列表与指纹，不会再次调用已完成的连接器、标准化或过滤步骤：
+状态图入口会输出 `Parse → FanOut → Normalize → Filter → Rank → Verify → Present` 的阶段状态和可重放 checkpoint。checkpoint 现在包含 `muse.selector.stage-checkpoint.v1`、每个阶段的完成时间和稳定指纹；`FanOut` 阶段保存原始只读 rows 和来源元数据，`Normalize` 阶段保存标准化 listings、证据和排序信息，`Filter` 阶段保存硬约束决策，`Rank` 阶段保存推荐卡和拒绝结果，来源请求、标准化、过滤或排序中断后可从对应阶段继续处理。可用 `--checkpoint-out` 原子保存到本地 JSON，进程重启后通过 `--checkpoint` 重放，重放时会校验阶段列表与指纹，不会再次调用已完成的连接器、标准化、过滤或排序步骤：
 
 ```powershell
 muse-state-graph --query "香港预算 HKD 7000 以内的迷你主机" --fixture "D:\muse\tests\fixtures\ebay_hk_sample.json"
