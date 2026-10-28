@@ -15,14 +15,22 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
-from .application import search as run_search
 from .watch_contracts import RefreshJob
 from .watch_contracts import WatchEvent, WatchSpec
 
 
 _UNSET = object()
+SearchFunction = Callable[..., Mapping[str, Any]]
+
+
+def run_search(*args: Any, **kwargs: Any) -> Mapping[str, Any]:
+    """Compatibility bridge for callers that have not injected a search use case."""
+
+    from .application import search
+
+    return search(*args, **kwargs)
 
 
 def _refresh_job(
@@ -162,8 +170,9 @@ def watch_change_summary(
 class SelectorStore:
     """Small SQLite store for runs, result cards and read-only watch specs."""
 
-    def __init__(self, path: str | Path) -> None:
+    def __init__(self, path: str | Path, *, search_fn: SearchFunction | None = None) -> None:
         self.path = str(path)
+        self._search_fn = search_fn
         if self.path != ":memory:":
             Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         self._init_schema()
@@ -641,9 +650,11 @@ class SelectorStore:
             raise ValueError("environment must be production or sandbox")
         configured_environment = str(os.environ.get("EBAY_ENVIRONMENT", "production")).strip().lower()
         if configured_environment == selected_environment:
-            payload = run_search(row["query"], row["fixture_path"])
+            search_fn = self._search_fn or run_search
+            payload = search_fn(row["query"], row["fixture_path"])
         else:
-            payload = run_search(row["query"], row["fixture_path"], environment=selected_environment)
+            search_fn = self._search_fn or run_search
+            payload = search_fn(row["query"], row["fixture_path"], environment=selected_environment)
         payload_dict = dict(payload)
         run_id = run_id_for_payload(payload_dict)
         serialized = _canonical(payload_dict)

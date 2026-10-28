@@ -560,7 +560,7 @@ def serve(
     environment: str | None = None,
 ) -> None:
     host = _validate_bind_host(host)
-    store = SelectorStore(db_path) if db_path is not None else None
+    store = SelectorStore(db_path, search_fn=run_search) if db_path is not None else None
     server = ThreadingHTTPServer((host, port), make_handler(fixture_path, store, environment))
     print(f"Muse Selector read-only web view: http://{host}:{server.server_port}/")
     try:

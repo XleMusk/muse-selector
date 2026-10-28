@@ -358,6 +358,28 @@ class PersistenceTests(unittest.TestCase):
             self.assertEqual(store.get_watch(watch_id)["enabled"], 0)
             self.assertIsNotNone(store.get_run(result["run_id"]))
 
+    def test_store_uses_injected_search_function(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls = []
+
+            def fake_search(query, fixture_path, **kwargs):
+                calls.append((query, fixture_path, kwargs))
+                return {
+                    "ok": True,
+                    "status": "complete",
+                    "source": "fixture.local.v1",
+                    "recommended": [],
+                    "rejected": [],
+                    "dropped": [],
+                    "read_only": True,
+                }
+
+            store = SelectorStore(Path(directory) / "selector.sqlite3", search_fn=fake_search)
+            watch_id = store.add_watch("国内预算 CNY 8000 以内的二手显卡", watch_id="injected_search")
+            store.refresh_watch(watch_id)
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(calls[0][0], "国内预算 CNY 8000 以内的二手显卡")
+
     def test_policy_blocked_watch_is_saved_as_read_only_state(self):
         with tempfile.TemporaryDirectory() as directory:
             store = SelectorStore(Path(directory) / "selector.sqlite3")
