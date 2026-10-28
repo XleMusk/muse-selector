@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "muse-agent"
 version = "0.1.0"
 description = "Read-only product discovery contracts and deterministic filters"
+readme = "README.md"
 requires-python = ">=3.10"
 
 [project.scripts]

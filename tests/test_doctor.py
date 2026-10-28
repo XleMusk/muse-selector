@@ -3,12 +3,11 @@ import io
 import json
 import os
 import sys
-import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from muse_selector.doctor import DEFAULT_QUERY, main, run_doctor
+from muse_selector.doctor import main, run_doctor
 
 
 ROOT = Path(__file__).resolve().parents[1]

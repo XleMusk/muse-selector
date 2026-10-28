@@ -1,0 +1,47 @@
+name: muse-selector-release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build source and wheel distributions
+        run: |
+          python -m pip install --disable-pip-version-check build
+          python -m build
+      - name: Verify a non-editable wheel install
+        run: |
+          python -m venv "$RUNNER_TEMP/muse-release-venv"
+          "$RUNNER_TEMP/muse-release-venv/bin/python" -m pip install --disable-pip-version-check --no-deps dist/*.whl
+          "$RUNNER_TEMP/muse-release-venv/bin/muse-selector" --version
+          "$RUNNER_TEMP/muse-release-venv/bin/muse-doctor" --fixture tests/fixtures/ebay_hk_sample.json > "$RUNNER_TEMP/muse-doctor.json"
+          python -c "import json; p=json.load(open(r'$RUNNER_TEMP/muse-doctor.json', encoding='utf-8')); assert p['ok'] is True; assert p['read_only'] is True"
+          "$RUNNER_TEMP/muse-release-venv/bin/muse-selector" --query "香港预算 HKD 7000 以内的迷你主机" --fixture tests/fixtures/ebay_hk_sample.json --format json > "$RUNNER_TEMP/muse-result.json"
+          python -c "import json; p=json.load(open(r'$RUNNER_TEMP/muse-result.json', encoding='utf-8')); assert p['ok'] is True; assert p['read_only'] is True; assert p['recommended']"
+      - name: Run installed-package tests
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py' -q
+          python tests/regression_harness.py
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: muse-selector-${{ github.ref_name }}
+          path: dist/*
+          if-no-files-found: error
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/*

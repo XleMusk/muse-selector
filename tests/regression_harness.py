@@ -11,7 +11,6 @@ import math
 import sys
 from dataclasses import asdict
 from datetime import datetime, timezone
-from decimal import Decimal
 from pathlib import Path
 from typing import Any, Iterable
 

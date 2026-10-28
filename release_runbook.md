@@ -15,6 +15,17 @@ muse-release-check --root D:\muse
 
 证据文件只包含 smoke 摘要、来源元数据和观测时间，不包含 credential、token 或 secret。真实生产批准仍需独立记录，不能由存在凭据变量推断。
 
+## 公开仓库发行
+
+公开仓库的版本发行由 `.github/workflows/release.yml` 负责。创建版本 tag 后，GitHub Actions 会在干净 checkout 中构建 sdist/wheel，用非 editable 安装运行 CLI、doctor、单元测试和回归，再把发行包附到 GitHub Release：
+
+```powershell
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+没有版本 tag 时只维护 `main` 的 CI，不宣称已有可下载 Release。Release workflow 不读取 eBay、闲鱼或转转凭据。
+
 ## 启动和健康检查
 
 ```powershell

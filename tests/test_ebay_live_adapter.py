@@ -1,7 +1,6 @@
 import json
 import io
 import unittest
-from pathlib import Path
 from urllib.error import HTTPError
 from unittest.mock import patch
 

@@ -24,7 +24,7 @@ jobs:
       - name: Check engineering rules
         run: |
           python -m pip install --disable-pip-version-check ruff mypy
-          ruff check src/muse_selector
+          ruff check src/muse_selector tests
           mypy
       - name: Verify installable CLI
         run: |
