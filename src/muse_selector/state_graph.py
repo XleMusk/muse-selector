@@ -187,15 +187,36 @@ def run_search_graph(
         environment=environment,
     )
     resumed = checkpoint is not None
+    stage_snapshots: dict[str, dict[str, Any]] = {}
+
+    def capture_stage(name: str, snapshot: Mapping[str, Any]) -> None:
+        stage_snapshots[name] = dict(snapshot)
+
     if checkpoint is not None:
         if not isinstance(checkpoint, Mapping):
             raise ValueError("checkpoint must be an object")
         if checkpoint.get("execution_id") != execution_id:
             raise ValueError("checkpoint belongs to a different execution request")
-        payload = checkpoint.get("payload")
-        if not isinstance(payload, Mapping):
-            raise ValueError("checkpoint payload is required")
-        payload = dict(payload)
+        if checkpoint.get("completed_stage") == "fanout":
+            snapshots = checkpoint.get("stage_snapshots")
+            fanout = snapshots.get("fanout") if isinstance(snapshots, Mapping) else None
+            if not isinstance(fanout, Mapping):
+                raise ValueError("fanout resume checkpoint is missing stage snapshot")
+            resume_state = {"completed_stage": "fanout", **dict(fanout)}
+            payload = run_search(
+                query,
+                fixture_path,
+                limit=limit,
+                offset=offset,
+                environment=environment,
+                resume_state=resume_state,
+                stage_callback=capture_stage,
+            )
+        else:
+            payload_value = checkpoint.get("payload")
+            if not isinstance(payload_value, Mapping):
+                raise ValueError("checkpoint payload is required")
+            payload = dict(payload_value)
     else:
         payload = run_search(
             query,
@@ -203,7 +224,17 @@ def run_search_graph(
             limit=limit,
             offset=offset,
             environment=environment,
+            stage_callback=capture_stage,
         )
+
+    if not stage_snapshots and isinstance(checkpoint, Mapping):
+        stored_snapshots = checkpoint.get("stage_snapshots")
+        if isinstance(stored_snapshots, Mapping):
+            stage_snapshots = {
+                str(name): dict(snapshot)
+                for name, snapshot in stored_snapshots.items()
+                if isinstance(snapshot, Mapping)
+            }
 
     payload_fingerprint = hashlib.sha256(_canonical(payload).encode("utf-8")).hexdigest()
     if checkpoint is not None:
@@ -235,6 +266,7 @@ def run_search_graph(
             "execution_id": execution_id,
             "completed_stage": "present" if payload.get("ok") else (_failed_stage(payload) or "present"),
             "payload_fingerprint": payload_fingerprint,
+            "stage_snapshots": stage_snapshots,
             "stages": stages,
             "stage_fingerprint": stage_fingerprint,
             "payload": payload,

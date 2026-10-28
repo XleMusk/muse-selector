@@ -90,6 +90,25 @@ class StateGraphTests(unittest.TestCase):
         self.assertTrue(replay["execution"]["resumed_from_checkpoint"])
         self.assertEqual(replay["recommended"], first["recommended"])
 
+    def test_fanout_checkpoint_resumes_without_connector(self):
+        first = run_search_graph("香港预算 HKD 7000 以内的迷你主机", FIXTURE)
+        partial = {
+            "execution_id": first["execution"]["execution_id"],
+            "completed_stage": "fanout",
+            "stage_snapshots": {"fanout": first["execution"]["checkpoint"]["stage_snapshots"]["fanout"]},
+        }
+        with patch("muse_selector.pipeline.build_source_connector", side_effect=AssertionError("connector called")):
+            resumed = run_search_graph(
+                "香港预算 HKD 7000 以内的迷你主机",
+                FIXTURE,
+                checkpoint=partial,
+            )
+        self.assertTrue(resumed["execution"]["resumed_from_checkpoint"])
+        self.assertEqual(resumed["recommended"], first["recommended"])
+        resumed_payload = {key: value for key, value in resumed.items() if key != "execution"}
+        first_payload = {key: value for key, value in first.items() if key != "execution"}
+        self.assertEqual(resumed_payload, first_payload)
+
     def test_cli_checkpoint_out_then_checkpoint_replays(self):
         import tempfile
         from unittest.mock import patch

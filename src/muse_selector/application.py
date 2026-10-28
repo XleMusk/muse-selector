@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Mapping
 
 from . import pipeline
 from .ports import SourceConnector, SourceConnectorFactory
@@ -27,9 +27,11 @@ class SearchApplication:
         limit: int = 10,
         offset: int = 0,
         environment: str | None = None,
+        resume_state: Mapping[str, Any] | None = None,
+        stage_callback: Callable[[str, Mapping[str, Any]], None] | None = None,
     ) -> dict[str, Any]:
         connector = self.connector
-        if connector is None and _query_can_reach_source(query, limit=limit, offset=offset):
+        if connector is None and resume_state is None and _query_can_reach_source(query, limit=limit, offset=offset):
             connector = self.source_factory(fixture_path=fixture_path, environment=environment)
         return pipeline.run_search(
             query,
@@ -38,6 +40,8 @@ class SearchApplication:
             offset=offset,
             environment=environment,
             connector=connector,
+            resume_state=resume_state,
+            stage_callback=stage_callback,
         )
 
 
@@ -67,6 +71,8 @@ def search(
     limit: int = 10,
     offset: int = 0,
     environment: str | None = None,
+    resume_state: Mapping[str, Any] | None = None,
+    stage_callback: Callable[[str, Mapping[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """Run the default read-only search application use case."""
 
@@ -76,6 +82,8 @@ def search(
         limit=limit,
         offset=offset,
         environment=environment,
+        resume_state=resume_state,
+        stage_callback=stage_callback,
     )
 
 

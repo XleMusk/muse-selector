@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Mapping
 
 from .compatibility import build_compatibility_matrix
 from .contracts import RESULT_SCHEMA_VERSION, Evidence, Listing
@@ -110,6 +110,8 @@ def run_search(
     environment: str | None = None,
     connector: SourceConnector | None = None,
     connector_factory: SourceConnectorFactory | None = None,
+    resume_state: Mapping[str, Any] | None = None,
+    stage_callback: Callable[[str, Mapping[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """Run a fully offline search and return serializable result cards."""
 
@@ -225,7 +227,10 @@ def run_search(
             "policy": policy,
             "read_only": True,
         }
-    local_fixture = connector is not None and getattr(connector, "source_id", None) == "fixture.local.v1"
+    resume_source_id = str(resume_state.get("source_id")) if isinstance(resume_state, Mapping) and resume_state.get("source_id") else None
+    local_fixture = (
+        connector is not None and getattr(connector, "source_id", None) == "fixture.local.v1"
+    ) or resume_source_id == "fixture.local.v1"
     if spec.region == "CN" and not local_fixture:
         # Domestic second-hand sources are registered by capability, but the
         # public official APIs currently expose no general arbitrary-listing
@@ -245,34 +250,51 @@ def run_search(
             "link_only": build_link_only_plan(spec),
             "read_only": True,
         }
-    source_id = "ebay.browse.hk.v1"
+    source_id = resume_source_id or "ebay.browse.hk.v1"
+    resume_mapping = resume_state if isinstance(resume_state, Mapping) else None
+    source_metadata: dict[str, Any] = {}
+    resumed_source_capability: dict[str, Any] | None = None
     try:
-        if connector is None:
-            factory = connector_factory or build_source_connector
-            connector = factory(fixture_path=fixture_path, environment=environment)
-        candidate_source_id = getattr(connector, "source_id", source_id)
-        if isinstance(candidate_source_id, str) and candidate_source_id:
-            source_id = candidate_source_id
-        connector_spec = spec.to_dict()
-        # Keep the source request bounded while preserving recall after hard
-        # filtering.  A small output limit must not shrink the single source
-        # page below the connector's normal page size, otherwise early
-        # rejected listings can hide later matches.  We still never follow
-        # ``next`` or fetch more than one bounded page.
-        default_source_limit = getattr(getattr(connector, "config", None), "default_limit", 20)
-        if (
-            isinstance(default_source_limit, bool)
-            or not isinstance(default_source_limit, int)
-            or default_source_limit < 1
-        ):
-            default_source_limit = 20
-        connector_spec["limit"] = min(200, max(limit, default_source_limit))
-        # Browse pagination is an explicit single-page control.  The
-        # connector never follows ``next`` and never synthesizes later pages.
-        connector_spec["offset"] = offset
-        rows = connector.search(connector_spec)
+        resumed_fanout = resume_mapping is not None and resume_mapping.get("completed_stage") == "fanout"
+        if resumed_fanout:
+            assert resume_mapping is not None
+            raw_rows = resume_mapping.get("rows")
+            if not isinstance(raw_rows, list) or any(not isinstance(row, Mapping) for row in raw_rows):
+                raise ValueError("resume checkpoint fanout rows are invalid")
+            rows = [dict(row) for row in raw_rows]
+            raw_metadata = resume_mapping.get("source_metadata")
+            source_metadata = dict(raw_metadata) if isinstance(raw_metadata, Mapping) else {}
+            raw_capability = resume_mapping.get("source_capability")
+            if isinstance(raw_capability, Mapping):
+                resumed_source_capability = dict(raw_capability)
+        else:
+            if connector is None:
+                factory = connector_factory or build_source_connector
+                connector = factory(fixture_path=fixture_path, environment=environment)
+            assert connector is not None
+            candidate_source_id = getattr(connector, "source_id", source_id)
+            if isinstance(candidate_source_id, str) and candidate_source_id:
+                source_id = candidate_source_id
+            connector_spec = spec.to_dict()
+            # Keep the source request bounded while preserving recall after hard
+            # filtering.  A small output limit must not shrink the single source
+            # page below the connector's normal page size, otherwise early
+            # rejected listings can hide later matches.  We still never follow
+            # ``next`` or fetch more than one bounded page.
+            default_source_limit = getattr(getattr(connector, "config", None), "default_limit", 20)
+            if (
+                isinstance(default_source_limit, bool)
+                or not isinstance(default_source_limit, int)
+                or default_source_limit < 1
+            ):
+                default_source_limit = 20
+            connector_spec["limit"] = min(200, max(limit, default_source_limit))
+            # Browse pagination is an explicit single-page control.  The
+            # connector never follows ``next`` or never synthesizes later pages.
+            connector_spec["offset"] = offset
+            rows = connector.search(connector_spec)
     except (SourceUnavailable, ValueError) as exc:
-        source_metadata = connector.source_metadata if connector is not None else None
+        source_metadata = dict(connector.source_metadata) if connector is not None else {}
         if isinstance(source_metadata, dict) and "environment" not in source_metadata and "connector" in locals():
             source_metadata = {
                 **source_metadata,
@@ -292,7 +314,19 @@ def run_search(
             "source_capability": _source_capability(source_id, connector),
             "read_only": True,
         }
-    source_metadata = connector.source_metadata
+    if not (resume_mapping is not None and resume_mapping.get("completed_stage") == "fanout"):
+        assert connector is not None
+        source_metadata = dict(connector.source_metadata)
+    if stage_callback is not None:
+        stage_callback(
+            "fanout",
+            {
+                "source_id": source_id,
+                "source_metadata": dict(source_metadata),
+                "source_capability": _source_capability(source_id, connector),
+                "rows": [dict(row) for row in rows],
+            },
+        )
     listings: list[Listing] = []
     evidence_by_id: dict[str, list[Evidence]] = {}
     source_rank_by_id: dict[str, int] = {}
@@ -375,7 +409,7 @@ def run_search(
         "dropped": dropped,
         "source": source_id,
         "source_metadata": source_metadata,
-        "source_capability": _source_capability(source_id, connector),
+        "source_capability": resumed_source_capability or _source_capability(source_id, connector),
         "read_only": True,
     }
 
