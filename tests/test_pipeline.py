@@ -7,6 +7,7 @@ from unittest.mock import patch
 from muse_selector.filtering import filter_listings
 from muse_selector.contracts import RESULT_SCHEMA_VERSION
 from muse_selector.pipeline import _extract_specs, _to_listing, run_search
+from muse_selector.connectors.local_fixture import LocalFixtureConnector
 from muse_selector.query_parser import PolicyBlockedError, parse_query
 from muse_selector.result_card import render_comparison, render_markdown
 
@@ -148,6 +149,17 @@ class PipelineTests(unittest.TestCase):
         ])
         self.assertEqual(payload["link_only"][0]["manual_query"], "国内预算 CNY 8000 以内的二手迷你主机")
         self.assertTrue(payload["read_only"])
+
+    def test_domestic_local_fixture_requires_explicit_connector(self):
+        fixture = ROOT / "tests" / "fixtures" / "domestic_cn_sample.json"
+        payload = run_search(
+            "国内预算 CNY 8000 以内的二手迷你主机",
+            connector=LocalFixtureConnector(fixture),
+        )
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["source"], "fixture.local.v1")
+        self.assertEqual(payload["search_spec"]["currency"], "CNY")
+        self.assertEqual(payload["recommended"][0]["currency"], "CNY")
 
     def test_domestic_markdown_exposes_manual_link_only_entries(self):
         report = render_markdown(run_search("国内预算 CNY 8000 以内的二手迷你主机"))
