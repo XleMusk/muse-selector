@@ -43,6 +43,10 @@ jobs:
           python -c "import json; p=json.load(open('cli_result.json', encoding='utf-8')); assert p['schema_version'] == 'muse.selector.v1'; assert p['ok'] is True; assert p['read_only'] is True; assert p['recommended']; assert all(card.get('evidence_coverage', 0) >= 0.95 for card in p['recommended'])"
           muse-state-graph --query "香港预算 HKD 7000 以内的迷你主机" --fixture tests/fixtures/ebay_hk_sample.json > state_graph.json
           python -c "import json; p=json.load(open('state_graph.json', encoding='utf-8')); assert p['schema_version'] == 'muse.selector.execution.v1'; assert p['status'] == 'complete'; assert p['read_only'] is True; assert p['stages'][-1]['name'] == 'present'; assert p['checkpoint']['payload']['recommended']"
+          checkpoint_file="$RUNNER_TEMP/muse-state-checkpoint.json"
+          muse-state-graph --query "香港预算 HKD 7000 以内的迷你主机" --fixture tests/fixtures/ebay_hk_sample.json --checkpoint-out "$checkpoint_file" > state_graph_saved.json
+          muse-state-graph --query "香港预算 HKD 7000 以内的迷你主机" --fixture tests/fixtures/ebay_hk_sample.json --checkpoint "$checkpoint_file" > state_graph_replayed.json
+          python -c "import json; p=json.load(open('state_graph_replayed.json', encoding='utf-8')); assert p['resumed_from_checkpoint'] is True; assert p['read_only'] is True; assert p['checkpoint']['schema_version'] == 'muse.selector.stage-checkpoint.v1'"
           watch_db="$RUNNER_TEMP/muse-watch.sqlite3"
           muse-watch --db "$watch_db" --query "香港预算 HKD 7000 以内的迷你主机" --fixture tests/fixtures/ebay_hk_sample.json --once > watch_first.json
           muse-watch --db "$watch_db" --query "香港预算 HKD 7000 以内的迷你主机" --fixture tests/fixtures/ebay_hk_sample.json --once > watch_second.json
