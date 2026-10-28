@@ -1,4 +1,4 @@
-"""Command line entrypoint for the offline Hong Kong hardware selector."""
+"""Command line entrypoint for domestic second-hand market discovery."""
 
 from __future__ import annotations
 
@@ -27,10 +27,10 @@ def _configure_console_encoding() -> None:
 
 def main() -> int:
     _configure_console_encoding()
-    parser = argparse.ArgumentParser(description="Read-only Hong Kong hardware search")
+    parser = argparse.ArgumentParser(description="Read-only China domestic market search")
     parser.add_argument("--version", action="version", version=f"muse-selector {__version__}")
     parser.add_argument("--query", required=True, help="natural-language hardware query")
-    parser.add_argument("--fixture", default=None, help="offline eBay response fixture; omit to use live read-only API")
+    parser.add_argument("--fixture", default=None, help="offline source fixture; omit to use a registered live adapter")
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--offset", type=int, default=0, help="single Browse page offset; no automatic pagination")
     parser.add_argument("--environment", choices=("sandbox", "production"), default=None)

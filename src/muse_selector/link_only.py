@@ -6,7 +6,6 @@ from typing import Any, Mapping
 
 from .contracts import SearchSpec
 
-
 _PLATFORM_ENTRIES: Mapping[str, Mapping[str, str]] = {
     "xianyu.partner.v1": {
         "display_name": "闲鱼",

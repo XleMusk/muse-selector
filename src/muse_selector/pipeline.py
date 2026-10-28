@@ -1,21 +1,20 @@
-"""Offline-first end-to-end search pipeline for the Hong Kong MVP."""
+"""Offline-first search pipeline for domestic second-hand market discovery."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
 
+from .compatibility import build_compatibility_matrix
 from .connectors.ebay import ConnectorUnavailable, EbayBrowseConnector
 from .contracts import RESULT_SCHEMA_VERSION, Evidence, Listing
-from .compatibility import build_compatibility_matrix
 from .filtering import filter_listings
 from .link_only import build_link_only_plan
-from .query_parser import PolicyBlockedError, has_explicit_unbounded_budget, parse_query
 from .ports import SourceConnector
-from .result_card import build_card
+from .query_parser import PolicyBlockedError, has_explicit_unbounded_budget, parse_query
 from .ranking import SOURCE_ORDER_PROFILE
+from .result_card import build_card
 from .source_capabilities import source_capability_registry
-
 
 # Compatibility aliases for callers that imported the former private helpers.
 from .source_normalizer import extract_specs as _extract_specs  # noqa: F401

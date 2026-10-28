@@ -7,15 +7,14 @@ previous result without invoking a connector again.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
-import argparse
 from pathlib import Path
 from typing import Any, Mapping
 
-from .contracts import RESULT_SCHEMA_VERSION
 from .application import search as run_search
-
+from .contracts import RESULT_SCHEMA_VERSION
 
 STATE_GRAPH_SCHEMA_VERSION = "muse.selector.execution.v1"
 STAGES = ("parse", "fanout", "normalize", "filter", "rank", "verify", "present")
@@ -175,7 +174,7 @@ __all__ = [
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run a read-only Muse Selector execution graph")
     parser.add_argument("--query", required=True, help="explicit hardware query")
-    parser.add_argument("--fixture", default=None, help="offline eBay fixture")
+    parser.add_argument("--fixture", default=None, help="offline source fixture")
     parser.add_argument("--environment", choices=("sandbox", "production"), default=None)
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--offset", type=int, default=0)

@@ -4,17 +4,25 @@
 
 这份计划承接 `muse_like_execution_blueprint.md` 的 W2–W12，作为当前代码状态的单一执行记录。执行原则是：一条主关键路径、多个独立 Pod 并行、短提交持续合入；外部凭据等待期间继续完成所有本地工作，不把 fixture 或模拟响应写成实时成功。
 
-截至 2026-10-28，仓库 `main` 已形成可运行的香港 eBay 只读基线和中国大陆 fail-closed 路由：SearchSpec → 来源能力 → 连接器/人工入口 → 标准化证据 → 硬过滤与来源顺序 → 结果卡/兼容性 → CLI/Web → SQLite watch/state replay。当前本地证据为 229 项单元测试通过、离线回归 `hard_constraint_violation_rate=0.0`、故障矩阵和合成指标均通过，公开仓库最近 CI 为绿色。
+截至 2026-10-28，仓库 `main` 的产品主线已切换为中国大陆二手电子产品与游戏账号只读发现；香港 eBay 只作为兼容基线保留。主线为 SearchSpec → 国内来源能力/人工入口 → 标准化证据 → 硬过滤与结果卡 → CLI/Web → SQLite watch/state replay。当前本地证据为 235 项测试通过，离线回归 `hard_constraint_violation_rate=0.0`，故障矩阵和合成指标均通过。
 
 当前状态要按三类理解：
 
 | 范围 | 状态 | 说明 |
 |---|---|---|
-| 本地只读 MVP | 已完成 | CLI、loopback Web、eBay fixture/live 适配、结果卡、兼容性、watch、state replay、fault/metrics harness 可运行 |
-| 外部来源门 | 待外部条件 | eBay 生产批准/keyset/真实 smoke 尚未具备；中国大陆挂牌搜索暂无官方授权，国内结果保持 `source_unavailable` 或 `link_only` |
+| 本地只读 MVP | 已完成 | 国内 CN/CNY 路由、电子产品结果卡、游戏账号策略域和人工入口、loopback Web、watch、state replay、fault/metrics harness 可运行 |
+| 外部来源门 | 待外部条件 | 国内电子产品挂牌搜索和游戏账号挂牌搜索暂无登记的官方批量搜索授权，结果保持 `source_unavailable` 或 `link_only`；eBay 生产批准/keyset 只影响兼容基线 |
 | 扩展能力 | 部分完成 | W6 只有整包 checkpoint，W7 已有阈值事件去重和失败自动暂停但仍缺完整阈值跨越语义，W8 是只读 broker contract，W9 尚无反馈回放，W11 只有离线 synthetic，规模化存储/检索架构仍是后续阶段 |
 
-因此下一步不再重复已通过的本地门，而是按价值顺序处理：先修复真实用户输入的解析缺口并补上可复现的公开发行路径；随后推进 W7/W9 的低副作用本地能力；拿到官方授权后立即执行 eBay 或国内来源 smoke。W8 真实浏览器、FastAPI/Postgres/BM25/vector 等扩展不作为当前只读主线前置条件。
+因此下一步不再重复已通过的本地门，而是按价值顺序处理：先完成 Google 风格的组合根与端口解耦，再补国内来源授权后的适配器；随后推进反馈回放、逐阶段 checkpoint 和本地 shadow 评测。eBay smoke、真实浏览器、FastAPI/Postgres/BM25/vector 等扩展不作为国内只读主线前置条件。
+
+## Google 接手后的重构顺序
+
+第一步只改依赖方向：由组合根创建来源适配器，`pipeline.py` 只接收 `SourceConnector`，`persistence.py` 接收搜索 callable，Web 只调用应用用例。这样测试可以传入 fake，不再 patch `pipeline.EbayBrowseConnector` 或从基础设施反向导入应用层。
+
+第二步统一来源能力契约：`SourceCapability`、`PolicyRecord` 和 `data/source_registry.yaml` 使用同一组访问模式、状态和来源 ID。国内电子产品、游戏账号人工入口、转转估价和香港 eBay 兼容适配分别登记，不能由一个枚举混用。
+
+第三步再拆 Web 视图、handler 和能力查询，扩大 mypy 到全包，并逐模块修复导入排序和格式问题。格式迁移不改变结果契约，也不把 eBay fixture 改写成国内数据。
 
 ## 四波执行路线
 

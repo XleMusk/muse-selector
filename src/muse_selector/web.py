@@ -11,16 +11,18 @@ from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import parse_qs, urlparse
 
+from .application import search as run_search
 from .connectors.ebay import (
     EbayBrowseConnector,
     credential_env_names,
+)
+from .connectors.ebay import (
     credential_state as ebay_credential_state,
 )
 from .contracts import RESULT_SCHEMA_VERSION
-from .application import search as run_search
+from .persistence import SelectorStore
 from .source_capabilities import source_capability_registry
 from .url_policy import is_allowed_market_url
-from .persistence import SelectorStore
 
 
 def _text(value: Any) -> str:
@@ -292,9 +294,9 @@ def render_html(payload: dict[str, Any], query: str) -> str:
         )
     return f"""<!doctype html><html lang='zh-Hans'><head><meta charset='utf-8'>
 <meta name='viewport' content='width=device-width, initial-scale=1'>
-<title>Muse Selector · 香港硬件只读筛选</title>
+<title>Muse Selector · 中国二手市场只读筛选</title>
 <style>body{{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:1100px;margin:0 auto;padding:24px;background:#f6f7f9;color:#1f2937}}h1{{margin-bottom:4px}}.muted{{color:#64748b;font-size:.9rem}}form{{display:flex;gap:8px;margin:20px 0}}input{{flex:1;padding:11px;border:1px solid #cbd5e1;border-radius:8px;font-size:1rem}}button{{padding:11px 18px;border:0;border-radius:8px;background:#2563eb;color:white;cursor:pointer}}.cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}}.card,.summary,.notice,details{{background:white;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin:12px 0}}.card h2{{font-size:1.05rem;margin:0 0 8px}}.price{{font-weight:700;font-size:1.2rem;color:#0f766e}}code{{word-break:break-word}}pre{{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0 0}}a{{color:#1d4ed8}}.danger{{border-color:#fca5a5;background:#fff1f2}}ul{{padding-left:20px}}</style></head><body>
-<h1>Muse Selector</h1><p class='muted'>香港电脑/硬件 · eBay HK · 只读结果页</p>
+<h1>Muse Selector</h1><p class='muted'>中国大陆二手电子产品与游戏账号 · 只读结果页</p>
 <form method='get' action='/'><input name='q' value='{_text(query)}' aria-label='查询'><button type='submit'>筛选</button></form>
 <p class='muted'>来源数据、证据时间和风险状态均可展开查看；本页面没有登录、购买或写操作能力。</p>
 {body}</body></html>"""
@@ -523,7 +525,7 @@ def make_handler(
             if parsed.path != "/":
                 self._send(404, "text/plain; charset=utf-8", b"not found")
                 return
-            query = parse_qs(parsed.query).get("q", ["香港预算 HKD 7000 以内的迷你主机"])[0]
+            query = parse_qs(parsed.query).get("q", ["国内预算 CNY 8000 以内的二手迷你主机"])[0]
             search_kwargs = {"environment": environment} if environment is not None else {}
             content = render_html(run_search(query, fixture, **search_kwargs), query).encode("utf-8")
             self._send(200, "text/html; charset=utf-8", content)

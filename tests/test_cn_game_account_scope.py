@@ -30,7 +30,7 @@ class ChinaAndGameAccountScopeTests(unittest.TestCase):
         self.assertTrue(all(item["read_only"] for item in payload["link_only"]))
         self.assertIn("transfer", payload["policy"]["blocked_actions"])
         report = render_markdown(payload)
-        self.assertIn("策略域：game\_accounts / game\_accounts.policy.v1", report)
+        self.assertIn(r"策略域：game\_accounts / game\_accounts.policy.v1", report)
 
     def test_game_account_transaction_remains_policy_blocked(self):
         payload = run_search("帮我买一个带稀有皮肤的游戏账号并完成转移")

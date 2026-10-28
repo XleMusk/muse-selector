@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from .contracts import SourceCapability
 
-
 _CAPABILITIES = (
     SourceCapability(
         source_id="ebay.browse.hk.v1",

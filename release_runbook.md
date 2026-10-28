@@ -2,9 +2,9 @@
 
 ## 发布边界
 
-当前默认发布形态是香港电脑/硬件的只读筛选。允许的来源是 eBay HK 官方 Browse API 适配层和本地 fixture；国内来源保持 link-only 或官方转转估价辅助。系统不执行登录、购买、支付、出价、账号转移、发信或平台写操作。
+当前默认发布形态是中国大陆二手电子产品与游戏账号的只读发现。国内挂牌来源在官方授权前保持 `source_unavailable` 或 `link_only`；5173、淘手游和交易猫只提供用户自行打开的人工入口。香港 eBay Browse API 仅作为兼容适配器和回归基线。系统不执行登录、购买、支付、账号转移、代打、发信或平台写操作。
 
-生产 eBay 结果只有在官方 Buy API 访问批准、对应 keyset、真实 OAuth/Browse smoke 和字段证据核对全部通过后才可以标记为 live verified。Sandbox 只证明接口集成，不证明市场报价。
+香港 eBay 兼容结果只有在官方 Buy API 访问批准、对应 keyset、真实 OAuth/Browse smoke 和字段证据核对全部通过后才可以标记为 live verified。它不构成中国大陆主线的来源。Sandbox 只证明接口集成，不证明市场报价。
 
 拿到官方 keyset 后，smoke 可以把脱敏证据写入本地文件：
 

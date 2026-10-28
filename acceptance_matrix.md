@@ -2,12 +2,13 @@
 
 这份矩阵把目标拆成可复核的证据。fixture 和模拟 opener 只证明离线契约与实时适配逻辑，不冒充真实市场响应。
 
-当前产品优先级已迁移到中国大陆电脑/硬件二手市场；香港 eBay 是已通过的只读基线。国内来源能力按官方授权状态逐个接入。
+当前产品主线是中国大陆二手电子产品与游戏账号的只读发现；香港 eBay 仅作为兼容适配器和回归基线。国内来源能力按官方授权状态逐个接入。
 
 | 目标要求 | 当前证据 | 状态 |
 | --- | --- | --- |
-| 香港/HKD/电脑硬件 `SearchSpec` | `src/muse_selector/contracts.py`、`src/muse_selector/query_parser.py`、`tests/fixtures/search_queries_v1.json`、`tests/test_query_parser.py` | 已通过 |
-| eBay HK 官方只读连接器 | `data/source_registry.yaml`、`src/muse_selector/connectors/ebay.py`、`tests/test_ebay_connector.py` | 连接器契约已通过；生产访问批准和凭据待完成 |
+| CN/CNY/二手电子产品 `SearchSpec` | `src/muse_selector/contracts.py`、`src/muse_selector/query_parser.py`、`tests/test_query_parser.py`、`tests/test_cn_game_account_scope.py` | 已通过；未显式香港时默认 CN/CNY |
+| 香港/HKD 电脑硬件兼容基线 | `src/muse_selector/contracts.py`、`src/muse_selector/query_parser.py`、`tests/fixtures/search_queries_v1.json` | 已通过；仅作为历史兼容路径 |
+| eBay HK 官方只读兼容连接器 | `data/source_registry.yaml`、`src/muse_selector/connectors/ebay.py`、`tests/test_ebay_connector.py` | 连接器契约已通过；不属于国内主线，生产访问批准和凭据待完成 |
 | OAuth/Browse 失败关闭与端点锁定 | `tests/test_ebay_live_adapter.py`、`tests/test_ebay_connector.py` | 已通过 |
 | eBay Sandbox/Production 环境隔离 | `src/muse_selector/connectors/ebay.py`、`tests/test_ebay_live_adapter.py`、`tests/test_ebay_connector.py` | Sandbox 端点配对和环境标记已通过；Sandbox 不代表市场报价 |
 | 实时字段适配、抓取时间和结束 listing 过滤 | `tests/test_ebay_live_adapter.py`、`tests/test_ebay_connector.py`、`src/muse_selector/filtering.py` | 适配逻辑已通过；已依据 `itemEndDate` 与 live 观测时间硬过滤；真实 API 待凭据 |
@@ -31,6 +32,7 @@
 | 账号登录、购买、转移、代打、支付和平台控制绕过 | `src/muse_selector/query_parser.py`、`scope_decision.md` | 已排除并阻断 |
 | GitHub 主线自动验证 | `.github/workflows/ci.yml` | 最新 CI 通过 |
 | CN/CNY 国内市场 SearchSpec 与来源路由 | `src/muse_selector/contracts.py`、`src/muse_selector/query_parser.py`、`src/muse_selector/pipeline.py`、`tests/test_query_parser.py`、`tests/test_pipeline.py` | 契约和 fail-closed 路由已通过；官方挂牌搜索连接器待授权 |
+| 国内游戏账号公开发现与策略域 | `src/muse_selector/query_parser.py`、`src/muse_selector/link_only.py`、`src/muse_selector/source_capabilities.py`、`tests/test_cn_game_account_scope.py` | 公开发现返回 5173/淘手游/交易猫人工入口；登录、购买、转移、代打、支付保持阻断 |
 | 转转官方 MCP 估价/回收入口适配 | `src/muse_selector/connectors/zhuanzhuan.py`、`tests/test_zhuanzhuan_connector.py`、`src/muse_selector/zhuanzhuan_smoke.py` | 官方 Streamable HTTP 工具调用、字段归一化、Token 缺失/权限错误 fail-closed 已通过；不作为挂牌搜索来源 |
 | 闲鱼/转转官方能力登记 | `data/source_registry.yaml`、`scope_decision.md`、`src/muse_selector/link_only.py` | 闲鱼 link-only/pending；CN/CNY 查询会返回可人工打开的官方入口卡；转转官方 MCP 估价/回收入口适配已完成 |
 

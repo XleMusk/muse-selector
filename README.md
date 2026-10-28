@@ -11,6 +11,10 @@
 
 因此，国内主线的第一步是获得官方搜索能力或合作方授权；系统不会使用 Cookie、私有接口、逆向签名或网页批量抓取来填补这个缺口。详见 [scope_decision.md](scope_decision.md) 和 [acceptance_matrix.md](acceptance_matrix.md)。
 
+### 游戏账号市场
+
+游戏账号是独立的国内只读领域。查询公开市场信息时，系统会返回 5173、淘手游和交易猫的官方人工入口，并保留预算、游戏和原始查询；系统不会抓取挂牌、读取登录态或代替用户完成交易。涉及登录、密码、验证码、购买、出售、转移、代打或支付的请求会返回 `policy_blocked`，并展示允许与阻断动作。
+
 ### 转转官方 MCP 估价辅助
 
 转转官方 MCP 已接入为独立的只读辅助连接器。它通过官方 Streamable HTTP 网关调用 `recycle_valuation` 和 `open_recycle_entry`，用于识别商品、返回人民币回收区间或生成用户自行打开的回收入口；它不提供通用挂牌搜索，也不会代用户下单。
@@ -30,6 +34,13 @@ muse-zhuanzhuan-smoke --query "ThinkPad X1 Carbon，16GB，电池健康良好，
 ## 直接运行
 
 在 PowerShell 中从 `D:\muse` 执行：
+
+国内主线示例（没有获得官方挂牌搜索授权时，会返回 `source_unavailable` 和人工入口卡）：
+
+```powershell
+muse-selector --query "国内预算 CNY 8000 以内的二手迷你主机" --format json
+muse-selector --query "国内原神游戏账号，预算 CNY 500" --format json
+```
 
 公开仓库的版本 tag（例如 `v0.1.0`）会触发 [release workflow](.github/workflows/release.yml)，构建并验证 sdist/wheel，再把两个发行包附到 GitHub Release。首次发布前可以直接从源码安装；已有版本发布后可从 Release 安装 wheel：
 
@@ -65,7 +76,9 @@ muse-doctor --environment sandbox --fixture D:\muse\tests\fixtures\ebay_hk_sampl
 
 省略 `--fixture` 时只检查本地 Python 和包导入，适合在已安装 wheel 或脱离源码目录的环境中快速确认命令入口。fixture 不存在、格式错误或结果契约不满足时返回退出码 `2`，成功返回 `0`。
 
-也可以不安装，使用下面的 `PYTHONPATH` 方式直接运行源码。
+### 香港 eBay 兼容基线
+
+下面的 fixture、状态图和 eBay Browse 命令用于保留历史兼容适配器的回归能力，不代表国内产品默认来源。也可以不安装，使用下面的 `PYTHONPATH` 方式直接运行源码。
 
 ```powershell
 $env:PYTHONPATH = "D:\muse\src;D:\muse\tests"

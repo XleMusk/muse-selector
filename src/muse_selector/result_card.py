@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
-import re
 from typing import Any, Iterable, Mapping
 
 from .contracts import Evidence, Listing

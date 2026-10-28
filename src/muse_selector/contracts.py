@@ -6,14 +6,14 @@ an absent field remains ``None``/``unknown`` instead of being guessed by a model
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field as dataclass_field
+import math
+from dataclasses import asdict, dataclass
+from dataclasses import field as dataclass_field
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
-import math
 from typing import Any, Mapping
 
 from .url_policy import is_absolute_http_url
-
 
 # Nested domain objects retain the historical numeric version.  Result and
 # HTTP payloads use a namespaced contract identifier so consumers can route
