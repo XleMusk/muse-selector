@@ -251,7 +251,6 @@ def build_quality_report(raw_listings: Iterable[dict[str, Any]], *, ttl_hours: i
 
 def validate_fixture_shape() -> list[str]:
     policy = load_json("regression_policy.json")
-    feedback_records = load_feedback_fixture(str(FIXTURES / "feedback_events.json"))
     errors: list[str] = []
     required = set(policy["required_evidence_fields"])
     for raw in load_raw_listings():
