@@ -24,17 +24,13 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from ..ports import SourceUnavailable
+from .http_utils import NoRedirectHandler
 
 
-class ConnectorUnavailable(SourceUnavailable):
-    """Raised when the connector cannot run in the requested read-only mode."""
-
-
-class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
-    """Reject redirects so credentials never follow an untrusted Location."""
-
-    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401
-        return None
+# Historical import path retained for callers and tests; source adapters use
+# the shared port exception internally.
+ConnectorUnavailable = SourceUnavailable
+_NoRedirectHandler = NoRedirectHandler
 
 
 _OFFICIAL_API_HOSTS = frozenset({"api.ebay.com", "api.sandbox.ebay.com"})
@@ -222,7 +218,7 @@ class EbayBrowseConnector:
         self.client_secret = client_secret if client_secret is not None else resolved_secret
         # The official endpoints are fixed above. Do not let urllib follow a
         # redirect and replay Basic/Bearer headers at another host.
-        self.opener = opener or urllib.request.build_opener(_NoRedirectHandler())
+        self.opener = opener or urllib.request.build_opener(NoRedirectHandler())
         self._token: str | None = None
         self._token_expires_at = 0.0
         self._last_latency_ms: float | None = None

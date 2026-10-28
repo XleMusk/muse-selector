@@ -20,7 +20,13 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Mapping, Sequence
 
-from .ebay import ConnectorUnavailable, _NoRedirectHandler
+from ..ports import SourceUnavailable
+from .http_utils import NoRedirectHandler
+
+
+# Keep the historical connector-local name while sharing one port-level
+# failure contract across all read-only adapters.
+ConnectorUnavailable = SourceUnavailable
 
 
 _OFFICIAL_HOST = "mcp.zhuanzhuan.com"
@@ -120,7 +126,7 @@ class ZhuanzhuanMcpConnector:
     ) -> None:
         self.config = config or ZhuanzhuanMcpConfig.from_env()
         self.token = token if token is not None else os.getenv("ZHUANZHUAN_MCP_TOKEN")
-        self.opener = opener or urllib.request.build_opener(_NoRedirectHandler())
+        self.opener = opener or urllib.request.build_opener(NoRedirectHandler())
         self.client_name = _non_empty_text(client_name, "client_name", maximum=100)
         self.client_version = _non_empty_text(client_version, "client_version", maximum=100)
         self._session_id: str | None = None
