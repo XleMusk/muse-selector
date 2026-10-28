@@ -66,16 +66,37 @@ def _valid_live_smoke_evidence(value: Mapping[str, Any] | None) -> bool:
     )
 
 
+def _valid_shadow_artifact(value: Mapping[str, Any] | None) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    cases = value.get("cases")
+    regions = {item.get("region") for item in cases} if isinstance(cases, list) else set()
+    return (
+        value.get("schema_version") == "muse.selector.shadow.v1"
+        and value.get("ok") is True
+        and value.get("read_only") is True
+        and value.get("failure_count") == 0
+        and value.get("hard_constraint_violation_rate") == 0.0
+        and value.get("replay_mismatch_count") == 0
+        and isinstance(value.get("cost_proxy"), Mapping)
+        and value["cost_proxy"].get("external_requests") == 0
+        and regions == {"HK", "CN"}
+    )
+
+
 def run_release_check(root: str | Path | None = None, *, require_live: bool = False) -> dict[str, Any]:
     base = Path(root) if root is not None else Path(__file__).resolve().parents[2]
     checks: dict[str, dict[str, Any]] = {}
     for name, relative in _ARTIFACTS.items():
         path = base / relative
         artifact, error = _read_json(path)
+        artifact_ok = bool(artifact and artifact.get("ok") is True)
+        if name == "shadow":
+            artifact_ok = _valid_shadow_artifact(artifact)
         checks[name] = {
             "path": relative,
             "exists": path.is_file(),
-            "ok": error is None and bool(artifact and artifact.get("ok") is True),
+            "ok": error is None and artifact_ok,
             "error": error,
         }
     for relative in _DOCUMENTS:

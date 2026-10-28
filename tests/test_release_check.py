@@ -25,7 +25,19 @@ class ReleaseCheckTests(unittest.TestCase):
             root = Path(directory)
             for name in ("regression_result", "fault_result", "metrics_result", "shadow_result"):
                 (root / "examples").mkdir(exist_ok=True)
-                (root / "examples" / f"{name}.json").write_text(json.dumps({"ok": True}), encoding="utf-8")
+                payload = {"ok": True}
+                if name == "shadow_result":
+                    payload = {
+                        "schema_version": "muse.selector.shadow.v1",
+                        "ok": True,
+                        "read_only": True,
+                        "failure_count": 0,
+                        "hard_constraint_violation_rate": 0.0,
+                        "replay_mismatch_count": 0,
+                        "cost_proxy": {"external_requests": 0},
+                        "cases": [{"region": "HK"}, {"region": "CN"}],
+                    }
+                (root / "examples" / f"{name}.json").write_text(json.dumps(payload), encoding="utf-8")
             for name in ("README.md", "acceptance_matrix.md", "remaining_execution_plan.md", "release_runbook.md"):
                 (root / name).write_text("ready", encoding="utf-8")
             (root / "examples" / "live_smoke_result.json").write_text(json.dumps({
