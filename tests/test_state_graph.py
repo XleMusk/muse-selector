@@ -1,9 +1,12 @@
 import copy
+import contextlib
+import io
+import json
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from muse_selector.state_graph import STAGE_CHECKPOINT_SCHEMA_VERSION, STATE_GRAPH_SCHEMA_VERSION, load_checkpoint, run_search_graph, run_state_graph, save_checkpoint
+from muse_selector.state_graph import STAGE_CHECKPOINT_SCHEMA_VERSION, STATE_GRAPH_SCHEMA_VERSION, load_checkpoint, main, run_search_graph, run_state_graph, save_checkpoint
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -86,6 +89,27 @@ class StateGraphTests(unittest.TestCase):
                 )
         self.assertTrue(replay["execution"]["resumed_from_checkpoint"])
         self.assertEqual(replay["recommended"], first["recommended"])
+
+    def test_cli_checkpoint_out_then_checkpoint_replays(self):
+        import tempfile
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "checkpoint.json"
+            output = io.StringIO()
+            args = [
+                "muse-state-graph",
+                "--query", "香港预算 HKD 7000 以内的迷你主机",
+                "--fixture", str(FIXTURE),
+                "--checkpoint-out", str(path),
+            ]
+            with patch("sys.argv", args), contextlib.redirect_stdout(output):
+                self.assertEqual(main(), 0)
+            output = io.StringIO()
+            args[-2:] = ["--checkpoint", str(path)]
+            with patch("sys.argv", args), contextlib.redirect_stdout(output):
+                self.assertEqual(main(), 0)
+            self.assertTrue(json.loads(output.getvalue())["resumed_from_checkpoint"])
 
     def test_mismatched_checkpoint_fails_closed(self):
         first = run_search_graph("香港预算 HKD 7000 以内的迷你主机", FIXTURE)
