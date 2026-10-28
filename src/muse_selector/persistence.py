@@ -251,6 +251,7 @@ class SelectorStore:
                     event_key TEXT NOT NULL,
                     event_type TEXT NOT NULL,
                     payload_json TEXT NOT NULL,
+                    consumed_at TEXT,
                     UNIQUE (watch_id, event_key)
                 );
                 CREATE INDEX IF NOT EXISTS idx_watch_events_watch_id
@@ -279,6 +280,9 @@ class SelectorStore:
                 conn.execute("ALTER TABLE watches ADD COLUMN environment TEXT NOT NULL DEFAULT 'production'")
             if "thresholds_json" not in watch_columns:
                 conn.execute("ALTER TABLE watches ADD COLUMN thresholds_json TEXT NOT NULL DEFAULT '{}'")
+            event_columns = {row["name"] for row in conn.execute("PRAGMA table_info(watch_events)")}
+            if "consumed_at" not in event_columns:
+                conn.execute("ALTER TABLE watch_events ADD COLUMN consumed_at TEXT")
             card_columns = {row["name"] for row in conn.execute("PRAGMA table_info(result_cards)")}
             if "source_rank" not in card_columns:
                 conn.execute("ALTER TABLE result_cards ADD COLUMN source_rank INTEGER NOT NULL DEFAULT 0")
@@ -754,7 +758,7 @@ class SelectorStore:
             raise KeyError(f"unknown watch_id: {watch_id}")
         with self._connection() as conn:
             rows = conn.execute(
-                "SELECT event_id, watch_id, observed_at, run_id, event_key, event_type, payload_json FROM watch_events WHERE watch_id = ? ORDER BY event_id DESC LIMIT ? OFFSET ?",
+                "SELECT event_id, watch_id, observed_at, run_id, event_key, event_type, payload_json, consumed_at FROM watch_events WHERE watch_id = ? ORDER BY event_id DESC LIMIT ? OFFSET ?",
                 (watch_id, int(limit), int(offset)),
             ).fetchall()
         result: list[dict[str, Any]] = []
@@ -771,6 +775,7 @@ class SelectorStore:
                 "event_key": row["event_key"],
                 "event_type": row["event_type"],
                 "details": details,
+                "consumed_at": row["consumed_at"],
             })
         return result
 
@@ -778,6 +783,46 @@ class SelectorStore:
         """Return the same event feed as typed domain objects."""
 
         return [WatchEvent.from_mapping(item) for item in self.list_watch_events(watch_id, limit=limit, offset=offset)]
+
+    def consume_watch_events(self, watch_id: str, *, limit: int = 100) -> list[dict[str, Any]]:
+        """Claim pending events locally for a deterministic notification consumer."""
+
+        if limit <= 0 or limit > 1000:
+            raise ValueError("limit must be between 1 and 1000")
+        if self.get_watch(watch_id) is None:
+            raise KeyError(f"unknown watch_id: {watch_id}")
+        consumed_at = _now()
+        with self._connection() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            rows = conn.execute(
+                "SELECT event_id, watch_id, observed_at, run_id, event_key, event_type, payload_json, consumed_at "
+                "FROM watch_events WHERE watch_id = ? AND consumed_at IS NULL ORDER BY event_id LIMIT ?",
+                (watch_id, int(limit)),
+            ).fetchall()
+            event_ids = [int(row["event_id"]) for row in rows]
+            if event_ids:
+                placeholders = ",".join("?" for _ in event_ids)
+                conn.execute(
+                    f"UPDATE watch_events SET consumed_at = ? WHERE watch_id = ? AND event_id IN ({placeholders}) AND consumed_at IS NULL",
+                    (consumed_at, watch_id, *event_ids),
+                )
+        result = []
+        for row in rows:
+            try:
+                details = json.loads(row["payload_json"])
+            except (TypeError, ValueError):
+                details = None
+            result.append({
+                "event_id": int(row["event_id"]),
+                "watch_id": row["watch_id"],
+                "observed_at": row["observed_at"],
+                "run_id": row["run_id"],
+                "event_key": row["event_key"],
+                "event_type": row["event_type"],
+                "details": details,
+                "consumed_at": consumed_at,
+            })
+        return result
 
     def refresh_watch(self, watch_id: str, *, environment: str | None = None) -> dict[str, Any]:
         with self._connection() as conn:

@@ -102,6 +102,7 @@ class WatchEvent:
     event_type: str
     observed_at: str
     details: Mapping[str, Any] = field(default_factory=dict)
+    consumed_at: str | None = None
 
     def __post_init__(self) -> None:
         if not self.watch_id or not self.run_id or not self.event_key or not self.event_type:
@@ -123,6 +124,7 @@ class WatchEvent:
             event_type=str(value.get("event_type") or ""),
             observed_at=str(value.get("observed_at") or "unknown"),
             details=normalized_details,
+            consumed_at=str(value["consumed_at"]) if value.get("consumed_at") else None,
         )
 
     def to_dict(self) -> dict[str, Any]:

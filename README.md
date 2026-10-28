@@ -193,7 +193,7 @@ Invoke-RestMethod "http://127.0.0.1:8765/api/watch/changes?watch_id=mini_pc_hk&i
 
 `/api/watch` 只读取单个 watch 元数据和最新已保存结果，`/api/watches` 返回全部 watch 元数据；两个端点都不会刷新来源、调用连接器或写入 SQLite。watch 元数据中的 `last_change_summary` 是最近一次刷新相对于上一个检查点的新增、移除、内容变化和状态变化摘要，即使观察进程已经退出也可以恢复。未绑定 `--db` 或 watch 不存在时返回结构化 `watch_unavailable` / `watch_not_found`。
 `/api/watch/changes` 返回该 watch 的持久化检查点历史（按最新在前排序），每个事件带 `run_id`、`changed`、摘要和观测时间；追加 `include_payload=1` 可在同一个只读响应中带出可重放的 run payload。支持 `limit`（1–1000）和 `offset` 分页，服务重启后仍可继续读取，重复刷新同一个 deterministic run 不会制造重复历史行。
-观察任务也可以保存 `price_max`、`stock_required`、`max_delivery_days` 三类本地阈值；刷新时产生 SQLite `watch_events`，相同 `watch_id + event_key` 只保留一次。事件只在条目进入阈值或离开后重新进入时产生，同一状态内的价格变化不会重复触发。来源不可用、策略阻断或需要补充条件时，失败快照会先保存，再把 watch 自动暂停，避免后台重复刷新；恢复仍需显式执行 `muse-watch --action resume`。CLI 使用 `muse-watch --action events` 读取，Web 使用 `/api/watch/events` 读取；这些事件不发送外部通知，也不调用来源写接口。
+观察任务也可以保存 `price_max`、`stock_required`、`max_delivery_days` 三类本地阈值；刷新时产生 SQLite `watch_events`，相同 `watch_id + event_key` 只保留一次。事件只在条目进入阈值或离开后重新进入时产生，同一状态内的价格变化不会重复触发。来源不可用、策略阻断或需要补充条件时，失败快照会先保存，再把 watch 自动暂停，避免后台重复刷新；恢复仍需显式执行 `muse-watch --action resume`。CLI 使用 `muse-watch --action events` 读取，`muse-watch --action consume-events` 领取本地 outbox，Web 使用 `/api/watch/events` 读取；这些事件不发送外部通知，也不调用来源写接口。
 
 运行离线回归：
 
@@ -283,11 +283,12 @@ muse-watch --db "D:\muse\data\selector.sqlite3" --action replay --watch-id "mini
 muse-watch --db "D:\muse\data\selector.sqlite3" --action status --watch-id "mini_pc_hk"
 muse-watch --db "D:\muse\data\selector.sqlite3" --action list
 muse-watch --db "D:\muse\data\selector.sqlite3" --action changes --watch-id "mini_pc_hk" --include-payload
+muse-watch --db "D:\muse\data\selector.sqlite3" --action consume-events --watch-id "mini_pc_hk"
 ```
 
 观察任务会持久化 `environment`（`production` 或 `sandbox`）。创建或更新时显式传入 `--environment sandbox` 后，后续省略该参数的刷新仍会使用已保存的 Sandbox 目标；旧 SQLite 数据库迁移后默认使用 production。
 
-这些 action 只读写本地 SQLite 状态；`replay`、`status`、`list` 和 `changes` 不会调用连接器，`status` 会返回观察任务元数据和最新已保存结果，`list` 返回全部观察任务，`changes` 返回历史检查点并可用 `--include-payload` 导出可重放 payload，`update` 会保留旧 run 供重放。已有 fixture 观察任务可用 `--action update --live` 清除 fixture，原地切换到实时只读 API。
+这些 action 只读写本地 SQLite 状态；`replay`、`status`、`list`、`changes`、`events` 和 `consume-events` 不会调用连接器，`status` 会返回观察任务元数据和最新已保存结果，`list` 返回全部观察任务，`changes` 返回历史检查点并可用 `--include-payload` 导出可重放 payload，`events` 读取本地 outbox，`consume-events` 只在本地标记已领取事件，`update` 会保留旧 run 供重放。已有 fixture 观察任务可用 `--action update --live` 清除 fixture，原地切换到实时只读 API。
 如果 `watch_id` 不存在，`refresh`（未提供查询时）、`status`、`changes`、`pause`、`resume`、`replay` 和 `update` 会返回带 `schema_version` 的只读 JSON 错误（例如 `status: "watch_not_found"`）并退出码 `2`，不会打印 traceback，也不会创建空查询观察任务。若 watch 元数据指向已丢失的 checkpoint，CLI 和 Web `/api/watch` 会返回 `watch_unavailable`，保留只读边界并提示重新刷新。
 
 回归集覆盖预算、地区、必选规格、陈旧/冲突证据、缺失 URL、账号策略阻断、提示注入、SSRF 和重放稳定性。fixture 中的价格和库存是测试数据，不能当作当前市场报价。

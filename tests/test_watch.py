@@ -184,6 +184,30 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(len(events["events"]), 2)
             self.assertTrue(events["read_only"])
 
+    def test_cli_consume_events_claims_local_outbox_once(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / "watch.sqlite3"
+
+            def invoke(*args):
+                output = io.StringIO()
+                with patch.object(sys, "argv", ["muse-watch", *args]), contextlib.redirect_stdout(output):
+                    code = main()
+                return code, json.loads(output.getvalue())
+
+            code, _ = invoke(
+                "--db", str(db), "--action", "refresh", "--watch-id", "consume_cli",
+                "--query", "香港预算 HKD 7000 以内的迷你主机", "--fixture", str(FIXTURE),
+                "--price-max", "7000", "--stock-required", "--once",
+            )
+            self.assertEqual(code, 0)
+            code, consumed = invoke("--db", str(db), "--action", "consume-events", "--watch-id", "consume_cli")
+            self.assertEqual(code, 0)
+            self.assertEqual(len(consumed["events"]), 2)
+            self.assertTrue(all(event["consumed_at"] for event in consumed["events"]))
+            code, empty = invoke("--db", str(db), "--action", "consume-events", "--watch-id", "consume_cli")
+            self.assertEqual(code, 0)
+            self.assertEqual(empty["events"], [])
+
     def test_cli_refresh_environment_selects_sandbox(self):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / "watch.sqlite3"

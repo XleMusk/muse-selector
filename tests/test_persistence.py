@@ -95,6 +95,11 @@ class PersistenceTests(unittest.TestCase):
             events = store.list_watch_events(watch_id)
             self.assertEqual(len(events), 2)
             self.assertEqual({event["event_type"] for event in events}, {"price_max_reached", "stock_available"})
+            consumed = store.consume_watch_events(watch_id)
+            self.assertEqual(len(consumed), 2)
+            self.assertTrue(all(event["consumed_at"] for event in consumed))
+            self.assertEqual(store.consume_watch_events(watch_id), [])
+            self.assertTrue(all(event["consumed_at"] for event in store.list_watch_events(watch_id)))
 
     def test_watch_threshold_events_only_fire_on_crossing_and_reentry(self):
         payloads = [

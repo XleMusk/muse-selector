@@ -4,7 +4,7 @@
 
 这份计划承接 `PROJECT_GOAL.md` 和 `muse_like_execution_blueprint.md`，作为当前代码状态的单一执行记录。执行原则是：一条主关键路径、多个独立 Pod 并行、短提交持续合入；外部凭据等待期间继续完成所有本地工作，不把 fixture 或模拟响应写成实时成功。
 
-截至 2026-10-28，仓库 `main` 的产品主线已切换为中国大陆二手电子产品与游戏账号只读发现；香港 eBay 只作为兼容基线保留。主线为 SearchSpec → 国内来源能力/人工入口 → 标准化证据 → 硬过滤与结果卡 → CLI/Web → SQLite watch/state replay。当前本地证据为 250 项测试通过，离线回归 `hard_constraint_violation_rate=0.0`，反馈回放无分歧，故障矩阵、指标测试、全量 mypy 和 GitHub CI 均通过。
+截至 2026-10-28，仓库 `main` 的产品主线已切换为中国大陆二手电子产品与游戏账号只读发现；香港 eBay 只作为兼容基线保留。主线为 SearchSpec → 国内来源能力/人工入口 → 标准化证据 → 硬过滤与结果卡 → CLI/Web → SQLite watch/state replay。当前本地证据为 251 项测试通过，离线回归 `hard_constraint_violation_rate=0.0`，反馈回放无分歧，故障矩阵、指标测试、全量 mypy 和 GitHub CI 均通过。
 
 当前状态要按三类理解：
 
@@ -46,7 +46,7 @@ W2 的真实生产授权是唯一外部门。没有 keyset 时只完成合同、
 | W7 观察任务增强 | P5 + P8 | 价格/库存/配送阈值、SQLite 本地事件 outbox、事件去重键、失败自动暂停 | 相同 `watch_id + event_key` 只产生一次事件；来源不可用、策略阻断或输入不完整时 watch 自动暂停；通知先保留为本地读取，不连接邮件、短信或平台写接口 |
 
 已有 `watch_changes`、`last_change_summary` 和本地重放作为基础，先扩展状态和事件契约，再考虑任何外部通知。
-当前已完成：`watch_events` 持久化了 `price_max`、`stock_required`、`max_delivery_days` 的本地阈值事件，并通过 CLI `events` 和 Web `/api/watch/events` 只读读取；来源不可用、策略阻断和需要补充条件的刷新会在同一事务中保存失败快照并自动暂停；阈值事件只在条目从未满足进入满足、或离开后重新进入时产生，同一状态的价格变化不会重复触发。剩余工作是本地通知消费。
+当前已完成：`watch_events` 持久化了 `price_max`、`stock_required`、`max_delivery_days` 的本地阈值事件，并通过 CLI `events` 和 Web `/api/watch/events` 读取；阈值事件只在条目从未满足进入满足、或离开后重新进入时产生，同一状态的价格变化不会重复触发；CLI `consume-events` 会在本地 SQLite 中一次性领取未消费事件并写入 `consumed_at`，重复领取不会产生重复事件。来源不可用、策略阻断和需要补充条件的刷新会在同一事务中保存失败快照并自动暂停。
 
 ### Wave C：结果层、只读浏览器和红队恢复
 

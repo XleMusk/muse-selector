@@ -65,7 +65,7 @@ def main() -> int:
     parser.add_argument("--db", default="data/selector.sqlite3")
     parser.add_argument(
         "--action",
-        choices=("refresh", "pause", "resume", "update", "replay", "status", "list", "changes", "events"),
+        choices=("refresh", "pause", "resume", "update", "replay", "status", "list", "changes", "events", "consume-events"),
         default="refresh",
     )
     parser.add_argument("--query", default=None)
@@ -161,6 +161,19 @@ def main() -> int:
                 "events": events,
                 "limit": args.limit,
                 "offset": args.offset,
+            })
+            return 0
+        if args.action == "consume-events":
+            try:
+                events = store.consume_watch_events(args.watch_id, limit=args.limit)
+            except KeyError as exc:
+                return _print_error("consume-events", "watch_not_found", _exception_message(exc))
+            _print_result({
+                "action": "consume-events",
+                "watch_id": args.watch_id,
+                "read_only": True,
+                "events": events,
+                "limit": args.limit,
             })
             return 0
         if args.action == "pause":
