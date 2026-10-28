@@ -11,16 +11,10 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from .application import search as run_search
-from .connectors.ebay import (
-    EbayBrowseConnector,
-    credential_env_names,
-)
-from .connectors.ebay import (
-    credential_state as ebay_credential_state,
-)
 from .contracts import RESULT_SCHEMA_VERSION
 from .persistence import SelectorStore
 from .source_capabilities import source_capability_registry
+from .source_factory import describe_default_source
 from . import web_views as _web_views
 
 # Keep the historical symbols importable from ``muse_selector.web``.
@@ -48,18 +42,6 @@ def capability_snapshot(environment: str | None = None) -> dict[str, Any]:
     selected_environment = str(
         environment if environment is not None else os.environ.get("EBAY_ENVIRONMENT", "production")
     ).strip().lower()
-    credential_env = None
-    if selected_environment in {"production", "sandbox"}:
-        client_id_var, client_secret_var = credential_env_names(selected_environment)
-        credential_env = {
-            "scoped": [client_id_var, client_secret_var],
-            "legacy_fallback": ["EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET"],
-        }
-    credential_state = (
-        ebay_credential_state(selected_environment)
-        if selected_environment in {"production", "sandbox"}
-        else "missing"
-    )
     source_registry = source_capability_registry()
     sources: dict[str, dict[str, Any]] = {}
     for source_id, capability in source_registry.items():
@@ -70,34 +52,7 @@ def capability_snapshot(environment: str | None = None) -> dict[str, Any]:
             source["currency"] = {"HK": "HKD", "CN": "CNY"}.get(region)
         sources[source_id] = source
     ebay = sources["ebay.browse.hk.v1"]
-    ebay.update(
-        {
-            "credential_state": credential_state,
-            "environment": selected_environment if selected_environment in {"production", "sandbox"} else "unknown",
-            "api_host": None,
-            "token_path": None,
-            "credential_env": credential_env,
-        }
-    )
-    try:
-        connector = EbayBrowseConnector(
-            environment=selected_environment if selected_environment in {"production", "sandbox"} else None
-        )
-        ebay.update(
-            {
-                "environment": connector.config.environment,
-                "credential_state": connector.credential_state,
-                "api_host": urlparse(connector.config.api_base).hostname,
-                "token_path": urlparse(connector.config.token_url).path,
-                "credential_env": {
-                    "scoped": list(credential_env_names(connector.config.environment)),
-                    "legacy_fallback": ["EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET"],
-                },
-                "status": "disabled" if connector._kill_switch_active() else "ready" if connector.live_enabled else "credential_unavailable",
-            }
-        )
-    except (TypeError, ValueError, OSError):
-        ebay["status"] = "configuration_error"
+    ebay.update(describe_default_source(selected_environment))
     return {
         "schema_version": RESULT_SCHEMA_VERSION,
         "ok": True,
