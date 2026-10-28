@@ -193,7 +193,7 @@ Invoke-RestMethod "http://127.0.0.1:8765/api/watch/changes?watch_id=mini_pc_hk&i
 
 `/api/watch` 只读取单个 watch 元数据和最新已保存结果，`/api/watches` 返回全部 watch 元数据；两个端点都不会刷新来源、调用连接器或写入 SQLite。watch 元数据中的 `last_change_summary` 是最近一次刷新相对于上一个检查点的新增、移除、内容变化和状态变化摘要，即使观察进程已经退出也可以恢复。未绑定 `--db` 或 watch 不存在时返回结构化 `watch_unavailable` / `watch_not_found`。
 `/api/watch/changes` 返回该 watch 的持久化检查点历史（按最新在前排序），每个事件带 `run_id`、`changed`、摘要和观测时间；追加 `include_payload=1` 可在同一个只读响应中带出可重放的 run payload。支持 `limit`（1–1000）和 `offset` 分页，服务重启后仍可继续读取，重复刷新同一个 deterministic run 不会制造重复历史行。
-观察任务也可以保存 `price_max`、`stock_required`、`max_delivery_days` 三类本地阈值；刷新时产生 SQLite `watch_events`，相同 `watch_id + event_key` 只保留一次。来源不可用、策略阻断或需要补充条件时，失败快照会先保存，再把 watch 自动暂停，避免后台重复刷新；恢复仍需显式执行 `muse-watch --action resume`。CLI 使用 `muse-watch --action events` 读取，Web 使用 `/api/watch/events` 读取；这些事件不发送外部通知，也不调用来源写接口。
+观察任务也可以保存 `price_max`、`stock_required`、`max_delivery_days` 三类本地阈值；刷新时产生 SQLite `watch_events`，相同 `watch_id + event_key` 只保留一次。事件只在条目进入阈值或离开后重新进入时产生，同一状态内的价格变化不会重复触发。来源不可用、策略阻断或需要补充条件时，失败快照会先保存，再把 watch 自动暂停，避免后台重复刷新；恢复仍需显式执行 `muse-watch --action resume`。CLI 使用 `muse-watch --action events` 读取，Web 使用 `/api/watch/events` 读取；这些事件不发送外部通知，也不调用来源写接口。
 
 运行离线回归：
 
@@ -278,6 +278,7 @@ muse-watch --db "D:\muse\data\selector.sqlite3" --action changes --watch-id "min
 回归产物 `examples/regression_result.json` 同时记录 `hard_constraint_violation_rate`；当前验收值必须为 `0.0`。
 回归集的正例还带有明确的 `relevant_listing_ids` 标签，产物会报告基于 fixture 的
 `Precision@10`、`Recall@20`、`NDCG@10` 和重放 `Top-k Jaccard` 基线；这些指标用于比较代码变更，不能当作实时市场质量或平台整体覆盖率。
+本地反馈可通过 `tests/fixtures/feedback_events.json` 导入 SQLite，并用 `muse.selector.feedback.v1` 记录重放结果；回归脚本会检查反馈标签与推荐集合是否一致，不会访问外部平台。
 同一回归产物还带有 `quality_report`：只使用来源明确提供的 GTIN、EPID、MPN、SKU 或品牌/型号做实体键，报告去重和 72 小时 TTL 统计；标题不会被用来猜测型号或实体身份。
 W10 故障矩阵可独立运行 `python tests/fault_harness.py`，覆盖 OAuth/429/坏响应/token 脱敏、损坏 checkpoint、重复观察事件、SSRF 和提示注入；输出 `muse.selector.faults.v1`，不联网、不接触凭据。
 W11 合成负载指标可运行 `python tests/metrics_harness.py`，输出 `muse.selector.metrics.v1`，记录 p50/p95、成功/失败率、硬约束违规率、checkpoint 重放稳定性和外部请求成本代理；fixture 模式的外部请求数必须为 0。

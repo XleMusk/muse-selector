@@ -4,7 +4,7 @@
 
 这份计划承接 `PROJECT_GOAL.md` 和 `muse_like_execution_blueprint.md`，作为当前代码状态的单一执行记录。执行原则是：一条主关键路径、多个独立 Pod 并行、短提交持续合入；外部凭据等待期间继续完成所有本地工作，不把 fixture 或模拟响应写成实时成功。
 
-截至 2026-10-28，仓库 `main` 的产品主线已切换为中国大陆二手电子产品与游戏账号只读发现；香港 eBay 只作为兼容基线保留。主线为 SearchSpec → 国内来源能力/人工入口 → 标准化证据 → 硬过滤与结果卡 → CLI/Web → SQLite watch/state replay。当前本地证据为 240 项测试通过，离线回归 `hard_constraint_violation_rate=0.0`，故障矩阵、指标测试、全量 mypy 和 GitHub CI 均通过。
+截至 2026-10-28，仓库 `main` 的产品主线已切换为中国大陆二手电子产品与游戏账号只读发现；香港 eBay 只作为兼容基线保留。主线为 SearchSpec → 国内来源能力/人工入口 → 标准化证据 → 硬过滤与结果卡 → CLI/Web → SQLite watch/state replay。当前本地证据为 244 项测试通过，离线回归 `hard_constraint_violation_rate=0.0`，反馈回放无分歧，故障矩阵、指标测试、全量 mypy 和 GitHub CI 均通过。
 
 当前状态要按三类理解：
 
@@ -12,17 +12,17 @@
 |---|---|---|
 | 本地只读 MVP | 已完成 | 国内 CN/CNY 路由、电子产品结果卡、游戏账号策略域和人工入口、loopback Web、watch、state replay、fault/metrics harness 可运行 |
 | 外部来源门 | 待外部条件 | 国内电子产品挂牌搜索和游戏账号挂牌搜索暂无登记的官方批量搜索授权，结果保持 `source_unavailable` 或 `link_only`；eBay 生产批准/keyset 只影响兼容基线 |
-| 扩展能力 | 部分完成 | W6 只有整包 checkpoint，W7 已有阈值事件去重和失败自动暂停但仍缺完整阈值跨越语义，W8 是只读 broker contract，W9 尚无反馈回放，W11 只有离线 synthetic，规模化存储/检索架构仍是后续阶段 |
+| 扩展能力 | 部分完成 | W6 只有整包 checkpoint，W7 已完成阈值跨越、重新进入和幂等事件，W8 是只读 broker contract，W9 已有本地反馈记录与 fixture 回放，W11 只有离线 synthetic，规模化存储/检索架构仍是后续阶段 |
 
-因此下一步不再重复已通过的本地门，而是按价值顺序处理：组合根、搜索工厂、观察存储注入、来源能力契约和 Web 视图拆分已经完成；接下来清理兼容 patch 点、完成全仓格式/import 迁移，再补国内来源授权后的适配器，随后推进反馈回放、逐阶段 checkpoint 和本地 shadow 评测。eBay smoke、真实浏览器、FastAPI/Postgres/BM25/vector 等扩展不作为国内只读主线前置条件。
+因此下一步不再重复已通过的本地门，而是按价值顺序处理：组合根、搜索工厂、观察存储注入、来源能力契约、Web 视图拆分、兼容 patch 清理和反馈回放已经完成；接下来推进逐阶段 checkpoint、本地 shadow 评测和国内来源授权后的适配器。eBay smoke、真实浏览器、FastAPI/Postgres/BM25/vector 等扩展不作为国内只读主线前置条件。
 
 ## Google 接手后的重构顺序
 
-第一步只改依赖方向：由组合根创建来源适配器，`SearchApplication` 注入 `SourceConnectorFactory`，`persistence.py` 接收搜索 callable，Web 显式传入应用用例。当前还保留一层兼容桥，待测试迁移后删除对 `pipeline.EbayBrowseConnector` 的 patch。
+第一步只改依赖方向：由组合根创建来源适配器，`SearchApplication` 注入 `SourceConnectorFactory`，`persistence.py` 接收搜索 callable，Web 显式传入应用用例。旧的 `pipeline.EbayBrowseConnector` 兼容桥已删除。
 
 第二步统一来源能力契约：`SourceCapability`、`PolicyRecord` 和 `data/source_registry.yaml` 已使用同一组访问模式、状态和来源 ID，并对历史别名做显式归一化。国内电子产品、游戏账号人工入口、转转估价和香港 eBay 兼容适配分别登记，不能由一个枚举混用。
 
-第三步已拆出 Web 视图模块并扩大 mypy 到全包，32 个源文件当前通过。剩余格式/import 迁移不改变结果契约，也不把 eBay fixture 改写成国内数据。
+第三步已拆出 Web 视图模块并扩大 mypy 到全包，33 个源文件当前通过。剩余格式/import 迁移不改变结果契约，也不把 eBay fixture 改写成国内数据。
 
 ## 四波执行路线
 
@@ -46,13 +46,13 @@ W2 的真实生产授权是唯一外部门。没有 keyset 时只完成合同、
 | W7 观察任务增强 | P5 + P8 | 价格/库存/配送阈值、SQLite 本地事件 outbox、事件去重键、失败自动暂停 | 相同 `watch_id + event_key` 只产生一次事件；来源不可用、策略阻断或输入不完整时 watch 自动暂停；通知先保留为本地读取，不连接邮件、短信或平台写接口 |
 
 已有 `watch_changes`、`last_change_summary` 和本地重放作为基础，先扩展状态和事件契约，再考虑任何外部通知。
-当前已完成：`watch_events` 持久化了 `price_max`、`stock_required`、`max_delivery_days` 的本地阈值事件，并通过 CLI `events` 和 Web `/api/watch/events` 只读读取；来源不可用、策略阻断和需要补充条件的刷新会在同一事务中保存失败快照并自动暂停。剩余工作是更完整的阈值跨越语义和本地通知消费。
+当前已完成：`watch_events` 持久化了 `price_max`、`stock_required`、`max_delivery_days` 的本地阈值事件，并通过 CLI `events` 和 Web `/api/watch/events` 只读读取；来源不可用、策略阻断和需要补充条件的刷新会在同一事务中保存失败快照并自动暂停；阈值事件只在条目从未满足进入满足、或离开后重新进入时产生，同一状态的价格变化不会重复触发。剩余工作是本地通知消费。
 
 ### Wave C：结果层、只读浏览器和红队恢复
 
 | 工作包 | 主责 | 交付物 | 退出条件 |
 |---|---|---|---|
-| W9 用户结果层 | P7 结果层 | 硬件兼容性矩阵、证据展开、反馈事件写入 fixture、比较 artifact | 每个兼容性判断都能回到来源字段；反馈可重放进入回归集；没有来源证据的字段显示 `unknown` |
+| W9 用户结果层 | P7 结果层 | 硬件兼容性矩阵、证据展开、反馈事件写入 fixture、比较 artifact | 每个兼容性判断都能回到来源字段；反馈已可导入本地 SQLite 并重放进入回归集；没有来源证据的字段显示 `unknown` |
 | W8 只读浏览器 | P6 浏览器安全 | feature flag 下的 accessibility-tree broker、固定官方域 allowlist、出口规则、人工接管状态 | 无登录、真实 token、任意 JavaScript、DevTools 或写动作；越权出口和不确定状态立即停止；W8 不阻塞 API MVP |
 | W10 红队与恢复 | P6 + P8 | OAuth/429/超时/坏 JSON/损坏 checkpoint/重复 refresh 故障注入，SSRF、提示注入、token、跨租户测试集 | 凭据泄露、SSRF、越权出口、未审批写、重复副作用均为 0；每类故障都有可重放结果和回滚方式 |
 
