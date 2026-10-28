@@ -1,0 +1,37 @@
+{
+  "schema_version": "muse.selector.feedback.v1",
+  "events": [
+    {
+      "feedback_id": "feedback:hk_laptop_budget:laptop-001",
+      "run_id": "regression:hk_laptop_budget",
+      "listing_id": "ebay-hk-laptop-001",
+      "label": "relevant",
+      "recorded_at": "2026-10-24T10:00:00Z",
+      "details": {"source": "offline_regression"}
+    },
+    {
+      "feedback_id": "feedback:hk_gpu_vram:laptop-001",
+      "run_id": "regression:hk_gpu_vram",
+      "listing_id": "ebay-hk-laptop-001",
+      "label": "irrelevant",
+      "recorded_at": "2026-10-24T10:00:00Z",
+      "details": {"source": "offline_regression"}
+    },
+    {
+      "feedback_id": "feedback:hk_gpu_vram:gpu-001",
+      "run_id": "regression:hk_gpu_vram",
+      "listing_id": "ebay-hk-gpu-001",
+      "label": "relevant",
+      "recorded_at": "2026-10-24T10:00:00Z",
+      "details": {"source": "offline_regression"}
+    },
+    {
+      "feedback_id": "feedback:hk_usb4_dock:dock-001",
+      "run_id": "regression:hk_usb4_dock",
+      "listing_id": "ebay-hk-dock-001",
+      "label": "relevant",
+      "recorded_at": "2026-10-24T10:00:00Z",
+      "details": {"source": "offline_regression"}
+    }
+  ]
+}

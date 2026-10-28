@@ -20,6 +20,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from muse_selector.contracts import Evidence, Listing, SearchSpec  # noqa: E402
+from muse_selector.feedback_contracts import load_feedback_fixture, replay_feedback  # noqa: E402
 from muse_selector.filtering import filter_listings  # noqa: E402
 
 FIXTURES = ROOT / "tests" / "fixtures"
@@ -250,6 +251,7 @@ def build_quality_report(raw_listings: Iterable[dict[str, Any]], *, ttl_hours: i
 
 def validate_fixture_shape() -> list[str]:
     policy = load_json("regression_policy.json")
+    feedback_records = load_feedback_fixture(str(FIXTURES / "feedback_events.json"))
     errors: list[str] = []
     required = set(policy["required_evidence_fields"])
     for raw in load_raw_listings():
@@ -266,6 +268,7 @@ def validate_fixture_shape() -> list[str]:
 
 def run_regression() -> dict[str, Any]:
     errors = validate_fixture_shape()
+    feedback_records = load_feedback_fixture(str(FIXTURES / "feedback_events.json"))
     raw = load_raw_listings()
     hardware_raw = [item for item in raw if item.get("category") != "game_account"]
     listings = [build_listing(item) for item in hardware_raw]
@@ -279,6 +282,7 @@ def run_regression() -> dict[str, Any]:
     accepted_violations = 0
     labeled_metrics: list[dict[str, float]] = []
     replay_jaccards: list[float] = []
+    recommendations_by_run: dict[str, list[str]] = {}
 
     for case in load_queries():
         case_id = case["case_id"]
@@ -303,6 +307,7 @@ def run_regression() -> dict[str, Any]:
         accepted, decisions = filter_listings(spec, listings)
         ids = canonical_ids(accepted)
         ranked_ids = [item.listing_id for item in accepted]
+        recommendations_by_run[f"regression:{case_id}"] = ranked_ids
         query_results[case_id] = {"accepted": ids, "decisions": [asdict(d) for d in decisions]}
         if expected.get("must_return") and not accepted:
             errors.append(f"{case_id}: expected at least one accepted listing")
@@ -362,6 +367,9 @@ def run_regression() -> dict[str, Any]:
         "ndcg_at_10": _mean(item["ndcg_at_10"] for item in labeled_metrics),
         "top_k_jaccard": _mean(replay_jaccards),
     }
+    feedback_replay = replay_feedback(feedback_records, recommendations_by_run)
+    if not feedback_replay["ok"]:
+        errors.append("feedback replay disagreed with regression recommendations")
     return {
         "ok": not errors and violation_rate == 0.0,
         "errors": errors,
@@ -371,6 +379,7 @@ def run_regression() -> dict[str, Any]:
         "hard_constraint_checked_count": accepted_total,
         "ranking_metrics": ranking_metrics,
         "quality_report": quality_report,
+        "feedback_replay": feedback_replay,
     }
 
 
