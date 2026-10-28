@@ -48,6 +48,12 @@ class QueryParserBudgetRangeTests(unittest.TestCase):
         self.assertIsNone(spec.budget_min)
         self.assertEqual(spec.budget_max, Decimal("7000.00"))
 
+    def test_budget_short_units_are_scaled(self):
+        for value in ("7000", "7k", "7K", "7千", "0.7万"):
+            with self.subTest(value=value):
+                spec = parse_query(f"香港预算 {value} 以内的迷你主机")
+                self.assertEqual(spec.budget_max, Decimal("7000.00"))
+
     def test_unbounded_budget_is_still_unbounded(self):
         spec = parse_query("香港 USB4 扩展坞，价格不限")
         self.assertIsNone(spec.budget_min)
