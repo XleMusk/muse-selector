@@ -6,11 +6,12 @@ from pathlib import Path
 from typing import Any
 
 from .compatibility import build_compatibility_matrix
-from .connectors.ebay import ConnectorUnavailable, EbayBrowseConnector
+from .connectors.ebay import ConnectorUnavailable, EbayBrowseConnector as _EbayBrowseConnector
 from .contracts import RESULT_SCHEMA_VERSION, Evidence, Listing
 from .filtering import filter_listings
 from .link_only import build_link_only_plan
 from .ports import SourceConnector
+from .source_factory import build_source_connector
 from .query_parser import PolicyBlockedError, has_explicit_unbounded_budget, parse_query
 from .ranking import SOURCE_ORDER_PROFILE
 from .result_card import build_card
@@ -29,6 +30,28 @@ _ALLOWED_SOURCE_HOSTS = frozenset(
         "www.ebay.com",
     }
 )
+
+# Kept as a patch point for callers that used the former direct-construction
+# path. Normal composition goes through ``source_factory.build_source_connector``.
+EbayBrowseConnector = _EbayBrowseConnector
+_DEFAULT_EBAY_CONNECTOR = _EbayBrowseConnector
+
+
+def _build_legacy_connector(
+    fixture_path: str | Path | None,
+    environment: str | None,
+) -> SourceConnector:
+    """Compatibility bridge for direct ``pipeline.run_search`` callers."""
+
+    # Existing integrations/tests may patch ``pipeline.EbayBrowseConnector``.
+    # Honor that patch while keeping the real default construction in the
+    # application-level factory.
+    if EbayBrowseConnector is not _DEFAULT_EBAY_CONNECTOR:
+        connector_kwargs: dict[str, Any] = {"fixture_path": fixture_path}
+        if environment is not None:
+            connector_kwargs["environment"] = environment
+        return EbayBrowseConnector(**connector_kwargs)
+    return build_source_connector(fixture_path=fixture_path, environment=environment)
 
 
 def _source_capability(source_id: str, connector: Any = None) -> dict[str, Any] | None:
@@ -247,10 +270,7 @@ def run_search(
     source_id = "ebay.browse.hk.v1"
     try:
         if connector is None:
-            connector_kwargs: dict[str, Any] = {"fixture_path": fixture_path}
-            if environment is not None:
-                connector_kwargs["environment"] = environment
-            connector = EbayBrowseConnector(**connector_kwargs)
+            connector = _build_legacy_connector(fixture_path, environment)
         candidate_source_id = getattr(connector, "source_id", source_id)
         if isinstance(candidate_source_id, str) and candidate_source_id:
             source_id = candidate_source_id

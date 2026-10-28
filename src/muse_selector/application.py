@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Any
 
 from . import pipeline
-from .ports import SourceConnector
+from .ports import SourceConnector, SourceConnectorFactory
+from .query_parser import PolicyBlockedError, has_explicit_unbounded_budget, parse_query
+from .source_factory import build_source_connector
 
 
 @dataclass(frozen=True)
@@ -15,6 +17,7 @@ class SearchApplication:
     """Search use case with an optional injected read-only source connector."""
 
     connector: SourceConnector | None = None
+    source_factory: SourceConnectorFactory = build_source_connector
 
     def search(
         self,
@@ -25,14 +28,33 @@ class SearchApplication:
         offset: int = 0,
         environment: str | None = None,
     ) -> dict[str, Any]:
+        connector = self.connector
+        if connector is None and _query_can_reach_source(query, limit=limit, offset=offset):
+            connector = self.source_factory(fixture_path=fixture_path, environment=environment)
         return pipeline.run_search(
             query,
             fixture_path,
             limit=limit,
             offset=offset,
             environment=environment,
-            connector=self.connector,
+            connector=connector,
         )
+
+
+def _query_can_reach_source(query: str, *, limit: int, offset: int) -> bool:
+    """Avoid constructing adapters for policy/validation short-circuits."""
+
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
+        return False
+    if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
+        return False
+    try:
+        spec = parse_query(query)
+    except (PolicyBlockedError, ValueError):
+        return False
+    if spec.product_type == "game_account" or spec.region == "CN":
+        return False
+    return spec.budget_max is not None or has_explicit_unbounded_budget(query)
 
 
 _DEFAULT_APPLICATION = SearchApplication()

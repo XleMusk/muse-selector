@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Mapping, Protocol
 
 
@@ -16,6 +17,18 @@ class SourceConnector(Protocol):
         ...
 
     def search(self, search_spec: Mapping[str, Any]) -> list[dict[str, Any]]:
+        ...
+
+
+class SourceConnectorFactory(Protocol):
+    """Composition-root boundary for constructing a source connector."""
+
+    def __call__(
+        self,
+        *,
+        fixture_path: str | Path | None = None,
+        environment: str | None = None,
+    ) -> SourceConnector:
         ...
 
 
@@ -36,4 +49,4 @@ class Clock(Protocol):
         ...
 
 
-__all__ = ["Clock", "SourceConnector", "WatchStore"]
+__all__ = ["Clock", "SourceConnector", "SourceConnectorFactory", "WatchStore"]
