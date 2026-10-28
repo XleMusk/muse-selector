@@ -44,6 +44,13 @@ class DoctorTests(unittest.TestCase):
         fixture_check = next(item for item in report["checks"] if item["name"] == "fixture_pipeline")
         self.assertTrue(fixture_check["ok"])
 
+    def test_domestic_fixture_check_uses_explicit_local_connector(self):
+        fixture = ROOT / "tests" / "fixtures" / "domestic_cn_sample.json"
+        report = run_doctor(fixture, query="国内预算 CNY 8000 以内的二手迷你主机")
+        self.assertTrue(report["ok"])
+        fixture_check = next(item for item in report["checks"] if item["name"] == "fixture_pipeline")
+        self.assertTrue(fixture_check["ok"])
+
     def test_environment_override_is_reported_without_network_or_env_mutation(self):
         with patch.dict(os.environ, {"EBAY_ENVIRONMENT": "production"}, clear=False):
             report = run_doctor(FIXTURE, environment="sandbox")

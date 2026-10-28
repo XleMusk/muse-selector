@@ -18,7 +18,8 @@ from typing import Any
 
 from . import __version__
 from .connectors.ebay import credential_env_names, credential_state as ebay_credential_state
-from .application import search as run_search
+from .application import SearchApplication, search as run_search
+from .connectors.local_fixture import LocalFixtureConnector
 
 
 DEFAULT_QUERY = "香港预算 HKD 7000 以内的迷你主机"
@@ -127,7 +128,17 @@ def run_doctor(
             checks.append(_check("fixture_pipeline", False, "limit must be a positive integer"))
         else:
             try:
-                payload = run_search(query, path, limit=limit)
+                fixture_source_id = None
+                try:
+                    raw_fixture = json.loads(path.read_text(encoding="utf-8-sig"))
+                    if isinstance(raw_fixture, dict):
+                        fixture_source_id = raw_fixture.get("source_id")
+                except (OSError, UnicodeError, json.JSONDecodeError):
+                    pass
+                if fixture_source_id == "fixture.local.v1":
+                    payload = SearchApplication(connector=LocalFixtureConnector(path)).search(query, limit=limit)
+                else:
+                    payload = run_search(query, path, limit=limit)
                 cards = payload.get("recommended") or []
                 coverage_ok = all(float(card.get("evidence_coverage", 0)) >= 0.95 for card in cards)
                 pipeline_ok = (
