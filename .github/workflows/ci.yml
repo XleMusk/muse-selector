@@ -138,3 +138,21 @@ jobs:
           python -c "import json; p=json.load(open('metrics_result.json', encoding='utf-8')); assert p['schema_version'] == 'muse.selector.metrics.v1'; assert p['ok'] is True; assert p['read_only'] is True; assert p['failure_count'] == 0; assert p['hard_constraint_violation_rate'] == 0.0; assert p['replay_mismatch_count'] == 0; assert p['cost_proxy']['external_requests'] == 0"
           python tests/shadow_harness.py > shadow_result.json
           python -c "import json; p=json.load(open('shadow_result.json', encoding='utf-8')); assert p['schema_version'] == 'muse.selector.shadow.v1'; assert p['ok'] is True; assert p['read_only'] is True; assert p['failure_count'] == 0; assert p['hard_constraint_violation_rate'] == 0.0; assert p['replay_mismatch_count'] == 0; assert p['cost_proxy']['external_requests'] == 0; assert {c['region'] for c in p['cases']} == {'HK', 'CN'}"
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: muse-selector-verification-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: |
+            release_check.json
+            doctor.json
+            cli_result.json
+            state_graph.json
+            state_graph_saved.json
+            state_graph_replayed.json
+            domestic_result.json
+            game_account_result.json
+            fault_result.json
+            metrics_result.json
+            shadow_result.json
