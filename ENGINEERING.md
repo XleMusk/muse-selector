@@ -33,10 +33,10 @@ python tests/regression_harness.py
 
 当前已经执行的门包括 Ruff、目标模块 mypy、单元测试、离线回归、故障矩阵和安装后 CLI 验证。以下结构债务需要按顺序消化，不通过一次性格式化掩盖：
 
-1. `pipeline.py` 仍直接构造 eBay 适配器；下一步把来源选择放进组合根和来源工厂，管线只依赖 `SourceConnector`。
-2. `persistence.py` 仍反向导入应用用例；下一步注入搜索 callable，基础设施只负责存储和观察任务事务。
+1. `pipeline.py` 的默认连接器构造已经移到 `source_factory.py` 和 `SearchApplication`；管线仍保留兼容桥，后续可在迁移完直接 patch 管线的测试后删除。
+2. `persistence.py` 已支持注入搜索 callable，旧调用方仍通过兼容桥运行；下一步清理剩余旧 patch 点。
 3. `web.py` 同时承担路由、HTML 模板和能力探测；下一步拆出纯视图函数和 handler，默认文案保持中国大陆主线。
-4. `contracts.py`、YAML 和策略记录的来源能力枚举需要统一；新增来源必须同时更新契约、注册表和定向测试。
+4. `contracts.py`、YAML 和策略记录的来源能力枚举已经统一并保留旧值归一化；新增来源必须同时更新契约、注册表和定向测试。
 5. 全量 mypy、导入排序和格式检查先作为迁移报告，逐模块修复后再提升为 CI 阻断项，避免大范围无行为格式改动。
 
 香港 eBay 代码、fixture 和兼容测试保留为适配器层资产；它们不决定产品默认地区、默认查询或国内领域模型。

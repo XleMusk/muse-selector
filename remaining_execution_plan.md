@@ -14,13 +14,13 @@
 | 外部来源门 | 待外部条件 | 国内电子产品挂牌搜索和游戏账号挂牌搜索暂无登记的官方批量搜索授权，结果保持 `source_unavailable` 或 `link_only`；eBay 生产批准/keyset 只影响兼容基线 |
 | 扩展能力 | 部分完成 | W6 只有整包 checkpoint，W7 已有阈值事件去重和失败自动暂停但仍缺完整阈值跨越语义，W8 是只读 broker contract，W9 尚无反馈回放，W11 只有离线 synthetic，规模化存储/检索架构仍是后续阶段 |
 
-因此下一步不再重复已通过的本地门，而是按价值顺序处理：先完成 Google 风格的组合根与端口解耦，再补国内来源授权后的适配器；随后推进反馈回放、逐阶段 checkpoint 和本地 shadow 评测。eBay smoke、真实浏览器、FastAPI/Postgres/BM25/vector 等扩展不作为国内只读主线前置条件。
+因此下一步不再重复已通过的本地门，而是按价值顺序处理：组合根、搜索工厂、观察存储注入和来源能力契约的第一阶段已经完成；接下来拆 Web 视图/handler、清理兼容 patch 点，再补国内来源授权后的适配器，随后推进反馈回放、逐阶段 checkpoint 和本地 shadow 评测。eBay smoke、真实浏览器、FastAPI/Postgres/BM25/vector 等扩展不作为国内只读主线前置条件。
 
 ## Google 接手后的重构顺序
 
-第一步只改依赖方向：由组合根创建来源适配器，`pipeline.py` 只接收 `SourceConnector`，`persistence.py` 接收搜索 callable，Web 只调用应用用例。这样测试可以传入 fake，不再 patch `pipeline.EbayBrowseConnector` 或从基础设施反向导入应用层。
+第一步只改依赖方向：由组合根创建来源适配器，`SearchApplication` 注入 `SourceConnectorFactory`，`persistence.py` 接收搜索 callable，Web 显式传入应用用例。当前还保留一层兼容桥，待测试迁移后删除对 `pipeline.EbayBrowseConnector` 的 patch。
 
-第二步统一来源能力契约：`SourceCapability`、`PolicyRecord` 和 `data/source_registry.yaml` 使用同一组访问模式、状态和来源 ID。国内电子产品、游戏账号人工入口、转转估价和香港 eBay 兼容适配分别登记，不能由一个枚举混用。
+第二步统一来源能力契约：`SourceCapability`、`PolicyRecord` 和 `data/source_registry.yaml` 已使用同一组访问模式、状态和来源 ID，并对历史别名做显式归一化。国内电子产品、游戏账号人工入口、转转估价和香港 eBay 兼容适配分别登记，不能由一个枚举混用。
 
 第三步再拆 Web 视图、handler 和能力查询，扩大 mypy 到全包，并逐模块修复导入排序和格式问题。格式迁移不改变结果契约，也不把 eBay fixture 改写成国内数据。
 
