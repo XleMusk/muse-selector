@@ -29,6 +29,7 @@ ALLOWED_REGIONS = {"HK", "CN"}
 REGION_CURRENCY = {"HK": "HKD", "CN": "CNY"}
 DOMESTIC_SOURCE_IDS = {"zhuanzhuan.recommerce.mcp.v1", "xianyu.partner.v1"}
 POLICY_SOURCE_IDS = {"game_accounts.policy.v1"}
+FIXTURE_SOURCE_IDS = {"fixture.local.v1"}
 GAME_ACCOUNT_LINK_SOURCE_IDS = {
     "game_accounts.5173.link.v1",
     "game_accounts.taoshouyou.link.v1",
@@ -38,9 +39,34 @@ ALLOWED_SOURCE_IDS = {
     "ebay.browse.hk.v1",
     *DOMESTIC_SOURCE_IDS,
     *POLICY_SOURCE_IDS,
+    *FIXTURE_SOURCE_IDS,
     *GAME_ACCOUNT_LINK_SOURCE_IDS,
 }
-SOURCE_ACCESS_MODES = {"official_api", "authorized_partner", "user_link", "local_fixture"}
+SOURCE_ACCESS_MODES = frozenset({"official_api", "authorized_partner", "user_link", "local_fixture"})
+SOURCE_ACCESS_MODE_ALIASES = {
+    "licensed_feed": "authorized_partner",
+    "official_mcp": "authorized_partner",
+    "official_partner_api": "authorized_partner",
+    "user_authorized": "user_link",
+    "link_only": "user_link",
+}
+SOURCE_STATUSES = frozenset(
+    {
+        "ready",
+        "credential_pending",
+        "credential_unavailable",
+        "link_only",
+        "auxiliary_only",
+        "disabled",
+        "configuration_error",
+        "unavailable",
+    }
+)
+SOURCE_STATUS_ALIASES = {
+    "partner_api_pending": "credential_pending",
+    "partner_approval_pending": "credential_pending",
+}
+POLICY_DEFAULTS = frozenset({"allow_read_only", "link_only"})
 FILTER_OPERATORS = {"eq", "gte", "lte", "in", "contains", "exists"}
 UNKNOWN_POLICIES = {"reject", "allow", "flag"}
 COMPATIBILITY_STATUSES = {"confirmed", "mismatch", "unknown"}
@@ -75,6 +101,26 @@ def _status(value: str | None, name: str = "status") -> str:
     if value not in ALLOWED_STATUSES:
         raise ValueError(f"{name} must be one of {sorted(ALLOWED_STATUSES)}")
     return value
+
+
+def normalize_source_access_mode(value: str, name: str = "access_mode") -> str:
+    """Return the canonical read-only access mode for a source declaration."""
+    if not isinstance(value, str):
+        raise ValueError(f"{name} must be a string")
+    normalized = value.strip().lower()
+    normalized = SOURCE_ACCESS_MODE_ALIASES.get(normalized, normalized)
+    if normalized not in SOURCE_ACCESS_MODES:
+        raise ValueError(f"{name} must be one of {sorted(SOURCE_ACCESS_MODES)}")
+    return normalized
+
+
+def normalize_source_status(value: str | None, name: str = "status") -> str:
+    """Return the canonical readiness/status value for a source declaration."""
+    normalized = str(value or "unavailable").strip().lower()
+    normalized = SOURCE_STATUS_ALIASES.get(normalized, normalized)
+    if normalized not in SOURCE_STATUSES:
+        raise ValueError(f"{name} must be one of {sorted(SOURCE_STATUSES)}")
+    return normalized
 
 
 def _copy_map(value: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -539,14 +585,17 @@ class PolicyRecord:
     def __post_init__(self) -> None:
         if not self.source_id or not self.category:
             raise ValueError("source_id and category are required")
-        if self.access_mode not in {"official_api", "licensed_feed", "user_authorized", "link_only"}:
-            raise ValueError("unsupported access_mode")
+        try:
+            access_mode = normalize_source_access_mode(self.access_mode)
+        except ValueError as exc:
+            raise ValueError("unsupported access_mode") from exc
+        object.__setattr__(self, "access_mode", access_mode)
         _http_url(self.authorization_evidence_url, "authorization_evidence_url")
         object.__setattr__(self, "allowed_regions", tuple(self.allowed_regions or ()))
         object.__setattr__(self, "allowed_fields", tuple(self.allowed_fields or ()))
         object.__setattr__(self, "write_actions", tuple(self.write_actions or ()))
-        if self.default_policy != "allow_read_only":
-            raise ValueError("MVP policy must be allow_read_only")
+        if self.default_policy not in POLICY_DEFAULTS:
+            raise ValueError(f"MVP policy must be one of {sorted(POLICY_DEFAULTS)}")
         if self.write_actions:
             raise ValueError("read-only MVP cannot register write_actions")
 
@@ -580,8 +629,8 @@ class SourceCapability:
     def __post_init__(self) -> None:
         if not self.source_id or not self.display_name or not self.category:
             raise ValueError("source_id, display_name and category are required")
-        if self.access_mode not in SOURCE_ACCESS_MODES:
-            raise ValueError(f"access_mode must be one of {sorted(SOURCE_ACCESS_MODES)}")
+        object.__setattr__(self, "access_mode", normalize_source_access_mode(self.access_mode))
+        object.__setattr__(self, "status", normalize_source_status(self.status))
         if not self.read_only or self.write_actions:
             raise ValueError("MVP source capabilities must be read-only")
         if self.authorization_evidence_url is not None:

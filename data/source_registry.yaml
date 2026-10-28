@@ -21,6 +21,7 @@ sources:
       - EBAY_CLIENT_ID
       - EBAY_CLIENT_SECRET
     environments: [sandbox, production]
+    status: credential_pending
     production_access_status: partner_approval_pending
     default_policy: allow_read_only
     retention_days: 30
@@ -34,13 +35,13 @@ sources:
   - source_id: xianyu.partner.v1
     display_name: 闲鱼官方合作方能力（待搜索权限）
     category: computers_hardware
-    access_mode: official_partner_api
+    access_mode: authorized_partner
     region: CN
     currency: CNY
     read_only: true
     writes_enabled: false
     listing_search: false
-    status: partner_api_pending
+    status: link_only
     authentication: appkey_oauth_user_authorization
     authorization_evidence_url: https://open.goofish.com/doc/development/dev/server.html
     allowed_fields: [title, url, price, condition, stock, seller, specs]
@@ -55,12 +56,13 @@ sources:
   - source_id: zhuanzhuan.recommerce.mcp.v1
     display_name: 转转官方 MCP 回收估价
     category: computers_hardware
-    access_mode: official_mcp
+    access_mode: authorized_partner
     region: CN
     currency: CNY
     read_only: true
     writes_enabled: false
     listing_search: false
+    status: auxiliary_only
     capabilities: [recycle_valuation, open_recycle_entry]
     authentication: bearer_token_after_phone_verification
     authorization_evidence_url: https://open.zhuanzhuan.com/mcp
@@ -134,4 +136,17 @@ sources:
     write_actions: []
     default_policy: link_only
     authorization_evidence_url: https://jaoyimc.com.cn/
+
+  - source_id: fixture.local.v1
+    display_name: 本地固定回归数据
+    category: computers_hardware
+    access_mode: local_fixture
+    read_only: true
+    writes_enabled: false
+    listing_search: true
+    status: ready
+    allowed_regions: [HK, CN]
+    allowed_fields: [title, url, price, condition, stock, shipping, seller, specs]
+    write_actions: []
+    default_policy: allow_read_only
 

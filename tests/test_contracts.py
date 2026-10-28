@@ -2,7 +2,15 @@ import unittest
 from decimal import Decimal
 from pathlib import Path
 
-from muse_selector.contracts import Evidence, Listing, PolicyRecord, SearchSpec
+from muse_selector.contracts import (
+    Evidence,
+    Listing,
+    PolicyRecord,
+    SearchSpec,
+    SourceCapability,
+    normalize_source_access_mode,
+    normalize_source_status,
+)
 from muse_selector.filtering import filter_listings
 from muse_selector.result_card import build_card
 
@@ -19,6 +27,28 @@ class ContractTests(unittest.TestCase):
         self.assertIn("EBAY_SANDBOX_CLIENT_ID", text)
         self.assertIn("xianyu.partner.v1", text)
         self.assertIn("zhuanzhuan.recommerce.mcp.v1", text)
+
+    def test_source_contracts_normalize_legacy_modes_and_statuses(self):
+        self.assertEqual(normalize_source_access_mode("official_partner_api"), "authorized_partner")
+        self.assertEqual(normalize_source_access_mode("user_authorized"), "user_link")
+        self.assertEqual(normalize_source_status("partner_api_pending"), "credential_pending")
+        policy = PolicyRecord(
+            source_id="xianyu.partner.v1",
+            category="computers_hardware",
+            access_mode="licensed_feed",
+            authorization_evidence_url="https://open.goofish.com/doc/development/dev/server.html",
+            default_policy="link_only",
+        )
+        self.assertEqual(policy.access_mode, "authorized_partner")
+        capability = SourceCapability(
+            source_id="zhuanzhuan.recommerce.mcp.v1",
+            display_name="转转官方 MCP 回收估价",
+            category="computers_hardware",
+            access_mode="official_mcp",
+            status="partner_api_pending",
+        )
+        self.assertEqual(capability.to_dict()["access_mode"], "authorized_partner")
+        self.assertEqual(capability.to_dict()["status"], "credential_pending")
 
     def test_search_spec_normalizes_money(self):
         spec = SearchSpec.from_dict({"query": "USB4 laptop", "budget_max": "12000", "required_specs": {"ram_gb": 32}})
