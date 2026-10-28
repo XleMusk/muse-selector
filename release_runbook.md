@@ -49,6 +49,7 @@ Invoke-RestMethod http://127.0.0.1:8765/api/capabilities
 muse-watch --db D:\muse\data\selector.sqlite3 --action status --watch-id mini_pc_hk
 muse-watch --db D:\muse\data\selector.sqlite3 --action changes --watch-id mini_pc_hk --include-payload
 muse-watch --db D:\muse\data\selector.sqlite3 --action events --watch-id mini_pc_hk
+muse-watch --db D:\muse\data\selector.sqlite3 --action consume-events --watch-id mini_pc_hk
 ```
 
 ## 质量门命令
@@ -58,10 +59,12 @@ python -m unittest discover -s tests -p "test_*.py" -q
 python tests/regression_harness.py
 python tests/fault_harness.py
 python tests/metrics_harness.py
+python tests/shadow_harness.py
+muse-release-check --root D:\muse
 git diff --check
 ```
 
-必须满足：`hard_constraint_violation_rate=0.0`、fault matrix `ok=true`、metrics `ok=true`、`read_only=true`、fixture 模式外部请求成本代理为 0、checkpoint 重放无差异。GitHub CI 必须为绿色。
+必须满足：`hard_constraint_violation_rate=0.0`、fault matrix `ok=true`、metrics `ok=true`、shadow `ok=true`、release check `local_ready=true`、`read_only=true`、fixture 模式外部请求成本代理为 0、checkpoint 重放无差异。GitHub CI 必须为绿色。
 
 ## 来源故障和熔断
 
