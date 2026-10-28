@@ -197,12 +197,13 @@ def run_search_graph(
             raise ValueError("checkpoint must be an object")
         if checkpoint.get("execution_id") != execution_id:
             raise ValueError("checkpoint belongs to a different execution request")
-        if checkpoint.get("completed_stage") == "fanout":
+        if checkpoint.get("completed_stage") in {"fanout", "normalize"}:
             snapshots = checkpoint.get("stage_snapshots")
-            fanout = snapshots.get("fanout") if isinstance(snapshots, Mapping) else None
-            if not isinstance(fanout, Mapping):
-                raise ValueError("fanout resume checkpoint is missing stage snapshot")
-            resume_state = {"completed_stage": "fanout", **dict(fanout)}
+            completed_stage = str(checkpoint.get("completed_stage"))
+            snapshot = snapshots.get(completed_stage) if isinstance(snapshots, Mapping) else None
+            if not isinstance(snapshot, Mapping):
+                raise ValueError(f"{completed_stage} resume checkpoint is missing stage snapshot")
+            resume_state = {"completed_stage": completed_stage, **dict(snapshot)}
             payload = run_search(
                 query,
                 fixture_path,

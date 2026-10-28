@@ -255,13 +255,16 @@ def run_search(
     source_metadata: dict[str, Any] = {}
     resumed_source_capability: dict[str, Any] | None = None
     try:
-        resumed_fanout = resume_mapping is not None and resume_mapping.get("completed_stage") == "fanout"
-        if resumed_fanout:
+        resumed_stage = str(resume_mapping.get("completed_stage")) if resume_mapping is not None else None
+        resumed_fanout = resumed_stage == "fanout"
+        resumed_normalize = resumed_stage == "normalize"
+        if resumed_fanout or resumed_normalize:
             assert resume_mapping is not None
-            raw_rows = resume_mapping.get("rows")
-            if not isinstance(raw_rows, list) or any(not isinstance(row, Mapping) for row in raw_rows):
-                raise ValueError("resume checkpoint fanout rows are invalid")
-            rows = [dict(row) for row in raw_rows]
+            if resumed_fanout:
+                raw_rows = resume_mapping.get("rows")
+                if not isinstance(raw_rows, list) or any(not isinstance(row, Mapping) for row in raw_rows):
+                    raise ValueError("resume checkpoint fanout rows are invalid")
+                rows = [dict(row) for row in raw_rows]
             raw_metadata = resume_mapping.get("source_metadata")
             source_metadata = dict(raw_metadata) if isinstance(raw_metadata, Mapping) else {}
             raw_capability = resume_mapping.get("source_capability")
@@ -314,10 +317,10 @@ def run_search(
             "source_capability": _source_capability(source_id, connector),
             "read_only": True,
         }
-    if not (resume_mapping is not None and resume_mapping.get("completed_stage") == "fanout"):
+    if not (resume_mapping is not None and resume_mapping.get("completed_stage") in {"fanout", "normalize"}):
         assert connector is not None
         source_metadata = dict(connector.source_metadata)
-    if stage_callback is not None:
+    if stage_callback is not None and not resumed_normalize:
         stage_callback(
             "fanout",
             {
@@ -331,7 +334,25 @@ def run_search(
     evidence_by_id: dict[str, list[Evidence]] = {}
     source_rank_by_id: dict[str, int] = {}
     dropped: list[dict[str, str]] = []
-    for source_rank, row in enumerate(rows, 1):
+    if resumed_normalize:
+        assert resume_mapping is not None
+        raw_listings = resume_mapping.get("listings")
+        raw_evidence = resume_mapping.get("evidence_by_id")
+        raw_ranks = resume_mapping.get("source_rank_by_id")
+        raw_dropped = resume_mapping.get("dropped")
+        if not isinstance(raw_listings, list) or any(not isinstance(item, Mapping) for item in raw_listings):
+            raise ValueError("resume checkpoint normalize listings are invalid")
+        if not isinstance(raw_evidence, Mapping) or not isinstance(raw_ranks, Mapping) or not isinstance(raw_dropped, list):
+            raise ValueError("resume checkpoint normalize snapshot is invalid")
+        listings = [Listing.from_dict(item) for item in raw_listings]
+        evidence_by_id = {
+            str(listing_id): [Evidence(**dict(item)) for item in items]
+            for listing_id, items in raw_evidence.items()
+            if isinstance(items, list) and all(isinstance(item, Mapping) for item in items)
+        }
+        source_rank_by_id = {str(key): int(value) for key, value in raw_ranks.items()}
+        dropped = [dict(item) for item in raw_dropped if isinstance(item, Mapping)]
+    for source_rank, row in enumerate(rows if not resumed_normalize else [], 1):
         try:
             listing, evidence, reason = _to_listing(row, product_type=spec.product_type)
         except (TypeError, ValueError, OverflowError):
@@ -372,6 +393,23 @@ def run_search(
             item_rank
             if isinstance(item_rank, int) and not isinstance(item_rank, bool) and item_rank > 0
             else source_rank
+        )
+    if stage_callback is not None and not resumed_normalize:
+        stage_callback(
+            "normalize",
+            {
+                "completed_stage": "normalize",
+                "source_id": source_id,
+                "source_metadata": dict(source_metadata),
+                "source_capability": resumed_source_capability or _source_capability(source_id, connector),
+                "listings": [listing.to_dict() for listing in listings],
+                "evidence_by_id": {
+                    listing_id: [item.to_dict() for item in evidence]
+                    for listing_id, evidence in evidence_by_id.items()
+                },
+                "source_rank_by_id": dict(source_rank_by_id),
+                "dropped": list(dropped),
+            },
         )
     accepted, decisions = filter_listings(spec, listings)
     # eBay's Buy API requirements prohibit partner-side re-sorting. Preserve
