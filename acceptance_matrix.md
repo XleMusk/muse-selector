@@ -24,7 +24,7 @@
 | 离线回归、硬约束/排名和实体质量基线 | `tests/regression_harness.py`、`tests/fixtures/queries.json`、`examples/regression_result.json` | `ok=true`；`hard_constraint_violation_rate=0.0`；已输出 Precision@10、Recall@20、NDCG@10、Top-k Jaccard、显式实体键去重和 TTL 质量报告 |
 | 凭据泄露、SSRF、分页元数据越界、越权来源、跨租户页面、重复副作用 | 连接器/管线/Web/SQLite 测试集；分页 `href`/`next`/`prev` 仅接受官方 eBay Browse 搜索端点；本地 Web 仅 loopback | 已通过 |
 | W10 故障注入矩阵 | `tests/fault_harness.py`、`examples/fault_result.json`、`.github/workflows/ci.yml` | OAuth/429/坏响应、token 脱敏、损坏 checkpoint、重复事件、SSRF/提示注入均通过；离线、只读 |
-| W11 合成灰度指标 | `tests/metrics_harness.py`、`tests/test_metrics.py`、`examples/metrics_result.json`、`.github/workflows/ci.yml` | p50/p95、成功率、失败率、重放稳定性、硬约束率和外部请求成本代理可复现；只读 |
+| W11 合成灰度与跨市场 shadow | `tests/metrics_harness.py`、`tests/shadow_harness.py`、`tests/test_metrics.py`、`examples/metrics_result.json`、`examples/shadow_result.json`、`.github/workflows/ci.yml` | p50/p95、成功率、失败率、重放稳定性、HK/CN 结果顺序、硬约束率和外部请求成本代理可复现；只读 |
 | W12 Runbook 与 Go/No-Go | `release_runbook.md`、`remaining_execution_plan.md`、`.github/workflows/ci.yml` | 启动、熔断、删除、事故响应、回滚和发布条件已形成可执行文档；真实生产 smoke 仍待官方批准/keyset |
 | W12 可执行 release check | `src/muse_selector/release_check.py`、`tests/test_release_check.py`、`.github/workflows/ci.yml` | 离线验证本地 artifact/document readiness，并明确 live gate pending；不读取 secret 值、不联网 |
 | 脱敏 live smoke 证据 | `src/muse_selector/smoke.py`、`src/muse_selector/release_check.py`、`tests/test_smoke.py` | 可保存无凭据 smoke 摘要；仅有效 schema/source/read_only/status/environment 才计入 `real_smoke_recorded` |

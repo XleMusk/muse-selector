@@ -23,7 +23,7 @@ class ReleaseCheckTests(unittest.TestCase):
     def test_valid_smoke_evidence_is_recorded_without_opening_go_gate(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            for name in ("regression_result", "fault_result", "metrics_result"):
+            for name in ("regression_result", "fault_result", "metrics_result", "shadow_result"):
                 (root / "examples").mkdir(exist_ok=True)
                 (root / "examples" / f"{name}.json").write_text(json.dumps({"ok": True}), encoding="utf-8")
             for name in ("README.md", "acceptance_matrix.md", "remaining_execution_plan.md", "release_runbook.md"):

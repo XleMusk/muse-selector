@@ -1,0 +1,53 @@
+{
+  "cases": [
+    {
+      "currency": "HKD",
+      "hard_constraint_violations": [],
+      "latency_ms": 60.498,
+      "name": "hk_compatibility_fixture",
+      "ok": true,
+      "query": "���Ԥ�� HKD 7000 ���ڵ���������",
+      "read_only": true,
+      "recommended_ids": [
+        "v1|100000000001|0"
+      ],
+      "recommended_order_stable": true,
+      "region": "HK",
+      "replay_stable": true,
+      "source": "ebay.browse.hk.v1",
+      "status": "complete"
+    },
+    {
+      "currency": "CNY",
+      "hard_constraint_violations": [],
+      "latency_ms": 1.147,
+      "name": "cn_local_fixture",
+      "ok": true,
+      "query": "����Ԥ�� CNY 8000 ���ڵĶ�����������",
+      "read_only": true,
+      "recommended_ids": [
+        "cn-mini-001"
+      ],
+      "recommended_order_stable": true,
+      "region": "CN",
+      "replay_stable": true,
+      "source": "fixture.local.v1",
+      "status": "complete"
+    }
+  ],
+  "cost_proxy": {
+    "external_requests": 0,
+    "unit": "local_fixture_pipeline_invocation"
+  },
+  "failure_count": 0,
+  "hard_constraint_violation_rate": 0.0,
+  "mode": "offline_cross_market_shadow",
+  "ok": true,
+  "read_only": true,
+  "replay_mismatch_count": 0,
+  "replay_stability_rate": 1.0,
+  "schema_version": "muse.selector.shadow.v1",
+  "success_count": 2,
+  "success_rate": 1.0,
+  "workload_count": 2
+}

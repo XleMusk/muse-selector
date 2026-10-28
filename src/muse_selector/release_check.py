@@ -16,6 +16,7 @@ _ARTIFACTS = {
     "regression": "examples/regression_result.json",
     "faults": "examples/fault_result.json",
     "metrics": "examples/metrics_result.json",
+    "shadow": "examples/shadow_result.json",
 }
 _LIVE_SMOKE_EVIDENCE = "examples/live_smoke_result.json"
 _DOCUMENTS = ("README.md", "acceptance_matrix.md", "remaining_execution_plan.md", "release_runbook.md")
