@@ -225,7 +225,8 @@ def run_search(
             "policy": policy,
             "read_only": True,
         }
-    if spec.region == "CN":
+    local_fixture = connector is not None and getattr(connector, "source_id", None) == "fixture.local.v1"
+    if spec.region == "CN" and not local_fixture:
         # Domestic second-hand sources are registered by capability, but the
         # public official APIs currently expose no general arbitrary-listing
         # search connector.  Fail closed instead of routing a mainland query

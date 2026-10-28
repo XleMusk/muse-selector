@@ -1,5 +1,7 @@
 import unittest
+from pathlib import Path
 
+from muse_selector.connectors.local_fixture import LocalFixtureConnector
 from muse_selector.pipeline import run_search
 from muse_selector.query_parser import parse_query
 from muse_selector.result_card import render_markdown
@@ -7,6 +9,17 @@ from muse_selector.source_capabilities import source_capability_registry
 
 
 class ChinaAndGameAccountScopeTests(unittest.TestCase):
+    def test_domestic_local_fixture_is_explicit_and_returns_cny_cards(self):
+        fixture = Path(__file__).resolve().parent / "fixtures" / "domestic_cn_sample.json"
+        payload = run_search(
+            "国内预算 CNY 8000 以内的二手迷你主机",
+            connector=LocalFixtureConnector(fixture),
+        )
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["source"], "fixture.local.v1")
+        self.assertEqual(payload["search_spec"]["currency"], "CNY")
+        self.assertEqual([item["listing_id"] for item in payload["recommended"]], ["cn-mini-001"])
+
     def test_unqualified_second_hand_query_uses_domestic_profile(self):
         spec = parse_query("二手显卡，预算 5000 元")
         self.assertEqual((spec.region, spec.currency), ("CN", "CNY"))

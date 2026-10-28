@@ -9,6 +9,7 @@ from .ebay import (
     resolve_credentials,
 )
 from .zhuanzhuan import ZhuanzhuanMcpConfig, ZhuanzhuanMcpConnector
+from .local_fixture import LocalFixtureConnector
 
 __all__ = [
     "ConnectorUnavailable",
@@ -19,5 +20,6 @@ __all__ = [
     "resolve_credentials",
     "ZhuanzhuanMcpConfig",
     "ZhuanzhuanMcpConnector",
+    "LocalFixtureConnector",
 ]
 

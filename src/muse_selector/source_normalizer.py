@@ -91,7 +91,10 @@ def normalize_source_row(
     if not is_allowed_market_url(str(url)):
         return None, [], "untrusted_source_url"
     price = row.get("price") or {}
-    if str(price.get("currency") or "HKD") != "HKD":
+    source_id = str(row.get("source_id") or "")
+    currency = str(price.get("currency") or row.get("currency") or "HKD")
+    region = str(row.get("region") or ("CN" if currency == "CNY" else "HK"))
+    if (region, currency) not in {("HK", "HKD"), ("CN", "CNY")}:
         return None, [], "currency_mismatch"
     shipping = row.get("shipping_options")
     shipping_values: list[Any] = []
@@ -102,7 +105,7 @@ def normalize_source_row(
             cost = option.get("shippingCost")
             if not isinstance(cost, Mapping) or cost.get("value") is None:
                 continue
-            if str(cost.get("currency") or "HKD") != "HKD":
+            if str(cost.get("currency") or currency) != currency:
                 continue
             shipping_values.append(cost["value"])
     unique_shipping_values = {str(value) for value in shipping_values}
@@ -132,7 +135,7 @@ def normalize_source_row(
         if not source_url or not is_allowed_market_url(str(source_url)):
             continue
         evidence_source_id = str(item.get("source_id") or row.get("source_id") or "")
-        if evidence_source_id != str(row.get("source_id") or "") or str(source_url) != str(url):
+        if evidence_source_id != source_id or str(source_url) != str(url):
             evidence_attribution_issue = True
             continue
         value = item.get("value")
@@ -181,11 +184,11 @@ def normalize_source_row(
         flags.append("evidence_coverage_low")
     listing = Listing(
         listing_id=str(row["listing_id"]),
-        source_id=str(row["source_id"]),
+        source_id=source_id,
         title=str(row.get("title") or "unknown"),
         url=str(url),
-        region="HK",
-        currency=str(price.get("currency") or "HKD"),
+        region=region,
+        currency=currency,
         price=price.get("value"),
         shipping_cost=shipping_value,
         stock_status={"IN_STOCK": "in_stock", "OUT_OF_STOCK": "out_of_stock"}.get(

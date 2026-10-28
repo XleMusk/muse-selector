@@ -1,0 +1,29 @@
+{
+  "source_id": "fixture.local.v1",
+  "listings": [
+    {
+      "listing_id": "cn-mini-001",
+      "source_id": "fixture.local.v1",
+      "title": "二手迷你主机 32GB 1TB SSD",
+      "url": "https://www.goofish.com/item/cn-mini-001",
+      "region": "CN",
+      "currency": "CNY",
+      "price": {"value": "3299.00", "currency": "CNY"},
+      "availability": "IN_STOCK",
+      "condition": "Used",
+      "shipping_options": [{"shippingCost": {"value": "0.00", "currency": "CNY"}}],
+      "seller": {"feedback_percentage": "98.8"},
+      "specs": {"ram_gb": 32, "storage_gb": 1024},
+      "product_id": "cn-mini-model-001",
+      "source_observed_at": "2026-10-28T00:00:00Z",
+      "evidence": [
+        {"field": "title", "value": "二手迷你主机 32GB 1TB SSD", "status": "confirmed", "source_id": "fixture.local.v1", "source_url": "https://www.goofish.com/item/cn-mini-001", "observed_at": "2026-10-28T00:00:00Z"},
+        {"field": "url", "value": "https://www.goofish.com/item/cn-mini-001", "status": "confirmed", "source_id": "fixture.local.v1", "source_url": "https://www.goofish.com/item/cn-mini-001", "observed_at": "2026-10-28T00:00:00Z"},
+        {"field": "price", "value": {"value": "3299.00", "currency": "CNY"}, "status": "confirmed", "source_id": "fixture.local.v1", "source_url": "https://www.goofish.com/item/cn-mini-001", "observed_at": "2026-10-28T00:00:00Z"},
+        {"field": "condition", "value": "Used", "status": "confirmed", "source_id": "fixture.local.v1", "source_url": "https://www.goofish.com/item/cn-mini-001", "observed_at": "2026-10-28T00:00:00Z"},
+        {"field": "seller", "value": {"feedback_percentage": "98.8"}, "status": "confirmed", "source_id": "fixture.local.v1", "source_url": "https://www.goofish.com/item/cn-mini-001", "observed_at": "2026-10-28T00:00:00Z"},
+        {"field": "shippingOptions", "value": [{"shippingCost": {"value": "0.00", "currency": "CNY"}}], "status": "confirmed", "source_id": "fixture.local.v1", "source_url": "https://www.goofish.com/item/cn-mini-001", "observed_at": "2026-10-28T00:00:00Z"}
+      ]
+    }
+  ]
+}

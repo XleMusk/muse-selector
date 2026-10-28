@@ -11,6 +11,16 @@ MARKET_SOURCE_HOSTS = frozenset(
         "www.ebay.com.hk",
         "ebay.com",
         "www.ebay.com",
+        "goofish.com",
+        "www.goofish.com",
+        "zhuanzhuan.com",
+        "www.zhuanzhuan.com",
+        "5173.com",
+        "www.5173.com",
+        "taoshouyou.com",
+        "www.taoshouyou.com",
+        "jaoyimc.com.cn",
+        "www.jaoyimc.com.cn",
     }
 )
 
